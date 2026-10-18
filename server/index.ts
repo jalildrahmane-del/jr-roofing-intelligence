@@ -3,6 +3,7 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
+import { saveGate } from "./gates.ts";
 import { saveTender } from "./tender.ts";
 import { renderReport } from "./report.ts";
 import { positive, text, preliminaryLoad } from "../src/model.ts";
@@ -178,6 +179,40 @@ export function createApp(store: Store, root = resolve("dist")) {
         res.end(pdf);
         return;
       }
+      if (url.pathname.startsWith("/api/dossiers/") && req.method === "GET") {
+        if (user.role === "worker")
+          return reply(403, {
+            error: "Forbidden: project dossier access required",
+          });
+        const pid = url.pathname.slice("/api/dossiers/".length),
+          state = store.snapshot(user),
+          project = state.projects.find((p) => p.id === pid);
+        if (!project) return reply(404, { error: "Project not found" });
+        const records = state.records.filter((r) => r.pid === pid);
+        const audit = store.db
+          .prepare(
+            "SELECT seq,at,actor,action,detail,previous_hash,hash FROM audit ORDER BY seq",
+          )
+          .all()
+          .filter((r: any) => {
+            const d = JSON.parse(r.detail);
+            return (
+              d.pid === pid || (r.action === "project.create" && d.id === pid)
+            );
+          });
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="jr-dossier-${project.id}.json"`,
+        );
+        return reply(200, {
+          project,
+          records,
+          audit,
+          exportedAt: new Date().toISOString(),
+          notice:
+            "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
+        });
+      }
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
       if (url.pathname === "/api/projects" && req.method === "POST")
@@ -227,7 +262,10 @@ export function saveRecord(
       kind,
       preliminaryLoad(data.thickness, data.density, data.area, data.other),
     );
-  return saveTender(store, user, pid, kind, data);
+  return (
+    saveGate(store, user, pid, kind, data) ||
+    saveTender(store, user, pid, kind, data)
+  );
 }
 if (
   process.argv[1] &&
