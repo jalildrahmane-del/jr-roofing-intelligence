@@ -1,4 +1,4 @@
-name: Issue 2 survey-to-tender validation
+name: Issue 3 engineering and handover validation
 on:
   workflow_dispatch:
   pull_request:
@@ -7,13 +7,13 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: issue-2-review-${{ github.event.pull_request.number || github.ref }}
+  group: issue-3-review-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   validate:
     # Standard hosted runners are free for this public repository.
-    # Automatic execution is limited to the authorised Issue #2 branch.
-    if: ${{ !github.event.repository.private && (github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/issue-2-survey-to-tender' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+    # Automatic execution is limited to the authorised Issue #3 branch.
+    if: ${{ !github.event.repository.private && (github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/issue-3-approval-gates' && github.event.pull_request.head.repo.full_name == github.repository)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,7 +37,7 @@ jobs:
         run: npm run test:dev
         timeout-minutes: 2
       - run: npx playwright install --with-deps chromium
-      - name: Existing and survey-to-tender browser workflows
+      - name: Existing, tender and approval-gate browser workflows
         run: npm run test:browser
         timeout-minutes: 3
       - name: Install PDF validation tools

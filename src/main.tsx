@@ -5,6 +5,7 @@ import type { Snapshot, User } from "./model.ts";
 import "./style.css";
 import { current } from "./tender.ts";
 import { api, ApiError } from "./api.ts";
+import { ApprovalWorkflow } from "./ApprovalWorkflow.tsx";
 import { Workflow, Journey } from "./Workflow.tsx";
 export function Form({
   fields,
@@ -354,6 +355,19 @@ function App() {
               refresh={refresh}
             />
           )}
+          {["design", "construction", "quality", "handover"].includes(
+            route,
+          ) && (
+            <ApprovalWorkflow
+              key={pid + route}
+              route={route}
+              pid={pid}
+              project={project}
+              records={state.records.filter((r) => r.pid === pid)}
+              user={user}
+              refresh={refresh}
+            />
+          )}
           {![
             "dashboard",
             "projects",
@@ -362,6 +376,10 @@ function App() {
             "survey",
             "materials",
             "estimating",
+            "design",
+            "construction",
+            "quality",
+            "handover",
           ].includes(route) && (
             <section>
               <p>

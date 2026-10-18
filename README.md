@@ -72,3 +72,9 @@ npm run backup -- /private/new-backup.sqlite
 ```
 
 This makes a consistent snapshot including committed WAL data, checks integrity, restricts file permissions and refuses to overwrite an existing destination. See [architecture and restore procedure](docs/ARCHITECTURE.md), [audit findings](docs/ISSUE-1-AUDIT.md), and [validation report](docs/TEST-REPORT.md).
+
+### Engineering, construction and handover — Issue 3
+
+The existing Design, Construction, Quality and Handover routes now contain revision-controlled registers and server-enforced human approval gates. Engineering acceptance requires a separately appointed engineer and exact current evidence; preliminary OSB arithmetic never certifies safety. Reviewed controls, stage inspections, snags and O&M/client evidence gate release and closeout.
+
+See [Issue 3 architecture and operator journey](docs/ISSUE-3-DESIGN.md) and [validation report](docs/ISSUE-3-TEST-REPORT.md). The authenticated handover dossier export includes immutable record history and audit hashes. No deployment or paid integration is enabled.
