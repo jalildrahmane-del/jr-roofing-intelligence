@@ -1,19 +1,19 @@
-name: Issue 1 review validation
+name: Issue 2 survey-to-tender validation
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    types: [synchronize, reopened]
+    types: [opened, synchronize, reopened]
 permissions:
   contents: read
 concurrency:
-  group: issue-1-review-${{ github.event.pull_request.number || github.ref }}
+  group: issue-2-review-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   validate:
-    # Standard hosted runner is free only while this repository is public.
-    # PR-triggered validation is limited to the currently authorised PR #6.
-    if: ${{ !github.event.repository.private && (github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 6) }}
+    # Standard hosted runners are free for this public repository.
+    # Automatic execution is limited to the authorised Issue #2 branch.
+    if: ${{ !github.event.repository.private && (github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/issue-2-survey-to-tender' && github.event.pull_request.head.repo.full_name == github.repository)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,5 +37,12 @@ jobs:
         run: npm run test:dev
         timeout-minutes: 2
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - name: Existing and survey-to-tender browser workflows
+        run: npm run test:browser
+        timeout-minutes: 3
+      - name: Install PDF validation tools
+        run: sudo apt-get install -y poppler-utils
+      - name: PDF text, totals and printable bounds
+        run: npm run test:pdf
+        timeout-minutes: 2
       # No cache saves or artifact uploads: no billable Actions storage is created.

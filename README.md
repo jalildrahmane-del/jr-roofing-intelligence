@@ -1,6 +1,6 @@
-# JR Roofing Intelligence — Issue #1 review build
+# JR Roofing Intelligence — survey-to-tender review build
 
-Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issues #2–#5 are not implemented in this PR.
+Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issue #2 adds the survey, source catalogue, estimating and PDF document journey. Issues #3–#5 are not implemented.
 
 ## Start locally
 
@@ -48,7 +48,7 @@ npx playwright install chromium
 npm run validate
 ```
 
-This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, and a development proxy smoke test. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. GitHub Actions validation is enabled for PR #6 updates and manual dispatch. A public-repository guard limits execution to the free standard hosted runner; cache saves and artifact uploads are disabled. It does not deploy or call paid APIs.
+This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, a development proxy smoke test and PDF content/layout checks. Install Poppler (`poppler-utils` on Ubuntu) for PDF checks. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. GitHub Actions validation is enabled for the authorised Issue #2 branch and manual dispatch. A public-repository guard limits execution to the free standard hosted runner; cache saves and artifact uploads are disabled. It does not deploy or call paid APIs.
 
 If standard Chromium download is unavailable, the installed bundled Chromium dependency can be extracted locally:
 
@@ -58,6 +58,12 @@ JR_CHROMIUM_PATH="$PWD/.data/browser/chromium" npm run validate
 ```
 
 `JR_PLAYWRIGHT_MODULE` optionally selects an externally installed Playwright module; normal `npm ci` installs the pinned version locally.
+
+## Survey to tender
+
+See [the complete Issue #2 journey and calculation policy](docs/ISSUE-2-DESIGN.md) and [validation coverage](docs/ISSUE-2-TEST-REPORT.md). Create roof surveys, defects and annotated photo evidence; record manufacturer/source data; price and compare options; then generate PDF snapshots. A different manager must explicitly review and approve a document for issue. Document review never grants engineering certification.
+
+Migration 2 automatically adds image evidence storage while preserving version-1 records. Take a backup before upgrading. Images and snapshots are included in SQLite backups; legacy browser JSON remains separate.
 
 ## Backup and rollback
 

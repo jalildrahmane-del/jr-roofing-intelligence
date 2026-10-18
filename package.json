@@ -12,21 +12,26 @@
     "dev": "node scripts/dev.mjs",
     "start": "node server/index.ts",
     "test": "node --test tests/*.test.ts",
-    "test:browser": "node tests/browser.mjs",
-    "validate": "npm run typecheck && npm test && npm run build && npm run test:browser && npm run test:dev",
+    "test:browser": "node tests/browser.mjs && node tests/tender-browser.mjs",
+    "validate": "npm run typecheck && npm test && npm run build && npm run test:browser && npm run test:dev && npm run test:pdf",
     "backup": "node scripts/backup.ts",
-    "test:dev": "node tests/dev.mjs"
+    "test:dev": "node tests/dev.mjs",
+    "test:pdf": "node tests/pdf.mjs"
   },
   "dependencies": {
+    "image-size": "2.0.4",
+    "pdfkit": "0.20.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@sparticuz/chromium": "^153.0.0",
     "@types/node": "22.20.1",
+    "@types/pdfkit": "0.17.6",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "playwright": "1.62.1",
+    "prettier": "3.8.1",
     "typescript": "6.0.3",
     "vite": "8.2.1"
   }
