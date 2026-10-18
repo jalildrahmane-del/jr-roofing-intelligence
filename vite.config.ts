@@ -1,0 +1,2 @@
+import {defineConfig} from 'vite';
+export default defineConfig({server:{host:'127.0.0.1',strictPort:true,proxy:{'/api':{target:`http://127.0.0.1:${process.env.JR_API_PORT||3001}`,changeOrigin:true,configure(proxy){proxy.on('proxyReq',(outgoing,incoming)=>{if(incoming.headers.origin===`http://${incoming.headers.host}`)outgoing.setHeader('Origin',`http://127.0.0.1:${process.env.JR_API_PORT||3001}`)})}}}}});
