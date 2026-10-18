@@ -8,6 +8,7 @@ import {
   writeFileSync,
   statSync,
   existsSync,
+  mkdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -82,10 +83,16 @@ test("staging HTTP rejects origin bypass and spoofed identity; Access plus assig
   const folder = mkdtempSync(join(tmpdir(), "jr-stage-http-")),
     path = join(folder, "seed.sqlite");
   seedStaging(path, "owner-review", "synthetic-owner-password");
+  const root = join(folder, "static");
+  mkdirSync(join(root, "legacy"), { recursive: true });
+  writeFileSync(
+    join(root, "legacy", "index.html"),
+    "<p>Synthetic HTTP static fixture</p>",
+  );
   const store = new Store(path),
     f = accessFixture(),
     verify = stagingVerifier(f.config, async () => ({ keys: [f.jwk] })),
-    server = createApp(store, undefined, f.config, verify);
+    server = createApp(store, root, f.config, verify);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${(server.address() as any).port}`,
     headers = {
