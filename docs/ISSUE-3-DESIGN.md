@@ -37,7 +37,7 @@ An engineer role alone never authorises structural acceptance. Account provision
 - Changes to design, work scope, relevant controls or stage hold points require fresh releases for affected current evidence. Failed reinspection immediately blocks further work at that hold point. UI displays current blockers; refresh before starting or resuming site work. Browser status never overrides the POST-time checks.
 - Programme captures baseline/current dates, immutable predecessor revisions, progress and actual dates. Date sequence, future actuals, incomplete predecessors, cycles and stale predecessor references at handover are rejected. This is a programme register, not a critical path scheduling engine.
 - Site diary captures observed weather, labour/plant, activities, delays/safety events and evidence references. No live weather service or attendance/productivity system is enabled.
-- Used hot-work permits require an independent, retrospectively evidenced fire-watch closeout before handover. Closed permits cannot authorise further work. The qualified permit issuer determines the required fire-watch duration and scope in controlled source documents; the software does not invent legal durations.
+- Used hot-work permits require an independent, retrospectively evidenced fire-watch closeout before handover; completion cannot predate the latest work release (minute precision). Unused permits are not included as release evidence. Closed permits cannot authorise further work. The qualified permit issuer determines the required fire-watch duration and scope in controlled source documents; the software does not invent legal durations.
 
 ## QA and handover
 

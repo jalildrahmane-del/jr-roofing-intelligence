@@ -152,7 +152,11 @@ test("construction release requires current controls, independent inspection, pl
       source: "SYNTHETIC RAMS B",
     });
     assert.throws(() => f.release("installation"), /RAMS/);
-    assert.ok(closeoutBlockers(f.records()).some(s=>s.includes("current design, scope and control revisions")));
+    assert.ok(
+      closeoutBlockers(f.records()).some((s) =>
+        s.includes("current design, scope and control revisions"),
+      ),
+    );
     f.inspect(revised.id);
     assert.throws(() => f.release("installation"), /preceding/);
     f.release("prestart");
@@ -210,11 +214,26 @@ test("hot work requires a reviewed permit and independent fire-watch closeout be
         ),
       /independent/,
     );
+    assert.throws(
+      () =>
+        f.save(
+          "permitClose",
+          {
+            targetId: permit.id,
+            completedAt: past(),
+            note: "Synthetic findings",
+            source: "SYNTHETIC evidence",
+            attest: true,
+          },
+          f.users.reviewer,
+        ),
+      /latest work release/,
+    );
     f.save(
       "permitClose",
       {
         targetId: permit.id,
-        completedAt: past(),
+        completedAt: new Date().toISOString(),
         note: "Synthetic fire-watch inspection clear",
         source: "SYNTHETIC watch record",
         attest: true,
@@ -460,6 +479,25 @@ test("HTTP role checks reject forged certification; dossier export contains hist
     );
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
+    f.store.close();
+  }
+});
+
+test("unused hot-work control does not become a used permit merely because unrelated work was released", () => {
+  const f = gateFixture();
+  try {
+    f.authorise();
+    f.engineering();
+    f.prepareWork("no");
+    const permit = f.save("control", controlData("hot-work"));
+    for (const stage of ["prestart", "installation", "final"]) {
+      const release = f.release(stage);
+      assert.ok(!release.data.dependencies.includes(permit.id));
+    }
+    f.prepareHandover();
+    assert.deepEqual(closeoutBlockers(f.records()), []);
+    f.handover();
+  } finally {
     f.store.close();
   }
 });

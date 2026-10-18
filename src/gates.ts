@@ -364,8 +364,9 @@ export function releaseKey(records: RecordItem[], stage: string) {
     stage,
   ].join("|");
 }
-export function recordedStageRelease(records: RecordItem[], stage: string) {
+export function releaseEvidence(records: RecordItem[], stage: string) {
   const plan = current(records, "workplan").at(-1),
+    approval = engineeringApproval(records),
     categories = [
       "RAMS",
       "CPP",
@@ -373,14 +374,31 @@ export function recordedStageRelease(records: RecordItem[], stage: string) {
       ...(plan?.data.scaffold === "yes" ? ["scaffold"] : []),
       ...(plan?.data.hotWork === "yes" ? ["hot-work"] : []),
     ];
-  const approval = engineeringApproval(records);
-  const dependencies = [
-    ...(approval ? [{ id: approval.id }, { id: approval.data.mandateId }] : []),
+  const targets = [
     ...current(records, "control").filter((r) =>
       categories.includes(r.data.category),
     ),
     ...current(records, "holdpoint").filter((r) => r.data.stage === stage),
-  ].map((r) => r.id);
+  ];
+  const reviews = targets
+    .map((t) =>
+      records
+        .filter((r) => r.kind === "gateReview" && r.data.targetId === t.id)
+        .at(-1),
+    )
+    .filter((r): r is RecordItem => !!r);
+  return [
+    ...engineeringKinds.flatMap((k) => current(records, k)),
+    ...(approval
+      ? [approval, ...records.filter((r) => r.id === approval.data.mandateId)]
+      : []),
+    ...(plan ? [plan] : []),
+    ...targets,
+    ...reviews,
+  ];
+}
+export function recordedStageRelease(records: RecordItem[], stage: string) {
+  const dependencies = releaseEvidence(records, stage).map((r) => r.id);
   return records
     .filter(
       (r) =>

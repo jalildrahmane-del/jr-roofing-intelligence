@@ -6,7 +6,7 @@ All fixtures are synthetic. No real engineering approval, qualification or site 
 
 `npm run validate` runs TypeScript, all unit/API suites, production build, recovery/tender/gates browser suites, real development proxy smoke and PDF validation.
 
-- 26 unit/integration tests: all original 18 retained plus 8 new gate/security tests.
+- 27 unit/integration tests: all original 18 retained plus 9 new gate/security tests.
 - Engineering: pending 18 mm OSB; role and project appointment; explicit attestation; every query/RFI response; independent author; revocation; duplicate/superseded drawings; stale keys and dependencies.
 - Construction: required controls, independent reviews, expiry/invalid dates, stage sequence, mandatory ITP, failure/reinspection, revised controls, closed hot-work permits and independent fire-watch closeout.
 - Handover: mandatory O&M categories, programme and diaries, snag remedies, failed/revised acceptance, independent manager, external client evidence, exact dossier key.

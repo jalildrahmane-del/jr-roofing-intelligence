@@ -14,6 +14,7 @@ import {
   releaseKey,
   handoverKey,
   recordedStageRelease,
+  releaseEvidence,
 } from "../src/gates.ts";
 const allowed = ["manager", "engineer", "supervisor"];
 function requireRole(u: User, roles: string[]) {
@@ -319,9 +320,7 @@ export function saveGate(
       planKey: current(records, "workplan")
         .map((r) => r.id)
         .join("|"),
-      dependencies: records
-        .filter((r) => !["handoverAcceptance", "workRelease"].includes(r.kind))
-        .map((r) => r.id),
+      dependencies: releaseEvidence(records, stage).map((r) => r.id),
       note: text(d.note, "Release scope and limitations"),
       attest: true,
       statement:
@@ -346,6 +345,17 @@ export function saveGate(
     const completedAt = time(d.completedAt, "Fire watch completion");
     if (Date.parse(completedAt) > Date.now())
       throw Error("Fire watch completion cannot be in the future");
+    const lastRelease = records
+      .filter(
+        (r) =>
+          r.kind === "workRelease" && r.data.dependencies.includes(target.id),
+      )
+      .at(-1)!;
+    if (
+      Date.parse(completedAt) <
+      Math.floor(Date.parse(lastRelease.createdAt) / 60000) * 60000
+    )
+      throw Error("Fire watch completion must follow the latest work release");
     return append({
       targetId: target.id,
       completedAt,
