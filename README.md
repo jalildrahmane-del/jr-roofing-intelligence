@@ -78,3 +78,7 @@ This makes a consistent snapshot including committed WAL data, checks integrity,
 The existing Design, Construction, Quality and Handover routes now contain revision-controlled registers and server-enforced human approval gates. Engineering acceptance requires a separately appointed engineer and exact current evidence; preliminary OSB arithmetic never certifies safety. Reviewed controls, stage inspections, snags and O&M/client evidence gate release and closeout.
 
 See [Issue 3 architecture and operator journey](docs/ISSUE-3-DESIGN.md) and [validation report](docs/ISSUE-3-TEST-REPORT.md). The authenticated handover dossier export includes immutable record history and audit hashes. No deployment or paid integration is enabled.
+
+### Private owner staging proposal
+
+Staging preparation is isolated from Issue 4 and is inactive by default. See the [security review](docs/staging/SECURITY-REVIEW.md), [manual deployment/recovery runbook](docs/staging/DEPLOYMENT-RUNBOOK.md), [itemised cost estimate](docs/staging/COST-ESTIMATE.md) and [test report](docs/staging/TEST-REPORT.md). Railway/Cloudflare provisioning and exposure require explicit owner approval. No automatic deployment is configured.

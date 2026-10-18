@@ -1,3 +1,5 @@
+import { stagingVerifier } from "./staging.ts";
+import type { StagingConfig } from "./staging.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname } from "node:path";
@@ -8,7 +10,12 @@ import { saveTender } from "./tender.ts";
 import { renderReport } from "./report.ts";
 import { positive, text, preliminaryLoad } from "../src/model.ts";
 import type { User } from "../src/model.ts";
-export function createApp(store: Store, root = resolve("dist")) {
+export function createApp(
+  store: Store,
+  root = resolve("dist"),
+  staging?: StagingConfig,
+  verifyAccess = staging ? stagingVerifier(staging) : undefined,
+) {
   root = resolve(root);
   const attempts = new Map<string, { n: number; until: number }>();
   return createServer(async (req, res) => {
@@ -27,19 +34,60 @@ export function createApp(store: Store, root = resolve("dist")) {
       res.end(JSON.stringify(data));
     };
     try {
+      let owner: { email: string; account: string } | undefined;
+      if (staging) {
+        res.setHeader("Strict-Transport-Security", "max-age=31536000");
+        res.setHeader("Cache-Control", "no-store");
+        if (req.url === "/healthz" && req.method === "GET") {
+          try {
+            store.db.prepare("SELECT 1").get();
+            return reply(200, { ok: true });
+          } catch {
+            return reply(503, { ok: false });
+          }
+        }
+        if (
+          req.headers.host !== new URL(staging.origin).host ||
+          req.headers["x-forwarded-proto"] !== "https"
+        )
+          return reply(403, { error: "Staging origin required" });
+        try {
+          owner = await verifyAccess!(req.headers["cf-access-jwt-assertion"]);
+        } catch {
+          return reply(403, {
+            error: "Authorised Cloudflare Access session required",
+          });
+        }
+      }
       if (
-        !req.headers.host ||
-        !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host)
+        !staging &&
+        (!req.headers.host ||
+          !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host))
       )
         return reply(403, { error: "Only localhost access is enabled" });
       const url = new URL(req.url || "/", `http://${req.headers.host}`);
-      const legacy = url.pathname.startsWith("/legacy/");
+      const decodedPath = decodeURIComponent(url.pathname);
+      const legacy =
+        decodedPath === "/legacy" || decodedPath.startsWith("/legacy/");
       res.setHeader(
         "Content-Security-Policy",
         legacy
           ? "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'; object-src 'none'"
           : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
       );
+      if (staging && legacy) {
+        const session =
+            (req.headers.cookie || "")
+              .split(";")
+              .map((s) => s.trim())
+              .find((s) => s.startsWith("__Host-jr_session="))
+              ?.split("=")[1] || "",
+          account = store.user(session);
+        if (!account || account.name !== owner?.account)
+          return reply(401, {
+            error: "Application sign-in required before opening V3.6",
+          });
+      }
       if (!url.pathname.startsWith("/api/")) {
         if (req.method !== "GET" && req.method !== "HEAD")
           return reply(405, { error: "Method not allowed" });
@@ -66,7 +114,16 @@ export function createApp(store: Store, root = resolve("dist")) {
           ".png": "image/png",
           ".svg": "image/svg+xml",
         };
-        const content = req.method === "HEAD" ? undefined : readFileSync(path);
+        let content = req.method === "HEAD" ? undefined : readFileSync(path);
+        if (staging && content && path === resolve(root, "index.html"))
+          content = Buffer.from(
+            content
+              .toString()
+              .replace(
+                "<body>",
+                '<body><aside role="status" style="padding:10px;background:#fff1cc;color:#253755;text-align:center">PRIVATE OWNER STAGING · SYNTHETIC DATA ONLY · <a href="/cdn-cgi/access/logout">End Access session</a></aside>',
+              ),
+          );
         res.writeHead(200, {
           "Content-Type": types[extname(path)] || "application/octet-stream",
         });
@@ -75,7 +132,10 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (!["GET", "HEAD"].includes(req.method || "")) {
         const origin = req.headers.origin;
-        if (!origin || origin !== `http://${req.headers.host}`)
+        if (
+          !origin ||
+          origin !== (staging?.origin || `http://${req.headers.host}`)
+        )
           return reply(403, { error: "Same-origin request required" });
         if (!req.headers["content-type"]?.startsWith("application/json"))
           return reply(415, { error: "JSON required" });
@@ -99,12 +159,14 @@ export function createApp(store: Store, root = resolve("dist")) {
           return reply(400, { error: "JSON object required" });
       }
       if (url.pathname === "/api/login" && req.method === "POST") {
-        const ip = req.socket.remoteAddress || "local",
+        const ip = owner?.email || req.socket.remoteAddress || "local",
           a = attempts.get(ip);
         if (a && a.until > Date.now() && a.n >= 10)
           return reply(429, {
             error: "Too many attempts. Try again in 15 minutes.",
           });
+        if (owner && body.name !== owner.account)
+          return reply(403, { error: "Use your assigned application account" });
         const token = store.login(
           text(body.name, "Username", 100),
           text(body.password, "Password", 200),
@@ -119,7 +181,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         attempts.delete(ip);
         res.setHeader(
           "Set-Cookie",
-          `jr_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`,
+          `${staging ? "__Host-jr_session" : "jr_session"}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${staging ? "; Secure" : ""}`,
         );
         return reply(200, { ok: true });
       }
@@ -127,17 +189,23 @@ export function createApp(store: Store, root = resolve("dist")) {
         (req.headers.cookie || "")
           .split(";")
           .map((x) => x.trim())
-          .find((x) => x.startsWith("jr_session="))
-          ?.slice(11) || "";
+          .find((x) =>
+            x.startsWith(staging ? "__Host-jr_session=" : "jr_session="),
+          )
+          ?.split("=")[1] || "";
       const user = store.user(token);
       if (!user) return reply(401, { error: "Sign in required" });
+      if (owner && user.name !== owner.account)
+        return reply(403, {
+          error: "Application session does not match Access identity",
+        });
       if (url.pathname === "/api/me" && req.method === "GET")
         return reply(200, user);
       if (url.pathname === "/api/logout" && req.method === "POST") {
         store.logout(token);
         res.setHeader(
           "Set-Cookie",
-          "jr_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+          `${staging ? "__Host-jr_session" : "jr_session"}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${staging ? "; Secure" : ""}`,
         );
         return reply(200, { ok: true });
       }
@@ -213,8 +281,22 @@ export function createApp(store: Store, root = resolve("dist")) {
             "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
         });
       }
+      if (staging && url.pathname === "/api/ai/generate")
+        return reply(409, {
+          error: "AI generation and paid integrations are disabled",
+        });
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
+      if (
+        staging &&
+        url.pathname === "/api/projects" &&
+        req.method === "POST" &&
+        !body.name?.startsWith("[SYNTHETIC]")
+      )
+        return reply(400, {
+          error:
+            "Staging project names must begin [SYNTHETIC]. Do not enter real customer data.",
+        });
       if (url.pathname === "/api/projects" && req.method === "POST")
         return reply(
           201,

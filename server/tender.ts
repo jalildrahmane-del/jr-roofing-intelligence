@@ -1,3 +1,4 @@
+import { validatePng } from "./png.ts";
 import { randomUUID, createHash } from "node:crypto";
 import { imageSize } from "image-size";
 import {
@@ -198,6 +199,7 @@ export function saveTender(
         throw Error(
           "Image must be JPEG/PNG and no larger than 2000 pixels per side",
         );
+      if (size.type === "png") validatePng(bytes);
       width = size.width;
       height = size.height;
       sha256 = createHash("sha256").update(bytes).digest("hex");

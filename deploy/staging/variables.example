@@ -1,0 +1,13 @@
+# NOT active. Enter approved values in Railway only after explicit approval.
+JR_MODE=owner-staging
+JR_PUBLIC_ORIGIN=https://jr-roofing-staging.YOUR-EXISTING-DOMAIN
+JR_ACCESS_TEAM=https://YOUR-TEAM.cloudflareaccess.com
+JR_ACCESS_AUD=REPLACE_WITH_ACCESS_APPLICATION_AUDIENCE
+JR_ACCESS_ACCOUNTS={"OWNER-EMAIL":"owner-review"}
+JR_STAGING_DATA=synthetic-only
+JR_DB=/data/jr-staging.sqlite
+# RAILWAY_VOLUME_MOUNT_PATH=/data is injected by Railway when the volume is mounted.
+PORT=8080
+# Secret: provision only after approval; never commit a real tunnel token.
+JR_TUNNEL_TOKEN=SET_ONLY_IN_RAILWAY_SECRET_SETTINGS_AFTER_APPROVAL
+# Keep Railway PUBLIC NETWORKING OFF. Never install AI/email/deployment API keys.

@@ -1,3 +1,4 @@
+import { validatePng } from "./png.ts";
 import PDFDocument from "pdfkit";
 import { fileURLToPath } from "node:url";
 import type { Store } from "./store.ts";
@@ -148,7 +149,7 @@ export function renderReport(
       for (const p of s.photos) {
         const d = p.data,
           asset = store.db
-            .prepare("SELECT bytes FROM evidence WHERE id=? AND pid=?")
+            .prepare("SELECT bytes,mime FROM evidence WHERE id=? AND pid=?")
             .get(d.assetId, record.pid) as any;
         if (!asset) throw Error("Report evidence image is unavailable");
         pdf.addPage();
@@ -173,6 +174,7 @@ export function renderReport(
           iw = (h * d.width) / d.height,
           x = 48,
           y = pdf.y;
+        if (asset.mime === "image/png") validatePng(Buffer.from(asset.bytes));
         pdf.image(Buffer.from(asset.bytes), x, y, { width: iw, height: h });
         for (const [index, a] of d.annotations.entries()) {
           pdf
