@@ -24,7 +24,18 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - run: npm run typecheck && npm test && npm run build && npm run test:dev
+      - name: TypeScript checks
+        run: npm run typecheck
+        timeout-minutes: 2
+      - name: Unit and API tests
+        run: npm test
+        timeout-minutes: 2
+      - name: Production build
+        run: npm run build
+        timeout-minutes: 2
+      - name: Development server smoke test
+        run: npm run test:dev
+        timeout-minutes: 2
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       # No cache saves or artifact uploads: no billable Actions storage is created.

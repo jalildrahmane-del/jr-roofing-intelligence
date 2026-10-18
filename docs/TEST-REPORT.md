@@ -7,7 +7,7 @@ Validated 18 October 2026. Node 24.19.0; TypeScript 6.0.3; Playwright 1.62.1; lo
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed; includes shared model, server, migration/backup scripts and Vite configuration |
-| `npm test` | 8 tests passed, 0 failed |
+| `npm test` | 9 tests passed, 0 failed |
 | `npm run build` | Passed |
 | `npm run test:browser` | Passed |
 | `npm run test:dev` | Passed |
@@ -48,3 +48,8 @@ Run `npm ci`, `npx playwright install chromium`, then `npm run validate`. If the
 These are headless Chromium desktop/mobile viewport checks, not physical iPhone/Safari/Android device testing. They are smoke/regression checks, not an exhaustive certification of every prototype operation. No deployment, paid API calls, cloud service activation, GitHub Actions run or merge occurred. At the initial PR creation, CI had not been executed on GitHub. A subsequent owner-authorised follow-up enables free public-repository validation for PR #6; GitHub Actions logs and PR checks are the authoritative record of that run. Cache saves and artifact uploads are disabled.
 
 Later-issue route placeholders do not count as implemented modules. Issues #2–#5 were not started. This Issue #1 change is a local review foundation, subject to the security/engineering boundaries in the audit and architecture documents.
+
+
+## CI follow-up: clean checkout regression
+
+The first GitHub run exposed a missing-build failure in the HTTP test: it assumed a locally built `dist/` directory, while CI correctly ran unit tests before the build. The static server also sent success headers before reading the page, so a missing page caused a second-header error and a hanging request. The server now reads files before sending headers and returns an actionable 503 for a missing build. The HTTP test uses an isolated static fixture, with a separate missing-build regression using bounded requests. All nine unit/integration tests pass in a clean checkout before any build. CI checks now have separate steps and time limits. The latest Actions run is the authoritative CI result.

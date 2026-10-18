@@ -1,8 +1,9 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {Store} from '../server/store.ts';import {createApp} from '../server/index.ts';import {request} from 'node:http';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {Store} from '../server/store.ts';import {createApp} from '../server/index.ts';import {request} from 'node:http';import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import {join} from 'node:path';
 
 test('HTTP contract: role enforcement, server-owned records, malformed input, session revocation and throttling',async()=>{
  const s=new Store(':memory:');for(const role of ['manager','worker','viewer','engineer','supervisor'] as const)s.addUser(role,'integration-password',role);
- const server=createApp(s);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${(server.address() as any).port}`;
+ const root=mkdtempSync(join(tmpdir(),'jr-http-'));writeFileSync(join(root,'index.html'),'<h1>HTTP test fixture</h1>');
+ const server=createApp(s,root);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${(server.address() as any).port}`;
  const send=(path:string,data:unknown,cookie='')=>fetch(base+'/api/'+path,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(data)});
  const login=async(name:string)=>{const r=await send('login',{name,password:'integration-password'});assert.equal(r.status,200);assert.match(r.headers.get('set-cookie')!,/HttpOnly; SameSite=Strict/);return r.headers.get('set-cookie')!.split(';')[0]};
  try{
@@ -28,5 +29,16 @@ test('HTTP contract: role enforcement, server-owned records, malformed input, se
  assert.equal((await send('login',{name:'absent',password:'invalid-password'})).status,429);
  const hostile=await new Promise<number>(r=>{const req=request(base+'/legacy/',{headers:{Host:'attacker.example'}},res=>{res.resume();r(res.statusCode!)});req.end()});assert.equal(hostile,403);
  const malformed=await fetch(base+'/%FF');assert.equal(malformed.status,400);assert.equal((await fetch(base+'/')).status,200);
- }finally{await new Promise<void>(r=>server.close(()=>r()));s.close();}
+ }finally{await new Promise<void>(r=>server.close(()=>r()));s.close();rmSync(root,{recursive:true});}
+});
+
+
+test('missing production build responds without hanging or terminating the server',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'jr-unbuilt-')),s=new Store(':memory:');
+ const server=createApp(s,join(root,'missing-dist'));await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
+ const base=`http://127.0.0.1:${(server.address() as any).port}`;
+ try{
+  const response=await fetch(base+'/',{signal:AbortSignal.timeout(5000)});assert.equal(response.status,503);assert.match((await response.json() as any).error,/build missing/);
+  const status=await fetch(base+'/api/me',{signal:AbortSignal.timeout(5000)});assert.equal(status.status,401);await status.text();
+ }finally{await new Promise<void>(r=>server.close(()=>r()));s.close();rmSync(root,{recursive:true});}
 });
