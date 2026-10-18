@@ -142,12 +142,26 @@ try {
   }
   const store = new Store(dbPath),
     server = createApp(store, join(appRoot, "dist"));
+  const portFile = join(data, "http-port.json");
+  let savedPort = 0;
+  if (existsSync(portFile)) {
+    savedPort = JSON.parse(readFileSync(portFile, "utf8")).port;
+    if (!Number.isInteger(savedPort) || savedPort < 1 || savedPort > 65535)
+      throw Error(
+        "The saved browser address is invalid. Please ask for help; your work is preserved.",
+      );
+  }
   server.requestTimeout = 30000;
   await new Promise((r, j) => {
     server.once("error", j);
-    server.listen(0, "127.0.0.1", r);
+    server.listen(savedPort, "127.0.0.1", r);
   });
   const port = server.address().port;
+  if (!savedPort)
+    writeFileSync(portFile, JSON.stringify({ port }), {
+      flag: "wx",
+      mode: 0o600,
+    });
   writeFileSync(runFile, JSON.stringify({ pid: process.pid, port }), {
     mode: 0o600,
   });

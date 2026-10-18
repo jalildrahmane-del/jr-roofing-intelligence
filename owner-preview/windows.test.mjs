@@ -39,6 +39,7 @@ test(
         readFileSync(join(data, "running.json"), "utf8"),
       );
       assert.ok(active.port > 0);
+      assert.equal(JSON.parse(readFileSync(join(data, "http-port.json"), "utf8")).port, active.port);
       const base = `http://127.0.0.1:${active.port}`,
         encrypted = readFileSync(join(data, "private-logins.dpapi")),
         accounts = JSON.parse(
@@ -116,7 +117,7 @@ test(
       captured = "";
       errors = "";
       await new Promise((r) => setTimeout(r, 500));
-      rmSync(data, { recursive: true, force: true });
+      rmSync(data, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     }
   },
 );
