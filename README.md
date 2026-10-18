@@ -48,7 +48,7 @@ npx playwright install chromium
 npm run validate
 ```
 
-This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, and a development proxy smoke test. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. A manual-only GitHub Actions workflow is provided; it does not run on pushes or pull requests, and has not been triggered.
+This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, and a development proxy smoke test. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. GitHub Actions validation is enabled for PR #6 updates and manual dispatch. A public-repository guard limits execution to the free standard hosted runner; cache saves and artifact uploads are disabled. It does not deploy or call paid APIs.
 
 If standard Chromium download is unavailable, the installed bundled Chromium dependency can be extracted locally:
 
