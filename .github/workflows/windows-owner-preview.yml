@@ -1,0 +1,51 @@
+name: Free Windows owner package validation
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  windows:
+    if: ${{ !github.event.repository.private && github.head_ref == 'codex/windows-owner-preview' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Type check the fictional seed
+        run: npx tsc --ignoreConfig --noEmit --strict --skipLibCheck --allowImportingTsExtensions --target ES2023 --module ESNext --moduleResolution Bundler owner-preview/seed.ts
+      - name: Verify official portable Windows runtime
+        shell: pwsh
+        run: |
+          $release = Get-Content owner-preview/node-release.json | ConvertFrom-Json
+          Invoke-WebRequest $release.url -OutFile "$env:RUNNER_TEMP/node.zip"
+          if ((Get-FileHash "$env:RUNNER_TEMP/node.zip" -Algorithm SHA256).Hash.ToLower() -ne $release.archiveSha256) { throw 'Runtime checksum mismatch' }
+          Expand-Archive "$env:RUNNER_TEMP/node.zip" "$env:RUNNER_TEMP/official-node"
+          $node = Get-ChildItem "$env:RUNNER_TEMP/official-node" -Filter node.exe -Recurse | Select-Object -First 1
+          $signature = Get-AuthenticodeSignature $node.FullName
+          if ($signature.Status -ne 'Valid') { throw 'Official Node signature is not valid' }
+      - name: Prepare production dependencies and build the review ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/prod" | Out-Null
+          Copy-Item package.json,package-lock.json "$env:RUNNER_TEMP/prod"
+          npm ci --prefix "$env:RUNNER_TEMP/prod" --omit=dev --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python owner-preview/build_package.py --source-sha db7c05981853fcf8237ef5e714d8e72311499029 --node-zip "$env:RUNNER_TEMP/node.zip" --production-deps "$env:RUNNER_TEMP/prod/node_modules" --output "$env:RUNNER_TEMP/review.zip" --work "$env:RUNNER_TEMP/Owner review é"
+      - name: Test the actual package, Windows launcher, encrypted logins and PDFs
+        shell: pwsh
+        run: |
+          $env:JR_PREVIEW_FOLDER = "$env:RUNNER_TEMP/Owner review é/JR-Roofing-Intelligence-Owner-Review"
+          & "$env:JR_PREVIEW_FOLDER/runtime/node.exe" --test owner-preview/package.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:JR_PREVIEW_FOLDER/runtime/node.exe" --test owner-preview/windows.test.mjs
+      # Standard public-repository runner only. No deployment, paid services,
+      # cache saves or artifact uploads (no billable Actions storage).

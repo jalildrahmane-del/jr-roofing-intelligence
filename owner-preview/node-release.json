@@ -1,0 +1,7 @@
+{
+  "version": "24.22.0",
+  "platform": "win-x64",
+  "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-win-x64.zip",
+  "manifest": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt",
+  "archiveSha256": "f9683a19877e12a9b167305c8db71040d812876359de21f0d2e97c3f321f80c3"
+}
