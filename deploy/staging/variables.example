@@ -1,0 +1,10 @@
+# NOT active. Enter approved values in Railway only after explicit approval.
+JR_MODE=owner-staging
+JR_PUBLIC_ORIGIN=https://jr-roofing-staging.YOUR-EXISTING-DOMAIN
+JR_ACCESS_TEAM=https://YOUR-TEAM.cloudflareaccess.com
+JR_ACCESS_AUD=REPLACE_WITH_ACCESS_APPLICATION_AUDIENCE
+JR_ACCESS_ACCOUNTS={"OWNER-EMAIL":"owner-review"}
+JR_STAGING_DATA=synthetic-only
+JR_DB=/data/jr-staging.sqlite
+# RAILWAY_VOLUME_MOUNT_PATH=/data is injected by Railway when the volume is mounted.
+# PORT is assigned by Railway. Never install AI, email or deployment API keys here.
