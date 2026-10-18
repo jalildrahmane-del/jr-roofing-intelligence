@@ -4,9 +4,9 @@ No expenditure has been authorised or incurred. Currency: USD, before applicable
 
 ## Exact proposed plan
 
-Railway **Hobby**: US$5 monthly minimum including US$5 resource usage; pay the greater of US$5 and metered usage, not US$5 plus all usage. One ordinary application service, one replica, one Europe region, 0.5 GB RAM / 0.5 vCPU maximum settings, one 5 GB volume with initially about 1 GB used. No database service, AI agent, email provider, object-store service or additional app replicas.
+Railway **Hobby**: US$5 monthly minimum including US$5 resource usage; pay the greater of US$5 and metered usage, not US$5 plus all usage. One ordinary application service (Node plus outbound cloudflared connector), one replica, one Europe region, 0.5 GB RAM / 0.5 vCPU maximum settings, one 5 GB volume with initially about 1 GB used. No database service, AI agent, email provider, object-store service or additional app replicas.
 
-Cloudflare **Zero Trust Free / Access**, for the small named-reviewer group (under 50 users): US$0. Existing Cloudflare DNS/TLS: no proposed paid add-on. Separate encrypted backups on existing owner-controlled storage: no new service subscription. Domain: an existing approved domain is required; registration/renewal is excluded and not authorised.
+Cloudflare **Zero Trust Free / Access**, for the small named-reviewer group (under 50 users): US$0. Named Cloudflare Tunnel and existing Cloudflare DNS/TLS: no proposed paid add-on. Railway public networking stays disabled. Separate encrypted backups on existing owner-controlled storage: no new service subscription. Domain: an existing approved domain is required; registration/renewal is excluded and not authorised.
 
 ## Itemised 30-day resource model
 
@@ -14,12 +14,12 @@ Official Railway rates checked today: RAM US$0.00000386/GB-second; CPU US$0.0000
 
 | Item | Light owner use assumption | Monthly resource estimate |
 | --- | --- | ---: |
-| RAM | 0.25 GB average, 30 days | $2.50 |
-| CPU | 0.03 vCPU average, 30 days | $0.60 |
+| RAM | 0.29 GB combined average, 30 days | $2.90 |
+| CPU | 0.04 combined vCPU average, 30 days | $0.80 |
 | SQLite/photos volume | 1 GB actually stored | $0.16 |
 | Optional Railway snapshots | 0.5 GB incremental stored | $0.08 |
 | Network egress, including downloads/backups | 2 GB | $0.10 |
-| Total metered usage | Rounded | **$3.44** |
+| Total metered usage | Rounded | **$4.04** |
 | Hobby invoice minimum | Usage below included $5 | **$5.00** |
 | Cloudflare Access Free | Small named group | $0.00 |
 | Off-volume encrypted backups | Existing owner storage | $0.00 incremental |
@@ -35,6 +35,7 @@ Higher-use illustration: average 0.5 GB RAM and 0.1 vCPU, 1 GB data, 0.5 GB incr
 - Usage thresholds: https://docs.railway.com/pricing/cost-control
 - Volume/snapshot billing and limitations: https://docs.railway.com/volumes/backups
 - Cloudflare Access Free plan: https://www.cloudflare.com/sase/products/access/
+- Cloudflare Tunnel availability: https://developers.cloudflare.com/tunnel/
 - Cloudflare hostname prerequisite: https://developers.cloudflare.com/learning-paths/clientless-access/access-application/create-access-app/
 
 Recheck prices and account availability immediately before any approved provisioning. No exchange-rate conversion or assumed existing-domain ownership is used.

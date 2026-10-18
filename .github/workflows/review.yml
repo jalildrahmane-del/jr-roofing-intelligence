@@ -36,6 +36,7 @@ jobs:
       - name: Build staging container without publishing or deploying
         run: |
           docker build --file deploy/staging/Dockerfile --tag jr-owner-staging:ci .
+          docker run --rm --entrypoint /usr/local/bin/cloudflared jr-owner-staging:ci --version
           if docker run --rm jr-owner-staging:ci; then
             echo 'Staging must fail closed without explicit configuration'
             exit 1

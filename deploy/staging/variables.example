@@ -7,4 +7,7 @@ JR_ACCESS_ACCOUNTS={"OWNER-EMAIL":"owner-review"}
 JR_STAGING_DATA=synthetic-only
 JR_DB=/data/jr-staging.sqlite
 # RAILWAY_VOLUME_MOUNT_PATH=/data is injected by Railway when the volume is mounted.
-# PORT is assigned by Railway. Never install AI, email or deployment API keys here.
+PORT=8080
+# Secret: provision only after approval; never commit a real tunnel token.
+JR_TUNNEL_TOKEN=SET_ONLY_IN_RAILWAY_SECRET_SETTINGS_AFTER_APPROVAL
+# Keep Railway PUBLIC NETWORKING OFF. Never install AI/email/deployment API keys.

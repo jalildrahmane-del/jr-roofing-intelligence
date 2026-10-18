@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { tunnelLaunch } from "../server/tunnel.ts";
 import { existsSync, lstatSync, chownSync, chmodSync } from "node:fs";
 import { Store } from "../server/store.ts";
 import { createApp } from "../server/index.ts";
@@ -66,21 +68,37 @@ server.listen(port, "0.0.0.0", () =>
     "Owner staging listener started; Access and application authentication required",
   ),
 );
+const tunnel = tunnelLaunch(process.env.JR_TUNNEL_TOKEN!);
+const connector = spawn(tunnel.file, tunnel.args, {
+  env: tunnel.env,
+  stdio: "ignore",
+});
 let stopping = false;
-for (const signal of ["SIGTERM", "SIGINT"])
-  process.on(signal, () => {
-    if (stopping) return;
-    stopping = true;
-    const forced = setTimeout(() => {
-      server.closeAllConnections();
-      store.close();
-      process.exit(1);
-    }, 10000);
-    forced.unref();
-    server.close(() => {
-      clearTimeout(forced);
-      store.close();
-      process.exit(0);
-    });
-    server.closeIdleConnections();
+function stop(code: number) {
+  if (stopping) return;
+  stopping = true;
+  connector.kill("SIGTERM");
+  const forced = setTimeout(() => {
+    server.closeAllConnections();
+    store.close();
+    process.exit(1);
+  }, 10000);
+  forced.unref();
+  server.close(() => {
+    clearTimeout(forced);
+    store.close();
+    process.exit(code);
   });
+  server.closeIdleConnections();
+}
+connector.once("error", () => {
+  console.error("Private tunnel unavailable; stopping staging");
+  stop(1);
+});
+connector.once("exit", () => {
+  if (!stopping) {
+    console.error("Private tunnel stopped; stopping staging");
+    stop(1);
+  }
+});
+for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => stop(0));

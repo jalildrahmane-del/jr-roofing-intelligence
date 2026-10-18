@@ -1,3 +1,4 @@
+import { tunnelLaunch } from "./tunnel.ts";
 import { createPublicKey, verify } from "node:crypto";
 export type StagingConfig = {
   origin: string;
@@ -71,6 +72,9 @@ export function stagingConfig(
     throw Error(
       "Unnecessary integration credentials must not be installed in staging",
     );
+  tunnelLaunch(env.JR_TUNNEL_TOKEN || "");
+  if (env.PORT !== "8080")
+    throw Error("Named tunnel staging requires fixed PORT=8080");
   return { origin: origin.origin, team, audience, accounts };
 }
 function decode(s: string) {

@@ -1,3 +1,4 @@
+import { tunnelLaunch } from "../server/tunnel.ts";
 import { request } from "node:http";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -28,6 +29,8 @@ import { accessFixture } from "./staging-fixture.ts";
 test("staging configuration fails closed without exact HTTPS origin, named emails, volume and synthetic data policy", () => {
   const env = {
     JR_MODE: "owner-staging",
+    JR_TUNNEL_TOKEN: "synthetic-fixture-not-real-".repeat(3),
+    PORT: "8080",
     JR_PUBLIC_ORIGIN: "https://staging.example.invalid",
     JR_ACCESS_TEAM: "https://owner.cloudflareaccess.com",
     JR_ACCESS_AUD: "a".repeat(64),
@@ -38,6 +41,10 @@ test("staging configuration fails closed without exact HTTPS origin, named email
     JR_DB: "/data/jr-staging.sqlite",
     RAILWAY_VOLUME_MOUNT_PATH: "/data",
   };
+  const launch = tunnelLaunch(env.JR_TUNNEL_TOKEN);
+  assert.ok(!launch.args.join(" ").includes(env.JR_TUNNEL_TOKEN));
+  assert.equal(launch.env.TUNNEL_TOKEN, env.JR_TUNNEL_TOKEN);
+  assert.ok(launch.args.includes("--no-autoupdate"));
   assert.equal(stagingConfig({}), undefined);
   assert.equal(stagingConfig(env)?.origin, env.JR_PUBLIC_ORIGIN);
   for (const [key, value] of Object.entries({
