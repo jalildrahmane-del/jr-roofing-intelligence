@@ -40,6 +40,8 @@ jobs:
           npm ci --prefix "$env:RUNNER_TEMP/prod" --omit=dev --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python owner-preview/build_package.py --source-sha db7c05981853fcf8237ef5e714d8e72311499029 --node-zip "$env:RUNNER_TEMP/node.zip" --production-deps "$env:RUNNER_TEMP/prod/node_modules" --output "$env:RUNNER_TEMP/review.zip" --work "$env:RUNNER_TEMP/Owner review é"
+      - name: Install Chromium for the Windows package browser regression
+        run: npx playwright install chromium
       - name: Test the actual package, Windows launcher, encrypted logins and PDFs
         shell: pwsh
         run: |
