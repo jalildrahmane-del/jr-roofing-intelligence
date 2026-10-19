@@ -49,6 +49,21 @@ function showAccounts() {
     "These are fictional roles for local software review, not actual professional appointments.",
   );
 }
+function showOwner() {
+  const accounts = JSON.parse(
+    windowsVault("unprotect", readFileSync(vaultPath)).toString("utf8"),
+  );
+  const owner = accounts.find((a) => a.name === "owner");
+  if (!owner)
+    throw Error(
+      "Owner login details are missing. Your saved work is preserved.",
+    );
+  console.log(
+    "\n----------------------------------------\nYOUR LOGIN FOR THIS COPY OF THE APP\n\nUsername: owner\nPassword: " +
+      owner.password +
+      "\n\nSelect the password with your mouse, then press Ctrl+Shift+C to copy.\nPaste it into the browser password box with Ctrl+V.\nKeep this window open.\n----------------------------------------\n",
+  );
+}
 try {
   console.log("\nJR ROOFING INTELLIGENCE - FREE LOCAL OWNER REVIEW\n");
   if (process.platform !== "win32")
@@ -99,7 +114,6 @@ try {
       rmSync(temporary, { recursive: true, force: true });
       throw e;
     }
-    showAccounts();
   }
   if (!existsSync(dbPath) || !existsSync(vaultPath))
     throw Error(
@@ -131,6 +145,7 @@ try {
         active.port < 65536
       ) {
         process.kill(active.pid, 0);
+        showOwner();
         console.log(
           "The app is already running. Opening its browser tab.\nKeep the original JR Roofing window open.",
         );
@@ -157,6 +172,33 @@ try {
     server.listen(savedPort, "127.0.0.1", r);
   });
   const port = server.address().port;
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    const response = await fetch(base, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw Error("The app page could not be loaded.");
+    const html = await response.text();
+    const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)].map(
+      (m) => m[1],
+    );
+    if (assets.length < 2)
+      throw Error("The application display files are incomplete.");
+    for (const asset of assets) {
+      const result = await fetch(base + asset, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (
+        !result.ok ||
+        !/javascript|css/.test(result.headers.get("content-type") || "")
+      )
+        throw Error("The app display file could not be loaded: " + asset);
+      await result.arrayBuffer();
+    }
+  } catch (e) {
+    server.closeAllConnections();
+    await new Promise((r) => server.close(r));
+    store.close();
+    throw e;
+  }
   if (!savedPort)
     writeFileSync(portFile, JSON.stringify({ port }), {
       flag: "wx",
@@ -168,8 +210,9 @@ try {
   console.log(
     "The REAL app is ready at http://127.0.0.1:" +
       port +
-      "\n\nSign in as owner. For passwords, double-click SHOW LOGIN DETAILS.cmd.\nKeep this window open while reviewing. Close it, or press Ctrl+C, to stop.\n\nYour changes are saved in ReviewData and kept between launches.\nFictional data only. AI, email and paid services are not connected.\nEngineering and QA approvals remain pending until explicit authorised review.\n",
+      "\n\nThe login details for THIS app are printed below.\nKeep this window open while reviewing. Close it, or press Ctrl+C, to stop.\n\nYour changes are saved in ReviewData and kept between launches.\nFictional data only. AI, email and paid services are not connected.\nEngineering and QA approvals remain pending until explicit authorised review.\n",
   );
+  showOwner();
   openBrowser(port);
   let stopping = false;
   const stop = () => {

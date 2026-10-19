@@ -45,7 +45,7 @@ jobs:
       - name: Test the actual package, Windows launcher, encrypted logins and PDFs
         shell: pwsh
         run: |
-          $env:JR_PREVIEW_FOLDER = "$env:RUNNER_TEMP/Owner review é/JR-Roofing-Intelligence-Owner-Review"
+          $env:JR_PREVIEW_FOLDER = "$env:RUNNER_TEMP/Owner review é/JR-Roofing-Intelligence-Owner-Review/Application"
           & "$env:JR_PREVIEW_FOLDER/runtime/node.exe" --test owner-preview/package.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$env:JR_PREVIEW_FOLDER/runtime/node.exe" --test owner-preview/windows.test.mjs

@@ -1,0 +1,22 @@
+JR ROOFING INTELLIGENCE - EASY START
+
+1. Right-click JR-Roofing-Easy-Start.zip and select Extract All.
+2. Open the NEW extracted folder. Double-click OPEN-JR-ROOFING.cmd.
+3. The black window shows Username: owner and your private password.
+4. Select the password with the mouse and press Ctrl+Shift+C to copy.
+5. In the browser, enter owner and paste the password with Ctrl+V.
+
+Keep the black window open while using the app.
+Use the browser tab opened by this NEW launcher, not an older blank tab.
+No separate login-details command or repair file is needed.
+
+The real app includes two fictional projects and all merged Issues 1-3.
+No installations, subscriptions, public hosting or paid services.
+The Windows blank-page fix is already included.
+
+Your changes are stored in Application/ReviewData in this extracted folder.
+Keep using this same folder to retain your work.
+Existing folders from previous downloads are not changed or deleted.
+Advanced role logins: Application/SHOW LOGIN DETAILS.cmd.
+Verified database backup: Application/BACK UP REVIEW DATA.cmd.
+Full feature walkthrough: Application/READ ME FIRST.html.

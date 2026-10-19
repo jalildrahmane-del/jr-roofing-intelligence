@@ -22,7 +22,7 @@ def build(source_sha,node_zip,prod_deps,output,work):
     subprocess.run(['git','archive','--format=zip','--output',str(original),source_sha],cwd=BASE,check=True)
     source=work/'source'
     with zipfile.ZipFile(original) as z: z.extractall(source)
-    root=work/'JR-Roofing-Intelligence-Owner-Review';app=root/'app';app.mkdir(parents=True)
+    outer=work/'JR-Roofing-Intelligence-Owner-Review';root=outer/'Application';app=root/'app';app.mkdir(parents=True)
     for folder in ['server','src','scripts']: shutil.copytree(source/folder,app/folder)
     for name in ['package.json','package-lock.json']: shutil.copy2(source/name,app/name)
     (app/'server/index.ts').write_bytes(patched_server)
@@ -51,11 +51,13 @@ def build(source_sha,node_zip,prod_deps,output,work):
     forbidden=[p for p in files if p.suffix in ['.sqlite','.dpapi','.pem','.jrb'] or p.name.startswith('.env')]
     if forbidden: raise RuntimeError('Private runtime data must not be packaged')
     (root/'FILE-CHECKSUMS.sha256').write_text(''.join(sha(p)+'  '+p.relative_to(root).as_posix()+'\n' for p in files))
+    (outer/'OPEN-JR-ROOFING.cmd').write_bytes((BASE/'owner-preview/OPEN-JR-ROOFING.cmd').read_text().replace('\n','\r\n').encode('ascii'))
+    shutil.copy2(BASE/'owner-preview/EASY-START.txt',outer/'READ-ME-FIRST.txt')
     output.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-        for p in sorted(root.rglob('*')):
+        for p in sorted(outer.rglob('*')):
             if p.is_file():
-                info=zipfile.ZipInfo(str(Path(root.name)/p.relative_to(root)).replace('\\','/'),date_time=(2026,10,18,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,p.read_bytes(),compresslevel=9)
+                info=zipfile.ZipInfo(p.relative_to(outer).as_posix(),date_time=(2026,10,18,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,p.read_bytes(),compresslevel=9)
     with zipfile.ZipFile(output) as z:
         bad=z.testzip()
         if bad: raise RuntimeError('ZIP integrity check failed: '+bad)

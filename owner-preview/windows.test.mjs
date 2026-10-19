@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn, execFileSync } from "node:child_process";
 const root = resolve(process.env.JR_PREVIEW_FOLDER),
@@ -94,8 +94,8 @@ test(
   async () => {
     const child = spawn(
         "cmd.exe",
-        ["/d", "/c", "START JR Roofing.cmd", "--no-browser"],
-        { cwd: root, stdio: ["pipe", "pipe", "pipe"] },
+        ["/d", "/c", "OPEN-JR-ROOFING.cmd", "--no-browser"],
+        { cwd: dirname(root), stdio: ["pipe", "pipe", "pipe"] },
       ),
       data = join(root, "ReviewData");
     let captured = "",
@@ -130,6 +130,12 @@ test(
           windowsVault("unprotect", encrypted).toString("utf8"),
         );
       assert.equal(accounts.length, 5);
+      await new Promise((r) => setTimeout(r, 200));
+      assert.ok(
+        captured.includes("Username: owner") &&
+          captured.includes(accounts.find((a) => a.name === "owner").password),
+        "The single launcher must display the owner login",
+      );
       assert.equal(new Set(accounts.map((a) => a.password)).size, 5);
       assert.ok(
         accounts.every(
@@ -223,6 +229,10 @@ test(
         { cwd: root, encoding: "utf8" },
       );
       assert.match(address, /already running/);
+      assert.ok(
+        address.includes(owner.password),
+        "Reopening the launcher shows the login again",
+      );
       execFileSync(
         join(root, "runtime/node.exe"),
         [join(root, "owner-preview/launch.mjs"), "--backup"],
