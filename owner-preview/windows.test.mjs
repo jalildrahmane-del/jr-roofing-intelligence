@@ -179,6 +179,7 @@ test(
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 1000 });
         for (const route of [
+          "dashboard",
           "survey",
           "materials",
           "estimating",
@@ -188,6 +189,12 @@ test(
         ]) {
           await page.goto(base + "/#" + route);
           await page.locator("main h1").waitFor();
+          if (route === "dashboard") {
+            const video = page.getByLabel("Roofing drone flyover");
+            await video.waitFor({state: "visible"});
+            await page.waitForFunction(() => document.querySelector(".dashboard-film video")?.readyState >= 2);
+            assert.ok(await video.evaluate(v => v.videoWidth > 0 && v.controls && v.muted));
+          }
           assert.ok((await page.locator("main").innerText()).length > 100);
           assert.ok(
             await page.evaluate(

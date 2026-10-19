@@ -13,7 +13,7 @@ def sha(path):
 def build(source_sha,node_zip,prod_deps,output,work):
     release=json.loads((BASE/'owner-preview/node-release.json').read_text())
     if sha(node_zip)!=release['archiveSha256']: raise RuntimeError('Official Windows Node archive hash mismatch')
-    subprocess.run(['git','diff','--exit-code',source_sha,'--','src','server','public','scripts','package.json','package-lock.json','index.html','tsconfig.json','vite.config.ts',':(exclude)server/index.ts'],cwd=BASE,check=True)
+    subprocess.run(['git','diff','--exit-code',source_sha,'--','src','server','public','scripts','package.json','package-lock.json','index.html','tsconfig.json','vite.config.ts',':(exclude)server/index.ts',':(exclude)src/main.tsx',':(exclude)src/style.css'],cwd=BASE,check=True)
     original_server=subprocess.check_output(['git','show',source_sha+':server/index.ts'],cwd=BASE)
     patched_server=original_server.replace(b'import { resolve, extname } from "node:path";',b'import { resolve, extname, sep } from "node:path";').replace(b'path.startsWith(root + "/")',b'path.startsWith(root + sep)')
     if (BASE/'server/index.ts').read_text().encode('utf8')!=patched_server: raise RuntimeError('Only the reviewed Windows static-path fix may change the merged backend')
@@ -26,6 +26,7 @@ def build(source_sha,node_zip,prod_deps,output,work):
     for folder in ['server','src','scripts']: shutil.copytree(source/folder,app/folder)
     for name in ['package.json','package-lock.json']: shutil.copy2(source/name,app/name)
     (app/'server/index.ts').write_bytes(patched_server)
+    for name in ['main.tsx','style.css']: shutil.copy2(BASE/'src'/name,app/'src'/name)
     if not (BASE/'dist/index.html').is_file(): raise RuntimeError('Build the merged application first')
     shutil.copytree(BASE/'dist',app/'dist')
     if not (prod_deps/'pdfkit/package.json').is_file(): raise RuntimeError('Locked production dependencies required')
@@ -45,7 +46,7 @@ def build(source_sha,node_zip,prod_deps,output,work):
         text=(BASE/'owner-preview'/template).read_text();(root/name).write_bytes(text.replace('\r\n','\n').replace('\n','\r\n').encode('ascii'))
     shutil.copy2(BASE/'owner-preview/READ-ME-FIRST.html',root/'READ ME FIRST.html')
     (root/'START HERE.txt').write_bytes(b'1. Right-click the ZIP and choose Extract All.\r\n2. Open the extracted folder. Double-click START JR Roofing.cmd.\r\n3. Double-click SHOW LOGIN DETAILS.cmd and sign in as owner.\r\n\r\nKeep the JR Roofing console window open while reviewing.\r\nNode.js is bundled: no installation, subscriptions or paid services.\r\nSee READ ME FIRST.html for the feature walkthrough and help.\r\n')
-    (root/'SOURCE-VERSION.txt').write_text('JR Roofing Intelligence - genuine merged application\nRepository: https://github.com/jalildrahmane-del/jr-roofing-intelligence\nMerged main source: '+source_sha+'\nIncludes Issues 1-3; excludes unmerged Issue 4 and hosting changes.\nPortable Windows x64 Node.js: '+release['version']+'\nOfficial Node ZIP SHA256: '+release['archiveSha256']+'\nApplication server/src/scripts files are copied from the exact git archive, plus the reviewed Windows static-path fix in server/index.ts.\nPatched server/index.ts SHA256: '+sha(app/'server/index.ts')+'\nFrontend is the production build of that merged source.\nLocal launcher and fictional seed are additional review-package files.\nNo prebuilt database, passwords, API keys or user data are distributed.\n')
+    (root/'SOURCE-VERSION.txt').write_text('JR Roofing Intelligence - genuine merged application\nRepository: https://github.com/jalildrahmane-del/jr-roofing-intelligence\nMerged main source: '+source_sha+'\nIncludes Issues 1-3; excludes unmerged Issue 4 and hosting changes.\nPortable Windows x64 Node.js: '+release['version']+'\nOfficial Node ZIP SHA256: '+release['archiveSha256']+'\nApplication server/src/scripts files are copied from the exact git archive, plus the reviewed Windows static-path fix in server/index.ts.\nPatched server/index.ts SHA256: '+sha(app/'server/index.ts')+'\nFrontend includes the owner-requested dashboard drone video in src/main.tsx and src/style.css.\nLocal launcher and fictional seed are additional review-package files.\nNo prebuilt database, passwords, API keys or user data are distributed.\n')
     (root/'THIRD-PARTY-NOTICES.txt').write_text('Node.js and its bundled components: runtime/LICENSE.txt (official distribution).\nApplication dependencies: app/node_modules, with original package licenses retained.\nPDF fonts: app/server/assets/FONT-LICENSE.txt.\nApplication source: repository and commit in SOURCE-VERSION.txt.\nFictional roof illustration: synthetic test fixture, not a real inspection image.\nNo endorsement by Node.js/OpenJS Foundation or third-party libraries is implied.\n')
     files=sorted(p for p in root.rglob('*') if p.is_file())
     forbidden=[p for p in files if p.suffix in ['.sqlite','.dpapi','.pem','.jrb'] or p.name.startswith('.env')]
