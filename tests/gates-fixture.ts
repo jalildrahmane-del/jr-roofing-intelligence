@@ -41,6 +41,7 @@ export function gateFixture(path = ":memory:") {
     type: "Commercial",
     roof: "Flat",
   });
+  for (const u of Object.values(users)) if (u.id !== users.author.id && u.role !== "worker") store.setAccess(users.author, project.id, u.id, u.role === "viewer" ? "read" : "write");
   const records = () =>
     store.snapshot(users.author).records.filter((r) => r.pid === project.id);
   const save = (kind: string, data: any, who = users.author) =>

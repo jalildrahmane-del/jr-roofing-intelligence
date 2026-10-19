@@ -315,6 +315,9 @@ try {
   assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
   writeFileSync("artifacts/issue-2-browser-draft.pdf", bytes);
   await page.getByRole("button", { name: "Sign out" }).click();
+  const author = store.user(store.login("survey-author", "synthetic-test-password"));
+  const reviewer = store.user(store.login("survey-reviewer", "synthetic-test-password"));
+  for (const project of store.snapshot(author).projects) store.setAccess(author, project.id, reviewer.id, "write");
   await login("survey-reviewer");
   await page.getByRole("button", { name: "Review document for issue" }).click();
   const review = section("Manager review");

@@ -290,13 +290,13 @@ test("v1 to v2 migration and reopening preserve projects, surveys, evidence and 
     v1.addUser("migrate", "migration-test-password", "manager");
     const u = v1.user(v1.login("migrate", "migration-test-password")!)!;
     v1.project(u, { name: "Old version project" });
-    v1.db.exec("DROP TABLE evidence; DELETE FROM migrations WHERE version=2");
+    v1.db.exec("DROP TABLE document_files; DROP TABLE project_members; DROP TABLE evidence; DELETE FROM migrations WHERE version>=2");
     v1.close();
     const upgraded = new Store(v1path);
     assert.equal(upgraded.snapshot(u).projects[0].name, "Old version project");
     assert.equal(
       upgraded.db.prepare("SELECT count(*) AS n FROM migrations").get()?.n,
-      2,
+      3,
     );
     upgraded.close();
   } finally {

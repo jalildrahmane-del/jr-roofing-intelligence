@@ -1,8 +1,11 @@
+import { documentReport } from "./document-report.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, extname } from "node:path";
+import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
+import { saveDocument, documentState } from "./documents.ts";
+import { createHash } from "node:crypto";
 import { saveGate } from "./gates.ts";
 import { saveTender } from "./tender.ts";
 import { renderReport } from "./report.ts";
@@ -44,7 +47,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         if (req.method !== "GET" && req.method !== "HEAD")
           return reply(405, { error: "Method not allowed" });
         let path = resolve(root, "." + decodeURIComponent(url.pathname));
-        if (!path.startsWith(root + "/") && path !== root)
+        if (!path.startsWith(root + sep) && path !== root)
           return reply(403, { error: "Forbidden" });
         if (existsSync(path) && statSync(path).isDirectory())
           path = resolve(path, "index.html");
@@ -147,7 +150,13 @@ export function createApp(store: Store, root = resolve("dist")) {
           .get(url.pathname.slice("/api/evidence/".length)) as any;
         if (
           !asset ||
-          !store.snapshot(user).projects.some((p) => p.id === asset.pid)
+          !store.canRead(user, asset.pid) ||
+          (user.role === "worker" &&
+            !store
+              .snapshot(user)
+              .records.some(
+                (r) => r.kind === "photo" && r.data.assetId === asset.id,
+              ))
         )
           return reply(404, { error: "Evidence not found" });
         res.writeHead(200, {
@@ -165,7 +174,11 @@ export function createApp(store: Store, root = resolve("dist")) {
           record = state.records.find(
             (r) => r.id === id && r.kind === "document",
           );
-        if (!record || !state.projects.some((p) => p.id === record.pid))
+        if (
+          !record ||
+          !state.projects.some((p) => p.id === record.pid) ||
+          user.role === "worker"
+        )
           return reply(404, { error: "Report not found" });
         const approval = state.records.find(
             (r) => r.kind === "approval" && r.data.documentId === id,
@@ -213,6 +226,90 @@ export function createApp(store: Store, root = resolve("dist")) {
             "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
         });
       }
+      if (url.pathname === "/api/access" && req.method === "POST") {
+        if (!store.canRead(user, body.pid))
+          return reply(404, { error: "Project not found" });
+        store.setAccess(
+          user,
+          body.pid,
+          text(body.uid, "Account ID", 100),
+          text(body.access, "Project access", 20),
+        );
+        return reply(201, { ok: true });
+      }
+      if (url.pathname.startsWith("/api/access/") && req.method === "GET") {
+        const pid = url.pathname.slice("/api/access/".length);
+        if (!store.canRead(user, pid))
+          return reply(404, { error: "Project not found" });
+        if (user.role !== "manager" || store.access(user, pid) !== "admin")
+          return reply(200, { access: store.access(user, pid), accounts: [] });
+        const accounts = store.db
+          .prepare(
+            "SELECT u.id,u.name,u.role,m.access FROM users u LEFT JOIN project_members m ON m.uid=u.id AND m.pid=? WHERE u.company=? ORDER BY u.name",
+          )
+          .all(pid, user.company);
+        return reply(200, { access: "admin", accounts });
+      }
+      if (url.pathname === "/api/ai/generate" && req.method === "POST") {
+        if (!store.canRead(user, body.pid))
+          return reply(404, { error: "Project not found" });
+        return reply(409, {
+          code: "AI_DISABLED",
+          error:
+            "AI generation and paid integrations are disabled. No generation was performed.",
+        });
+      }
+      if (
+        url.pathname.startsWith("/api/document-status/") &&
+        req.method === "GET"
+      ) {
+        const pid = url.pathname.slice("/api/document-status/".length);
+        if (!store.canRead(user, pid) || user.role === "worker")
+          return reply(404, { error: "Project not found" });
+        const records = store
+          .snapshot(user)
+          .records.filter((r) => r.pid === pid);
+        return reply(
+          200,
+          Object.fromEntries(
+            records
+              .filter((r) => r.kind === "controlledDocument")
+              .map((r) => [r.id, documentState(store, records, r)]),
+          ),
+        );
+      }
+      if (
+        url.pathname.startsWith("/api/document-files/") &&
+        req.method === "GET"
+      ) {
+        const file = store.db
+          .prepare("SELECT * FROM document_files WHERE id=?")
+          .get(url.pathname.slice("/api/document-files/".length)) as any;
+        if (!file || !store.canRead(user, file.pid) || user.role === "worker")
+          return reply(404, { error: "Document file not found" });
+        const bytes = Buffer.from(file.bytes);
+        if (createHash("sha256").update(bytes).digest("hex") !== file.sha256)
+          return reply(409, {
+            error:
+              "Document file integrity check failed. Restore a verified backup.",
+          });
+        res.writeHead(200, {
+          "Content-Type": file.mime,
+          "Content-Disposition": `attachment; filename="jr-document-${file.id}.${file.mime === "application/pdf" ? "pdf" : "txt"}"`,
+          "Cache-Control": "no-store",
+          "Content-Security-Policy": "sandbox; default-src 'none'",
+        });
+        res.end(bytes);
+        return;
+      }
+      if (url.pathname.startsWith("/api/controlled-document-pdf/") && req.method === "GET") {
+        const records = store.snapshot(user).records;
+        const doc = records.find(r => r.kind === "controlledDocument" && r.id === url.pathname.slice("/api/controlled-document-pdf/".length));
+        if (!doc || user.role === "worker") return reply(404, {error:"Document not found"});
+        const projectRecords = records.filter(r => r.pid === doc.pid);
+        const pdf = await documentReport(doc, documentState(store, projectRecords, doc).status, projectRecords);
+        res.writeHead(200, {"Content-Type":"application/pdf", "Content-Disposition":'attachment; filename="document-review.pdf"', "Cache-Control":"no-store"}); res.end(pdf); return;
+      }
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
       if (url.pathname === "/api/projects" && req.method === "POST")
@@ -239,7 +336,13 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       return reply(404, { error: "Endpoint not found" });
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Unexpected error";
+      const message =
+        e instanceof SyntaxError ||
+        String((e as any)?.code || "").startsWith("ERR_SQLITE")
+          ? "Saved data could not be read or written. Retry; if it persists, restore a verified backup."
+          : e instanceof Error
+            ? e.message
+            : "Unexpected error";
       reply(message.startsWith("Forbidden") ? 403 : 400, { error: message });
     }
   });
@@ -253,6 +356,8 @@ export function saveRecord(
 ) {
   if (!["manager", "engineer", "supervisor"].includes(user.role))
     throw Error("Forbidden: read-only account");
+  if (!store.canWrite(user, pid))
+    throw Error("Forbidden: project write access required");
   if (!data || typeof data !== "object" || Array.isArray(data))
     throw Error("Record data required");
   if (kind === "load")
@@ -263,6 +368,7 @@ export function saveRecord(
       preliminaryLoad(data.thickness, data.density, data.area, data.other),
     );
   return (
+    saveDocument(store, user, pid, kind, data) ||
     saveGate(store, user, pid, kind, data) ||
     saveTender(store, user, pid, kind, data)
   );

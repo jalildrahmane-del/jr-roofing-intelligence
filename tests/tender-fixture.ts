@@ -60,6 +60,8 @@ export function fixture(path = ":memory:") {
       type: "Commercial",
       roof: "Mixed",
     });
+  store.setAccess(author, project.id, reviewer.id, "write");
+  store.setAccess(author, project.id, viewer.id, "read");
   const save = (kind: string, data: any, who: User = author) =>
     store.transaction(() => saveRecord(store, who, project.id, kind, data));
   const roof = save("roof", roofData),

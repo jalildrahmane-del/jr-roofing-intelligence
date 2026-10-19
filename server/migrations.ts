@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const schemaVersion = 2;
+export const schemaVersion = 3;
 
 // Add a numbered migration here for future schema changes; never edit an applied one.
 const initialSchema = `
@@ -40,6 +40,22 @@ export function migrate(db: DatabaseSync) {
         new Date().toISOString(),
       );
     }
+    if (!versions.includes(3)) {
+      db.exec(`CREATE TABLE project_members(pid TEXT NOT NULL REFERENCES projects(id),uid TEXT NOT NULL REFERENCES users(id),access TEXT NOT NULL CHECK(access IN ('read','write','admin')),PRIMARY KEY(pid,uid));
+      CREATE TABLE document_files(id TEXT PRIMARY KEY,pid TEXT NOT NULL REFERENCES projects(id),mime TEXT NOT NULL,bytes BLOB NOT NULL,sha256 TEXT NOT NULL,name TEXT NOT NULL);
+      INSERT INTO project_members(pid,uid,access)
+      SELECT p.id,u.id,CASE WHEN u.id=a.actor THEN 'admin' ELSE CASE WHEN u.role='viewer' THEN 'read' ELSE 'write' END END
+      FROM projects p JOIN audit a ON a.action='project.create' AND json_extract(a.detail,'$.id')=p.id
+      JOIN users owner ON owner.id=a.actor JOIN users u ON u.company=owner.company AND u.role!='worker';`);
+      db.prepare("INSERT INTO migrations VALUES(?,?)").run(
+        3,
+        new Date().toISOString(),
+      );
+    }
+    db.prepare("SELECT pid,uid,access FROM project_members LIMIT 0").all();
+    db.prepare(
+      "SELECT id,pid,mime,bytes,sha256,name FROM document_files LIMIT 0",
+    ).all();
     db.prepare("SELECT id,pid,mime,bytes,sha256 FROM evidence LIMIT 0").all();
     // Fail closed if a file claims version 1 but its required schema is incomplete.
     db.prepare("SELECT id,name,password,role,company FROM users LIMIT 0").all();
