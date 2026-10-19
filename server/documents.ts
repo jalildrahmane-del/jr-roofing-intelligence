@@ -70,7 +70,8 @@ export function documentState(
       if (
         !reviewer ||
         reviewer.role !== "manager" ||
-        !store.canWrite(reviewer, doc.pid)
+        !store.canWrite(reviewer, doc.pid) ||
+        !!store.db.prepare("SELECT 1 FROM audit WHERE seq > ? AND action='project.access' AND json_extract(detail,'$.pid')=? AND json_extract(detail,'$.uid')=? LIMIT 1").get(review.data.authoritySequence || 0, doc.pid, review.author)
       )
         return result("Reviewer authority revoked");
       return result("Approved for document use", false, true);
@@ -289,6 +290,7 @@ export function saveDocument(
     revision: doc.data.revision,
     versionId: doc.id,
     decision,
+    authoritySequence: Number(store.db.prepare("SELECT coalesce(max(seq),0) n FROM audit").get()!.n),
     note: text(d.note, "Review findings", 10000),
     source: text(d.source, "Review evidence reference", 1000),
     attest: true,

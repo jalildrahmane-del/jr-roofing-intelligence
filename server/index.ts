@@ -1,6 +1,7 @@
+import { documentReport } from "./document-report.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, extname } from "node:path";
+import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
 import { saveDocument, documentState } from "./documents.ts";
@@ -46,7 +47,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         if (req.method !== "GET" && req.method !== "HEAD")
           return reply(405, { error: "Method not allowed" });
         let path = resolve(root, "." + decodeURIComponent(url.pathname));
-        if (!path.startsWith(root + "/") && path !== root)
+        if (!path.startsWith(root + sep) && path !== root)
           return reply(403, { error: "Forbidden" });
         if (existsSync(path) && statSync(path).isDirectory())
           path = resolve(path, "index.html");
@@ -300,6 +301,14 @@ export function createApp(store: Store, root = resolve("dist")) {
         });
         res.end(bytes);
         return;
+      }
+      if (url.pathname.startsWith("/api/controlled-document-pdf/") && req.method === "GET") {
+        const records = store.snapshot(user).records;
+        const doc = records.find(r => r.kind === "controlledDocument" && r.id === url.pathname.slice("/api/controlled-document-pdf/".length));
+        if (!doc || user.role === "worker") return reply(404, {error:"Document not found"});
+        const projectRecords = records.filter(r => r.pid === doc.pid);
+        const pdf = await documentReport(doc, documentState(store, projectRecords, doc).status, projectRecords);
+        res.writeHead(200, {"Content-Type":"application/pdf", "Content-Disposition":'attachment; filename="document-review.pdf"', "Cache-Control":"no-store"}); res.end(pdf); return;
       }
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));

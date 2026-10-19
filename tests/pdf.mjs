@@ -57,3 +57,9 @@ for (const [path, approved] of [
 console.log(
   "PASS: real A4 PDFs contain multi-roof evidence, GPS, annotations, Unicode source properties, exact reconciled totals, limitations and correct independent approval; text remains within printable bounds",
 );
+
+const controlled='artifacts/issue-4-review.pdf';
+const controlledText=execFileSync('pdftotext',['-layout',controlled,'-'],{encoding:'utf8'});
+for(const phrase of ['DOC-UI-001','Approved for document use','LIMITATIONS','SUGGESTIONS','SYN-REVIEW-UI','Not structural safety certification'])assert.ok(controlledText.includes(phrase),phrase);
+assert.match(execFileSync('pdfinfo',[controlled],{encoding:'utf8'}),/JavaScript:\s+no/);
+console.log('PASS: controlled review PDF content and safety statements');

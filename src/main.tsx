@@ -6,6 +6,7 @@ import "./style.css";
 import { current } from "./tender.ts";
 import { api, ApiError } from "./api.ts";
 import { ApprovalWorkflow } from "./ApprovalWorkflow.tsx";
+import { DocumentWorkflow } from "./DocumentWorkflow.tsx";
 import { Workflow, Journey } from "./Workflow.tsx";
 export function Form({
   fields,
@@ -218,6 +219,7 @@ function App() {
           )}
           {route === "dashboard" && (
             <>
+              <div className="dashboard-film"><video aria-label="Roofing drone flyover" controls autoPlay={!window.matchMedia("(prefers-reduced-motion: reduce)").matches} muted loop playsInline preload="metadata" poster="/legacy/roof-poster.jpg" src="/legacy/roof-drone.mp4" /><div className="dashboard-film-title" aria-hidden="true"><span>JR ROOFING INTELLIGENCE</span><strong>From survey to handover</strong></div></div>
               <Journey records={state.records.filter((r) => r.pid === pid)} />
               <p>Evidence, costs and approvals in one project record.</p>
               <div className="stats">
@@ -368,7 +370,9 @@ function App() {
               refresh={refresh}
             />
           )}
+          {route === "documents" && <DocumentWorkflow key={pid} pid={pid} records={state.records.filter(r => r.pid === pid)} user={user} refresh={refresh} />}
           {![
+            "documents",
             "dashboard",
             "projects",
             "legacy",
