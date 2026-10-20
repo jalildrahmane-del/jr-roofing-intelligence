@@ -19,6 +19,7 @@ export function redeemAttendanceChallenge(secret: Buffer, token: string, project
   const expected = createHmac("sha256", secret).update(pieces[0]).digest();
   let provided: Buffer;
   try { provided = Buffer.from(pieces[1], "base64url"); } catch { return false; }
+  if (provided.toString("base64url") !== pieces[1]) return false;
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return false;
   try {
     const data = JSON.parse(Buffer.from(pieces[0], "base64url").toString("utf8"));

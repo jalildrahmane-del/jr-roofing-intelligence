@@ -21,3 +21,5 @@ test("weak signing key and unreasonable lifetime rejected", () => {
   assert.throws(() => createAttendanceChallenge(Buffer.alloc(8), "site-1", now), /short/);
   assert.throws(() => createAttendanceChallenge(secret, "site-1", now, 999999), /lifetime/);
 });
+
+test("noncanonical signature encodings cannot bypass durable replay identity",()=>{const c=createAttendanceChallenge(secret,"site-1",now);assert.equal(redeemAttendanceChallenge(secret,c.token+"=","site-1",new Set(),now),false);assert.equal(redeemAttendanceChallenge(secret,c.token,"site-1",new Set(),now+60000),false);});
