@@ -12,7 +12,7 @@
     "dev": "node scripts/dev.mjs",
     "start": "node server/index.ts",
     "test": "node --test tests/*.test.ts",
-    "test:browser": "node tests/browser.mjs && node tests/tender-browser.mjs && node tests/gates-browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/tender-browser.mjs && node tests/gates-browser.mjs && node tests/workforce-browser.mjs && node tests/documents-browser.mjs",
     "validate": "npm run typecheck && npm test && npm run build && npm run test:browser && npm run test:dev && npm run test:pdf",
     "backup": "node scripts/backup.ts",
     "test:dev": "node tests/dev.mjs",
@@ -21,6 +21,7 @@
   "dependencies": {
     "image-size": "2.0.4",
     "pdfkit": "0.20.2",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -28,6 +29,7 @@
     "@sparticuz/chromium": "^153.0.0",
     "@types/node": "22.20.1",
     "@types/pdfkit": "0.17.6",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "playwright": "1.62.1",

@@ -1,3 +1,6 @@
+import { documentCommand, documentState, documentPdf } from "./documents.ts";
+import { randomBytes } from "node:crypto";
+import { workforceCommand, workforceState } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname } from "node:path";
@@ -10,6 +13,7 @@ import { positive, text, preliminaryLoad } from "../src/model.ts";
 import type { User } from "../src/model.ts";
 export function createApp(store: Store, root = resolve("dist")) {
   root = resolve(root);
+  const workforceKey = randomBytes(32);
   const attempts = new Map<string, { n: number; until: number }>();
   return createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -195,6 +199,7 @@ export function createApp(store: Store, root = resolve("dist")) {
           )
           .all()
           .filter((r: any) => {
+            if (r.action.startsWith("workforce.")) return false;
             const d = JSON.parse(r.detail);
             return (
               d.pid === pid || (r.action === "project.create" && d.id === pid)
@@ -213,6 +218,18 @@ export function createApp(store: Store, root = resolve("dist")) {
             "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
         });
       }
+      if (url.pathname === "/api/document-intelligence" && req.method === "GET")
+        return reply(200, documentState(store,user,url.searchParams.get("pid")||""));
+      if (url.pathname === "/api/document-intelligence" && req.method === "POST")
+        return reply(201, documentCommand(store,user,text(body.pid,"Project",200),text(body.action,"Action",50),body.data));
+      if (url.pathname === "/api/document-pdf" && req.method === "GET") {
+        const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
+        res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
+      }
+      if (url.pathname === "/api/workforce" && req.method === "GET")
+        return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));
+      if (url.pathname === "/api/workforce" && req.method === "POST")
+        return reply(201, workforceCommand(store, user, text(body.pid,"Project",200), text(body.action,"Action",50),body.data,workforceKey));
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
       if (url.pathname === "/api/projects" && req.method === "POST")
