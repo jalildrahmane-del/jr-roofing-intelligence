@@ -23,7 +23,7 @@ export function redeemAttendanceChallenge(secret: Buffer, token: string, project
   try {
     const data = JSON.parse(Buffer.from(pieces[0], "base64url").toString("utf8"));
     if (data.projectId !== projectId || typeof data.nonce !== "string" || !/^[0-9a-f]{48}$/.test(data.nonce) ||
-      !Number.isSafeInteger(data.expiresAt) || now > data.expiresAt || now < data.expiresAt - 120000) return false;
+      !Number.isSafeInteger(data.expiresAt) || now >= data.expiresAt || now < data.expiresAt - 120000) return false;
     used.add(token);
     return true;
   } catch { return false; }

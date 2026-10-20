@@ -32,7 +32,7 @@ test('consistent WAL backup survives restore; migrations preserve data and rejec
  const p=s.project(user,{name:'Preserved roof',area:94});s.transaction(()=>s.append(user,p.id,'load',{status:'Preliminary'}));
  backupDatabase(path,snapshot);assert.throws(()=>backupDatabase(path,snapshot),/new file/);
  if(process.platform!=='win32')assert.equal(statSync(snapshot).mode&0o777,0o600);
- const restored=new Store(snapshot);assert.equal(restored.snapshot(user).projects[0].name,'Preserved roof');assert.equal(restored.snapshot(user).records.length,1);assert.equal(restored.db.prepare('SELECT count(*) AS n FROM migrations').get()?.n,2);restored.close();
+ const restored=new Store(snapshot);assert.equal(restored.snapshot(user).projects[0].name,'Preserved roof');assert.equal(restored.snapshot(user).records.length,1);assert.equal(restored.db.prepare('SELECT count(*) AS n FROM migrations').get()?.n,3);restored.close();
  s.db.prepare('INSERT INTO migrations VALUES(99,?)').run(new Date().toISOString());s.close();assert.throws(()=>new Store(path),/Unsupported database schema/);
  }finally{try{s.close()}catch{}rmSync(dir,{recursive:true});}
 });
