@@ -1,3 +1,4 @@
+import { Workforce } from "./Workforce.tsx";
 import React, { useEffect, useState, Component } from "react";
 import { createRoot } from "react-dom/client";
 import { routes, titles } from "./model.ts";
@@ -368,6 +369,7 @@ function App() {
               refresh={refresh}
             />
           )}
+          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} />}
           {![
             "dashboard",
             "projects",
@@ -380,6 +382,7 @@ function App() {
             "construction",
             "quality",
             "handover",
+            "workforce",
           ].includes(route) && (
             <section>
               <p>
