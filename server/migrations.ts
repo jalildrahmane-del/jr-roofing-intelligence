@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const schemaVersion = 2;
+export const schemaVersion = 3;
 
 // Add a numbered migration here for future schema changes; never edit an applied one.
 const initialSchema = `
@@ -40,6 +40,11 @@ export function migrate(db: DatabaseSync) {
         new Date().toISOString(),
       );
     }
+    if (!versions.includes(3)) {
+      db.exec("CREATE TABLE workforce_qr_redemptions(token_hash TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id),redeemed_by TEXT NOT NULL REFERENCES users(id),redeemed_at TEXT NOT NULL)");
+      db.prepare("INSERT INTO migrations VALUES(?,?)").run(3,new Date().toISOString());
+    }
+    db.prepare("SELECT token_hash,project_id,redeemed_by,redeemed_at FROM workforce_qr_redemptions LIMIT 0").all();
     db.prepare("SELECT id,pid,mime,bytes,sha256 FROM evidence LIMIT 0").all();
     // Fail closed if a file claims version 1 but its required schema is incomplete.
     db.prepare("SELECT id,name,password,role,company FROM users LIMIT 0").all();
