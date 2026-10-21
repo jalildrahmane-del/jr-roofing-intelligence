@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User } from "./model.ts";
 import QRCode from "qrcode";
+import { ProductivityPanel } from "./ProductivityPanel.tsx";
 
 export function Entry({
   title,
@@ -354,6 +355,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                 ))}
             </ul>
           </section>
+          {["manager", "supervisor"].includes(user.role) && <ProductivityPanel state={state} />}
           <section>
             <h2>Weekly reported quantities</h2>
             <ul>
