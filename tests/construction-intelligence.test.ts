@@ -40,7 +40,7 @@ test("site diaries use latest revision and are sorted by site date",()=>{
 
 test("invalid calendar dates are rejected instead of silently normalised", () => {
  assert.throws(()=>constructionOverview([],"2026-02-30"),/valid reporting date/);
- const result=constructionOverview([rec("x","programme",{entityId:"task-x",title:"Bad date",progress:0,plannedEnd:"2026-02-30"})],"2026-10-21");
+ const result=constructionOverview([r("x","programme",{entityId:"task-x",title:"Bad date",progress:0,plannedEnd:"2026-02-30"})],"2026-10-21");
  assert.equal(result.tasks[0].plannedEnd,"");
  assert.equal(result.overdueTasks,0);
 });
