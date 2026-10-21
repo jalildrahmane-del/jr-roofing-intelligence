@@ -13,6 +13,7 @@ import { api } from "./api.ts";
 import { compareTenderOptions } from "./commercial.ts";
 import "./commercial.css";
 import { roofEvidenceSummary } from "./survey-intelligence.ts";
+import "./survey-intelligence.css";
 type Field = {
   name: string;
   label: string;
