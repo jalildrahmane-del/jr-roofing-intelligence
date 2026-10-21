@@ -34,3 +34,12 @@
 .owner-next-links a{color:#334c70}
 @media(max-width:1100px){.owner-stages{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.owner-hero,.owner-next{flex-direction:column;align-items:stretch;padding:22px}.owner-hero-stat{border-left:0;border-top:1px solid #8491a7;padding:16px 0 0;text-align:left}.owner-metrics{grid-template-columns:1fr}.owner-stages{grid-template-columns:1fr}.owner-section-head{align-items:start;flex-direction:column}.owner-stage{gap:8px}}
+
+.owner-film{position:relative;isolation:isolate;overflow:hidden;border-radius:16px;height:clamp(220px,28vw,380px);background:#18304c url('/legacy/roof-poster.jpg') center/cover no-repeat;margin-bottom:20px}
+.owner-film video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.owner-film-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,31,52,.84),rgba(12,31,52,.12))}
+.owner-film-caption{position:absolute;z-index:1;left:clamp(20px,4vw,52px);bottom:clamp(22px,4vw,50px);color:#fff;display:flex;flex-direction:column;gap:8px;text-shadow:0 2px 10px #12243e}
+.owner-film-caption span{font-size:12px;font-weight:800;letter-spacing:2px;color:#f0c65b}
+.owner-film-caption strong{font-size:clamp(24px,4vw,48px);line-height:1.08;letter-spacing:-1px}
+.owner-film-caption small{font-size:12px;letter-spacing:2px}
+@media(prefers-reduced-motion:reduce){.owner-film video{display:none}}
