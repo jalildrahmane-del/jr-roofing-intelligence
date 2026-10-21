@@ -1,0 +1,9 @@
+.survey-intelligence{margin:20px 0;padding:20px;background:#f2f5f9;border:1px solid #dce4ed;border-radius:14px}
+.survey-intelligence>h2{margin-top:0}
+.survey-evidence-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.survey-evidence-card{background:#fff;border:1px solid #e1e6ed;border-radius:12px;padding:18px;min-width:0}
+.survey-evidence-card h3{margin:0 0 6px}
+.survey-evidence-card p{font-size:13px}
+.survey-evidence-counts{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;color:#3a536e;font-size:12px;font-weight:700}
+.survey-evidence-card ul{margin:8px 0 14px;padding-left:20px;font-size:12px;line-height:1.7}
+.survey-evidence-card button{margin-top:8px}
