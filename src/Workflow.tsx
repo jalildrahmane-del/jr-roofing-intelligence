@@ -11,6 +11,7 @@ import {
 import type { LineInput, Pricing } from "./tender.ts";
 import { api } from "./api.ts";
 import { compareTenderOptions } from "./commercial.ts";
+import "./commercial.css";
 type Field = {
   name: string;
   label: string;
