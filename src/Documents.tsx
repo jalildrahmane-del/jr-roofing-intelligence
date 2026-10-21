@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import { Entry } from "./Workforce.tsx";
+import { SafetyDocumentComposer } from "./SafetyDocumentComposer.tsx";
+import "./safety-composer.css";
 export function Documents({ pid }: { pid: string }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState("");
@@ -64,6 +66,7 @@ export function Documents({ pid }: { pid: string }) {
               ))}
             </ul>
           </section>
+          <SafetyDocumentComposer sources={state.sources} send={send} />
           <section>
             <Entry
               title="Create source-linked draft"
