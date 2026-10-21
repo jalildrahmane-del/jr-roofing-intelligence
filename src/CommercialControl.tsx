@@ -24,6 +24,7 @@ export function CommercialControl({pid,records,user,refresh}:{pid:string;records
     <div className="fields">{fields}</div><button disabled={busy}>{busy?"Saving…":button}</button>
   </form>;
   if(!pid)return <section><p>Select or create a project to manage its commercial records.</p></section>;
+  if(user.role!=="manager")return <section><h2>Commercial Control</h2><p role="status">Commercial financial records are restricted to authorised project managers.</p></section>;
   return <section className="commercial-control">
     <p className="warning">Financial working register. Entries are human-recorded; approval references are not independently verified. This is not a final account, cost-to-complete forecast or payment certificate.</p>
     <div className="commercial-summary">
