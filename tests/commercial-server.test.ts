@@ -7,7 +7,7 @@ import type {User} from "../src/model.ts";
 test("commercial records are manager-only, project-scoped and auditable",()=>{
  const store=new Store(":memory:");
  try{
-  const manager:User={id:"manager",name:"Manager",role:"manager",company:"JR Roofing"};
+  const manager:User={id:store.addUser("Manager","integration-test-password-123","manager"),name:"Manager",role:"manager",company:"JR Roofing"};
   const viewer:User={id:"viewer",name:"Viewer",role:"viewer",company:"JR Roofing"};
   const project=store.project(manager,{name:"Test roofing project",client:"Fictional client",address:"Test"});
   assert.throws(()=>saveCommercial(store,viewer,project.id,"budget",{amountPence:100000,reference:"B01",note:"Basis"}),/Forbidden/);
@@ -23,7 +23,7 @@ test("commercial records are manager-only, project-scoped and auditable",()=>{
 test("commercial values reject invalid money and missing client decision evidence",()=>{
  const store=new Store(":memory:");
  try{
-  const manager:User={id:"manager",name:"Manager",role:"manager",company:"JR Roofing"};
+  const manager:User={id:store.addUser("Manager","integration-test-password-123","manager"),name:"Manager",role:"manager",company:"JR Roofing"};
   const project=store.project(manager,{name:"Test project"});
   assert.throws(()=>saveCommercial(store,manager,project.id,"cost",{costType:"actual",amountPence:-1,reference:"INV",description:"Labour"}),/non-negative/);
   assert.throws(()=>saveCommercial(store,manager,project.id,"variation",{reference:"V01",description:"Extra flashing",status:"accepted",amountPence:12000,decisionReference:""}),/decision reference/i);
@@ -32,7 +32,7 @@ test("commercial values reject invalid money and missing client decision evidenc
 test("superseded variation revisions cannot be edited again",()=>{
  const store=new Store(":memory:");
  try{
-  const manager:User={id:"manager",name:"Manager",role:"manager",company:"JR Roofing"};
+  const manager:User={id:store.addUser("Manager","integration-test-password-123","manager"),name:"Manager",role:"manager",company:"JR Roofing"};
   const project=store.project(manager,{name:"Test project"});
   const base={reference:"V01",description:"Extra flashing",amountPence:12000};
   const original=saveCommercial(store,manager,project.id,"variation",{...base,status:"proposed"});
