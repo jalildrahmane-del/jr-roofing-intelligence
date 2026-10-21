@@ -10,6 +10,7 @@ import {
 } from "./tender.ts";
 import type { LineInput, Pricing } from "./tender.ts";
 import { api } from "./api.ts";
+import { compareTenderOptions } from "./commercial.ts";
 type Field = {
   name: string;
   label: string;
@@ -1388,8 +1389,9 @@ export function Workflow({
             preliminaries costs. Contingency applies to direct costs; sales
             margin is applied after contingency; VAT uses the rate you enter.
           </p>
-          <section>
-            <h2>Option comparison</h2>
+          <section className="commercial-comparison">
+            <h2>Commercial option comparison</h2>
+            <p>Compare current, fully priced tender options. Superseded source measurements or unpriced lines are excluded from lowest-price indicators. This is not an approval or tender award.</p>
             {!estimates.length ? (
               <p>No tender options recorded.</p>
             ) : (
@@ -1398,35 +1400,32 @@ export function Workflow({
                   <thead>
                     <tr>
                       <th>Option</th>
-                      <th>Cost</th>
-                      <th>Net</th>
-                      <th>VAT</th>
-                      <th>Total</th>
+                      <th>Direct cost</th>
+                      <th>Profit</th>
+                      <th>Net quote</th>
+                      <th>Inc. VAT</th>
+                      <th>Comparison status</th>
                       <th>Revision / action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {estimates.map((e) => (
-                      <tr key={e.id}>
-                        <th>
-                          {e.data.title}
-                          {estimateWarnings(e, roofs, materials).map((w) => (
-                            <p className="warning" key={w}>
-                              {w}
-                            </p>
-                          ))}
-                        </th>
-                        <td>{pounds(e.data.pricing.costPence)}</td>
-                        <td>{pounds(e.data.pricing.netPence)}</td>
-                        <td>{pounds(e.data.pricing.vatPence)}</td>
-                        <td>{pounds(e.data.pricing.grossPence)}</td>
+                    {compareTenderOptions(estimates, roofs, materials).map((option) => (
+                      <tr key={option.id}>
+                        <th>{option.title}</th>
+                        <td>{pounds(option.directPence)}</td>
+                        <td>{pounds(option.profitPence)}</td>
+                        <td>{pounds(option.netPence)}</td>
+                        <td>{pounds(option.grossPence)}</td>
                         <td>
-                          rev {e.data.version}
+                          {option.lowestCurrentNet && <span className="comparison-label">Lowest current net quote</span>}
+                          {!option.complete && <p className="warning">Unpriced lines — not comparable</p>}
+                          {option.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+                          {option.comparable && !option.lowestCurrentNet && <small>Current and fully priced</small>}
+                        </td>
+                        <td>
+                          rev {option.version}
                           {canEdit && (
-                            <button
-                              className="quiet"
-                              onClick={() => setEditEstimate(e)}
-                            >
+                            <button className="quiet" onClick={() => setEditEstimate(estimates.find(e => e.id === option.id))}>
                               Revise option
                             </button>
                           )}
