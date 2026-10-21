@@ -123,6 +123,7 @@ function App() {
     window.addEventListener("hashchange", listener);
     return () => window.removeEventListener("hashchange", listener);
   }, []);
+  useEffect(()=>{if(user?.role==='subcontractor-owner' && route!=='workforce')location.hash='workforce';},[user,route]);
   const project = state.projects.find((p) => p.id === pid);
   async function add(kind: string, data: any) {
     await api("records", { pid, kind, data });
@@ -181,7 +182,7 @@ function App() {
       <div className="shell">
         <aside>
           <nav aria-label="Workspace">
-            {routes.map((r) => (
+            {routes.filter(r=>user.role!=="subcontractor-owner"||r==="workforce").map((r) => (
               <a
                 aria-current={r === route ? "page" : undefined}
                 href={"#" + r}
