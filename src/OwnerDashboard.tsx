@@ -64,6 +64,26 @@ export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot;
           </a>
         ))}
       </div>
+      <section className="owner-activity" aria-labelledby="owner-activity-heading">
+        <div className="owner-section-head">
+          <div><p className="owner-kicker">PROJECT HISTORY</p><h2 id="owner-activity-heading">Latest recorded activity</h2></div>
+          <a href="#projects">Project register →</a>
+        </div>
+        {!project ? (
+          <p>Create or select a project to see its record history.</p>
+        ) : records.length === 0 ? (
+          <p>No project evidence has been recorded yet. Start with a roof survey.</p>
+        ) : (
+          <ol className="owner-activity-list">
+            {[...records].sort((a,b) => b.createdAt.localeCompare(a.createdAt)).slice(0,6).map(record => (
+              <li key={record.id}>
+                <div><strong>{record.kind.replace(/[._]/g, " ")}</strong><span>Recorded evidence — not an approval</span></div>
+                <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleString("en-GB", {dateStyle:"medium", timeStyle:"short"})}</time>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
       <div className="owner-next">
         <div><h2>Document & site controls</h2><p>Access RAMS, CPP, document revisions, approvals and workforce evidence. Human engineering and safety approvals remain mandatory.</p></div>
         <div className="owner-next-links"><a href={project ? "#documents" : "#projects"}>Document intelligence →</a><a href={project ? "#workforce" : "#projects"}>Subcontractors & workforce →</a><a href="#legacy">Original V3.6 workspace →</a></div>
