@@ -86,7 +86,7 @@ export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot;
       </section>
       <div className="owner-next">
         <div><h2>Document & site controls</h2><p>Access RAMS, CPP, document revisions, approvals and workforce evidence. Human engineering and safety approvals remain mandatory.</p></div>
-        <div className="owner-next-links"><a href={project ? "#documents" : "#projects"}>Document intelligence →</a><a href={project ? "#workforce" : "#projects"}>Subcontractors & workforce →</a><a href="#legacy">Original V3.6 workspace →</a></div>
+        <div className="owner-next-links"><a href={project ? "#commercial" : "#projects"}>Commercial control →</a><a href={project ? "#documents" : "#projects"}>Document intelligence →</a><a href={project ? "#workforce" : "#projects"}>Subcontractors & workforce →</a><a href="#legacy">Original V3.6 workspace →</a></div>
       </div>
     </div>
   );
