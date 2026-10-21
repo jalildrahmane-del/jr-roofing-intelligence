@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { User, RecordItem, Project } from "./model.ts";
 import { api } from "./api.ts";
 import { ConstructionIntelligence } from "./ConstructionIntelligence.tsx";
+import { QualityIntelligence } from "./QualityIntelligence.tsx";
 import { current } from "./tender.ts";
 import {
   gateSchemas,
@@ -164,6 +165,7 @@ export function ApprovalWorkflow({
         professional qualifications or the truth of submitted evidence.
       </p>
       {route === "construction" && <ConstructionIntelligence records={records} />}
+      {(route === "quality" || route === "handover") && <QualityIntelligence records={records} mode={route} />}
       <p>
         Your account ID: <code>{user.id}</code>
       </p>
