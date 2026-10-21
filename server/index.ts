@@ -1,5 +1,6 @@
 import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
+import { saveCommercial } from "./commercial-control.ts";
 import { workforceCommand, workforceState } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
@@ -234,6 +235,8 @@ export function createApp(store: Store, root = resolve("dist")) {
         return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));
       if (url.pathname === "/api/workforce" && req.method === "POST")
         return reply(201, workforceCommand(store, user, text(body.pid,"Project",200), text(body.action,"Action",50),body.data,workforceKey));
+      if (url.pathname === "/api/commercial" && req.method === "POST")
+        return reply(201,saveCommercial(store,user,text(body.pid,"Project",200),text(body.action,"Action",30),body.data));
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
       if (url.pathname === "/api/projects" && req.method === "POST")
