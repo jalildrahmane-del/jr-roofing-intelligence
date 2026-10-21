@@ -12,6 +12,7 @@ import type { LineInput, Pricing } from "./tender.ts";
 import { api } from "./api.ts";
 import { compareTenderOptions } from "./commercial.ts";
 import "./commercial.css";
+import { roofEvidenceSummary } from "./survey-intelligence.ts";
 type Field = {
   name: string;
   label: string;
@@ -979,6 +980,29 @@ export function Workflow({
             assumptions, then link defects and photographs. Observations are not
             structural certification.
           </p>
+          <section className="survey-intelligence" aria-labelledby="survey-evidence-heading">
+            <h2 id="survey-evidence-heading">Roof evidence overview</h2>
+            <p>Current survey revisions only. These are evidence gaps for follow-up, not structural assessment or permission to access the roof.</p>
+            {!roofs.length ? (
+              <p>No roof surveys saved yet. Add a roof below to begin.</p>
+            ) : (
+              <div className="survey-evidence-grid">
+                {roofEvidenceSummary(records).map(roof => (
+                  <article key={roof.roofId} className="survey-evidence-card">
+                    <h3>{roof.name}</h3>
+                    <p>{roof.area === null ? "Area not recorded" : `${roof.area.toLocaleString("en-GB")} m²`} · {roof.condition}</p>
+                    <div className="survey-evidence-counts"><span>{roof.defects} defects</span><span>{roof.photos} linked photos</span></div>
+                    {roof.gaps.length ? (
+                      <div><strong>{roof.gaps.length} evidence gap{roof.gaps.length === 1 ? "" : "s"}</strong>
+                        <ul>{roof.gaps.map(gap => <li key={gap}>{gap}</li>)}</ul>
+                      </div>
+                    ) : <p>Listed evidence fields are populated; independent review is still required.</p>}
+                    <button type="button" className="quiet" onClick={() => setRoofId(roof.roofId)}>Review roof →</button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
           <div className="roof-list">
             {roofs.map((r) => (
               <button
