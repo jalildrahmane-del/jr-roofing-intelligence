@@ -14,6 +14,9 @@ test("commercial records are manager-only, project-scoped and auditable",()=>{
   const record=saveCommercial(store,manager,project.id,"budget",{amountPence:100000,reference:"B01",note:"Basis"});
   assert.equal(record?.kind,"commercial.budget");
   assert.equal(store.snapshot(manager).records.filter(r=>r.kind==="commercial.budget").length,1);
+  assert.equal(store.snapshot(viewer).records.filter(r=>r.kind.startsWith("commercial.")).length,0);
+  const supervisor:User={id:"supervisor",name:"Supervisor",role:"supervisor",company:"JR Roofing"};
+  assert.equal(store.snapshot(supervisor).records.filter(r=>r.kind.startsWith("commercial.")).length,0);
   assert.throws(()=>saveCommercial(store,manager,"missing","budget",{amountPence:1,reference:"B",note:"Basis"}),/Project not found/);
  }finally{store.close()}
 });
