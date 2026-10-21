@@ -5,10 +5,11 @@ import { createRoot } from "react-dom/client";
 import { routes, titles } from "./model.ts";
 import type { Snapshot, User } from "./model.ts";
 import "./style.css";
-import { current } from "./tender.ts";
 import { api, ApiError } from "./api.ts";
 import { ApprovalWorkflow } from "./ApprovalWorkflow.tsx";
-import { Workflow, Journey } from "./Workflow.tsx";
+import { Workflow } from "./Workflow.tsx";
+import { OwnerDashboard } from "./OwnerDashboard.tsx";
+import "./owner-dashboard.css";
 export function Form({
   fields,
   onSubmit,
@@ -218,54 +219,7 @@ function App() {
               {error}
             </p>
           )}
-          {route === "dashboard" && (
-            <>
-              <Journey records={state.records.filter((r) => r.pid === pid)} />
-              <p>Evidence, costs and approvals in one project record.</p>
-              <div className="stats">
-                <article>
-                  <small>Projects</small>
-                  <strong>{state.projects.length}</strong>
-                </article>
-                <article>
-                  <small>Project evidence records</small>
-                  <strong>
-                    {state.records.filter((r) => r.pid === pid).length}
-                  </strong>
-                </article>
-                <article>
-                  <small>
-                    {current(
-                      state.records.filter((r) => r.pid === pid),
-                      "roof",
-                    ).length
-                      ? "Surveyed roof area"
-                      : "Project roof area estimate"}
-                  </small>
-                  <strong>
-                    {current(
-                      state.records.filter((r) => r.pid === pid),
-                      "roof",
-                    ).length
-                      ? current(
-                          state.records.filter((r) => r.pid === pid),
-                          "roof",
-                        ).reduce((sum, r) => sum + r.data.area, 0)
-                      : project?.area || 0}{" "}
-                    m²
-                  </strong>
-                </article>
-              </div>
-              <section>
-                <h2>{project?.name || "Create your first project"}</h2>
-                <p>{project?.address}</p>
-                <p>
-                  Structural calculations remain preliminary until an authorised
-                  engineer records approval.
-                </p>
-              </section>
-            </>
-          )}
+          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} />}
           {route === "projects" && (
             <section>
               <h2>New project</h2>
