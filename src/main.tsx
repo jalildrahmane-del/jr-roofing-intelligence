@@ -9,6 +9,7 @@ import { api, ApiError } from "./api.ts";
 import { ApprovalWorkflow } from "./ApprovalWorkflow.tsx";
 import { Workflow } from "./Workflow.tsx";
 import { OwnerDashboard } from "./OwnerDashboard.tsx";
+import { CommercialControl } from "./CommercialControl.tsx";
 import "./owner-dashboard.css";
 export function Form({
   fields,
@@ -248,6 +249,7 @@ function App() {
               </ul>
             </section>
           )}
+          {route === "commercial" && <CommercialControl pid={pid} records={state.records.filter(r=>r.pid===pid)} user={user} refresh={refresh} />}
           {route === "legacy" && (
             <>
               <p>
@@ -331,6 +333,7 @@ function App() {
             "projects",
             "legacy",
             "structure",
+            "commercial",
             "survey",
             "materials",
             "estimating",
