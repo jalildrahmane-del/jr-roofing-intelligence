@@ -12,7 +12,11 @@ export type ProgrammeTask = {
   overdue: boolean;
   baselineSlippageDays: number | null;
 };
-const validDay = (value: unknown): string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) ? value : "";
+const validDay = (value: unknown): string => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const timestamp = Date.parse(value + "T00:00:00Z");
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0,10) === value ? value : "";
+};
 const daysBetween = (a: string, b: string): number => Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86400000);
 export function constructionOverview(records: RecordItem[], today: string) {
   if (!validDay(today)) throw Error("A valid reporting date is required");
