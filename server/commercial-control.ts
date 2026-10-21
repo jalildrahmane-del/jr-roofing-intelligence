@@ -30,8 +30,13 @@ export function saveCommercial(store:Store,user:User,pid:string,action:string,d:
       if(!["proposed","accepted","rejected"].includes(d.status)) throw Error("Invalid variation status");
       const reference=text(d.reference,"Variation reference",200);
       const prior=d.entityId ? store.db.prepare("SELECT * FROM records WHERE id=? AND pid=? AND kind='commercial.variation'").get(d.entityId,pid) as any : null;
-      if(d.entityId && !prior) throw Error("Original variation not found in this project");
+      if(d.entityId && !prior) throw Error("Variation not found in this project");
       const entityId=prior ? (JSON.parse(prior.data).entityId||prior.id) : undefined;
+      if(prior) {
+        const all=store.db.prepare("SELECT id,data FROM records WHERE pid=? AND kind='commercial.variation' ORDER BY seq").all(pid) as any[];
+        const latest=all.filter(row=>(JSON.parse(row.data).entityId||row.id)===entityId).at(-1);
+        if(latest?.id!==prior.id) throw Error("Variation revision is superseded; refresh and revise the latest record");
+      }
       if(d.status!=="proposed" && !text(d.decisionReference,"Written client decision reference",500))
         throw Error("Written decision reference required");
       const data={
@@ -40,11 +45,7 @@ export function saveCommercial(store:Store,user:User,pid:string,action:string,d:
         status:d.status,decisionReference:d.status==="proposed"?"":text(d.decisionReference,"Written client decision reference",500),
         note:"Recorded status based on supplied reference; not independent verification of client acceptance",
       };
-      const saved=store.append(user,pid,"commercial.variation",data);
-      if(!entityId) {
-        // The record ID itself is the stable entity key for its first revision.
-      }
-      return saved;
+      return store.append(user,pid,"commercial.variation",data);
     }
     throw Error("Unsupported commercial action");
   });
