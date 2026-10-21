@@ -1,3 +1,4 @@
+import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
 import { workforceCommand, workforceState } from "./workforce.ts";
 import { createServer } from "node:http";
@@ -78,7 +79,11 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (!["GET", "HEAD"].includes(req.method || "")) {
         const origin = req.headers.origin;
-        if (!origin || origin !== `http://${req.headers.host}`)
+        const codespace = process.env.CODESPACE_NAME;
+                const forwardedOrigin = codespace && /^[a-z0-9-]+$/.test(codespace)
+                  ? `https://${codespace}-${process.env.PORT || '3000'}.app.github.dev`
+                  : null;
+                if (!origin || (origin !== `http://${req.headers.host}` && origin !== forwardedOrigin))
           return reply(403, { error: "Same-origin request required" });
         if (!req.headers["content-type"]?.startsWith("application/json"))
           return reply(415, { error: "JSON required" });
@@ -216,6 +221,14 @@ export function createApp(store: Store, root = resolve("dist")) {
           notice:
             "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
         });
+      }
+      if (url.pathname === "/api/document-intelligence" && req.method === "GET")
+        return reply(200, documentState(store,user,url.searchParams.get("pid")||""));
+      if (url.pathname === "/api/document-intelligence" && req.method === "POST")
+        return reply(201, documentCommand(store,user,text(body.pid,"Project",200),text(body.action,"Action",50),body.data));
+      if (url.pathname === "/api/document-pdf" && req.method === "GET") {
+        const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
+        res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
       }
       if (url.pathname === "/api/workforce" && req.method === "GET")
         return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));

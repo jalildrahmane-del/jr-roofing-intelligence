@@ -3,7 +3,7 @@ import { api } from "./api.ts";
 import type { User } from "./model.ts";
 import QRCode from "qrcode";
 
-function Entry({
+export function Entry({
   title,
   fields,
   submit,
