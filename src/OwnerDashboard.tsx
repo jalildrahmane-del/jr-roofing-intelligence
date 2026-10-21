@@ -19,6 +19,17 @@ export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot;
   const area = roofRecords.length ? roofRecords.reduce((sum, r) => sum + Number(r.data.area || 0), 0) : project?.area || 0;
   return (
     <div className="owner-dashboard">
+      <div className="owner-film" aria-label="JR Roofing commercial roof drone footage">
+        <video autoPlay muted loop playsInline preload="metadata" poster="/legacy/roof-poster.jpg" aria-label="Commercial roof drone flyover">
+          <source src="/legacy/roof-drone.mp4" type="video/mp4" />
+        </video>
+        <div className="owner-film-shade" aria-hidden="true" />
+        <div className="owner-film-caption">
+          <span>JR ROOFING CONTRACTS</span>
+          <strong>ROOFING INTELLIGENCE</strong>
+          <small>FROM SURVEY TO HANDOVER</small>
+        </div>
+      </div>
       <div className="owner-hero">
         <div>
           <p className="owner-kicker">PROJECT OVERVIEW</p>
