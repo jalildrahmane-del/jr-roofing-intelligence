@@ -43,3 +43,12 @@
 .owner-film-caption strong{font-size:clamp(24px,4vw,48px);line-height:1.08;letter-spacing:-1px}
 .owner-film-caption small{font-size:12px;letter-spacing:2px}
 @media(prefers-reduced-motion:reduce){.owner-film video{display:none}}
+
+.owner-activity{border-radius:14px;padding:24px;margin:24px 0;background:white}
+.owner-activity .owner-section-head>a{font-size:13px;font-weight:700;color:#334c70}
+.owner-activity-list{list-style:none;margin:12px 0 0;padding:0}
+.owner-activity-list li{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #e7ebf0;padding:13px 0}
+.owner-activity-list li div{display:flex;flex-direction:column;gap:4px}
+.owner-activity-list strong{text-transform:capitalize;font-size:13px}
+.owner-activity-list li span,.owner-activity-list time{color:#68768a;font-size:12px}
+@media(max-width:650px){.owner-activity-list li{flex-direction:column;gap:5px}}
