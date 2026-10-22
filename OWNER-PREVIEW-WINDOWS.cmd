@@ -26,8 +26,13 @@ echo Building the latest owner preview...
 call npm run build
 if errorlevel 1 goto fail
 echo.
-echo If you have not created a manager account yet, follow README.md.
-echo This preview requires a valid account. No default password is provided.
+if not exist ".data\jr.sqlite" (
+  echo First launch: set up your private manager login.
+  powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\owner-preview-setup.ps1"
+  if errorlevel 1 goto fail
+)
+echo Sign in with your own account. New preview accounts use username: owner.
+echo No default password is provided.
 echo.
 echo Open http://127.0.0.1:3000 in your browser.
 start "" "http://127.0.0.1:3000"
