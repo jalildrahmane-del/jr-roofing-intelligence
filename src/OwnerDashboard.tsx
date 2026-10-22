@@ -12,7 +12,7 @@ const phases: Phase[] = [
 ];
 
 export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot; project?: Project; pid: string }) {
-  const records = snapshot.records.filter(r => r.pid === pid);
+  const records = snapshot.records.filter(r => r.pid === pid && !r.kind.startsWith("commercial."));
   const stageCounts = phases.map(phase => records.filter(r => phase.match(r.kind)).length);
   const active = stageCounts.filter(n => n > 0).length;
   const roofRecords = current(records, "roof");
