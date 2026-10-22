@@ -14,6 +14,10 @@
 
 On a Windows laptop with Node.js 24+, obtain the source of this feature branch and double-click `OWNER-PREVIEW-WINDOWS.cmd` from the extracted project folder. It installs locked dependencies when missing, builds the UI and opens the local browser at `http://127.0.0.1:3000`. On first launch, if the local database has no manager account, it performs a read-only account check and securely prompts for a private manager password and creates the username **owner**. The password is passed to the account creation script via standard input, not command-line arguments or a password file. Existing databases are never reset or overwritten. If an existing manager account has an unknown password, account recovery still requires an authorised administrator; the launcher will not overwrite it. An existing username is never silently replaced. It does **not** disable authentication, seed production data, deploy to the internet or install Node.js. Do not use real project data during the preview.
 
+## Packaging a private ZIP
+
+On a checked-out clean feature branch, run `powershell -NoProfile -File scripts/package-owner-preview.ps1` to produce `JR-Roofing-Owner-Preview-<commit>.zip`. The script uses Git's tracked files only and refuses an existing output archive. This is a **source-based Windows preview**, not a precompiled installer: the recipient needs Node.js 24+ and internet access for the first `npm ci`. Do not send the archive before manual verification, and inspect tracked files for secrets before distribution.
+
 ## Mandatory no-cost local validation
 On an already available local development machine (do not provision a paid runner or new hosted environment):
 
