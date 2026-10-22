@@ -38,19 +38,50 @@ export function workforceAccess(store: Store, user: User, pid: string) {
     !(
       user.role === "supervisor" && config?.data.supervisors.includes(user.id)
     ) &&
-    !(user.role === "worker" && allocation?.data.active)
+    !(user.role === "worker" && allocation?.data.active) &&
+    !(
+      user.role === "subcontractor-owner" &&
+      records
+        .filter(
+          (r) => r.kind === "workforce.owner" && r.data.ownerId === user.id,
+        )
+        .at(-1)?.data.active === true &&
+      records
+        .filter(
+          (r) => r.kind === "workforce.owner" && r.data.ownerId === user.id,
+        )
+        .at(-1)?.data.company === user.company
+    )
   )
     throw Error("Forbidden: workforce project allocation required");
   return { records, config, allocation };
 }
 export function workforceState(store: Store, user: User, pid: string) {
   const { records, config } = workforceAccess(store, user, pid);
-  const visible =
+  let visible =
     user.role === "worker"
       ? records.filter(
           (r) => r.data.workerId === user.id || r.kind === "workforce.config",
         )
       : records;
+  if (user.role === "subcontractor-owner") {
+    const workers = new Set(
+      store.db
+        .prepare("SELECT id FROM users WHERE company=? AND role='worker'")
+        .all(user.company)
+        .map((r) => String(r.id)),
+    );
+    visible = records
+      .filter((r) => workers.has(r.data.workerId))
+      .map((r) => {
+        if (r.kind !== "workforce.event") return r;
+        const { fix, gps, ...data } = r.data;
+        return {
+          ...r,
+          data: { ...data, gpsStatus: gps?.status || "unverified" },
+        };
+      });
+  }
   const users =
     user.role === "manager"
       ? store.db
@@ -75,9 +106,34 @@ export function workforceState(store: Store, user: User, pid: string) {
   return {
     records: visible,
     users,
-    config: config?.data,
+    config:
+      user.role === "subcontractor-owner"
+        ? { syntheticOnly: true, notice: config?.data.notice }
+        : config?.data,
     report: attendanceReport(visible),
     weekly: Object.values(weekly),
+    exceptions: attendanceReport(visible).flatMap((r) =>
+      r.exceptions.map((message: string) => ({
+        workerId: r.workerId,
+        message,
+      })),
+    ),
+    reconciliations: visible
+      .filter((r) => r.kind === "workforce.reconciliation")
+      .map((r) => ({
+        ...r,
+        current:
+          r.data.reportHash ===
+          createHash("sha256")
+            .update(
+              JSON.stringify(
+                attendanceReport(visible).find(
+                  (row) => row.workerId === r.data.workerId,
+                ),
+              ),
+            )
+            .digest("hex"),
+      })),
   };
 }
 export function attendanceReport(records: RecordItem[]) {
@@ -141,12 +197,13 @@ export function attendanceReport(records: RecordItem[]) {
         stamp - start >= breakMs
       ) {
         const hours = (stamp - start - breakMs) / 3600000;
-        amount += hours * rate;
+        const shiftPence = Math.round(hours * rate * 100);
+        amount += shiftPence;
         shifts.push({
           day: new Date(start).toISOString().slice(0, 10),
           hours,
           rate,
-          amount: Math.round(hours * rate * 100) / 100,
+          amount: shiftPence / 100,
         });
         verifiedMs += stamp - start - breakMs;
         start = null;
@@ -162,7 +219,7 @@ export function attendanceReport(records: RecordItem[]) {
     rows.push({
       workerId,
       verifiedHours: verifiedMs / 3600000,
-      amount: Math.round(amount * 100) / 100,
+      amount: amount / 100,
       shifts,
       pending,
       exceptions,
@@ -247,6 +304,23 @@ export function workforceCommand(
       });
     }
     if (!config) throw Error("Manager must configure a fictional site first");
+    if (action === "owner") {
+      manager();
+      const owner = store.db
+        .prepare(
+          "SELECT id,company FROM users WHERE id=? AND role='subcontractor-owner'",
+        )
+        .get(d.ownerId);
+      if (!owner || typeof d.active !== "boolean")
+        throw Error(
+          "Registered subcontractor owner and active status required",
+        );
+      return append("owner", {
+        ownerId: owner.id,
+        company: owner.company,
+        active: d.active,
+      });
+    }
     if (action === "allocation") {
       manager();
       worker(d.workerId);
@@ -283,7 +357,17 @@ export function workforceCommand(
           r.author === user.id &&
           r.data.requestId === requestId,
       );
-      if (existing) return existing;
+      if (existing) {
+        if (
+          existing.data.event !== d.event ||
+          existing.data.offline !== d.offline ||
+          existing.data.capturedAt !== d.capturedAt
+        )
+          throw Error(
+            "Submission identifier already belongs to a different event",
+          );
+        return existing;
+      }
       const last = records
         .filter(
           (r) => r.kind === "workforce.event" && r.data.workerId === user.id,
@@ -299,6 +383,11 @@ export function workforceCommand(
       if (!(next[last || "none"] || []).includes(d.event))
         throw Error("Invalid check-in/break/check-out sequence");
       if (typeof d.offline !== "boolean") throw Error("Offline flag required");
+      if (
+        !d.offline &&
+        (!d.fix || typeof d.fix !== "object" || Array.isArray(d.fix))
+      )
+        throw Error("GPS fix required");
       let gps: any = null,
         qrVerified = false;
       if (!d.offline) {
@@ -408,7 +497,11 @@ export function workforceCommand(
       allocated(workerId);
       if (user.role !== "worker") supervisor();
       const day = text(d.day, "Work date", 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day)))
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
+        !Number.isFinite(Date.parse(day)) ||
+        new Date(day).toISOString().slice(0, 10) !== day
+      )
         throw Error("Invalid work date");
       return append("progress", {
         workerId,

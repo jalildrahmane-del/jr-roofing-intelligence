@@ -149,6 +149,8 @@ export function createApp(store: Store, root = resolve("dist")) {
         );
         return reply(200, { ok: true });
       }
+      if (user.role === "subcontractor-owner" && !["/api/state", "/api/workforce"].includes(url.pathname))
+        return reply(403, {error:"Forbidden: workforce-only account"});
       if (url.pathname.startsWith("/api/evidence/") && req.method === "GET") {
         const asset = store.db
           .prepare("SELECT * FROM evidence WHERE id=?")

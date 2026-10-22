@@ -128,6 +128,12 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
         event. All attendance needs independent review; no continuous tracking.
       </p>
       {error && <p role="alert">{error}</p>}
+      {user.role === "subcontractor-owner" && (
+        <p>
+          Read-only company workforce view. Exact GPS locations are withheld.
+          Supervisor verification remains independent.
+        </p>
+      )}
       {user.role === "manager" && (
         <section>
           <Entry
@@ -148,6 +154,16 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                   .filter(Boolean),
               })
             }
+          />
+          <Entry
+            title="Grant subcontractor owner access"
+            fields={["ownerId"]}
+            submit={(d) => send("owner", { ...d, active: true })}
+          />
+          <Entry
+            title="Revoke subcontractor owner access"
+            fields={["ownerId"]}
+            submit={(d) => send("owner", { ...d, active: false })}
           />
           <h3>Registered users</h3>
           <ul>
@@ -330,18 +346,20 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
             )}
           </section>
           <section>
-            <Entry
-              title="Record daily progress"
-              fields={[
-                ...(user.role === "worker" ? [] : ["workerId"]),
-                "day",
-                "quantity",
-                "unit",
-                "description",
-                "evidence",
-              ]}
-              submit={(d) => send("progress", d)}
-            />
+            {user.role !== "subcontractor-owner" && (
+              <Entry
+                title="Record daily progress"
+                fields={[
+                  ...(user.role === "worker" ? [] : ["workerId"]),
+                  "day",
+                  "quantity",
+                  "unit",
+                  "description",
+                  "evidence",
+                ]}
+                submit={(d) => send("progress", d)}
+              />
+            )}
             <h3>Daily quantity evidence</h3>
             <ul>
               {state.records
@@ -355,6 +373,17 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
             </ul>
           </section>
           <section>
+            <h2>Attendance exceptions</h2>
+            <p>
+              {state.exceptions?.length || 0} exceptions requiring attention
+            </p>
+            <ul>
+              {state.exceptions?.map((r: any, i: number) => (
+                <li key={i}>
+                  {r.workerId}: {r.message}
+                </li>
+              ))}
+            </ul>
             <h2>Weekly reported quantities</h2>
             <ul>
               {state.weekly?.map((r: any) => (
@@ -391,6 +420,18 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                 </ul>
               </article>
             ))}
+            <h3>Payment comparison history</h3>
+            <ul>
+              {state.reconciliations?.map((r: any) => (
+                <li key={r.id}>
+                  {r.data.workerId} · £{r.data.claimedAmount.toFixed(2)} claimed
+                  · £{r.data.variance.toFixed(2)} variance ·{" "}
+                  {r.current
+                    ? "Current comparison"
+                    : "Stale — attendance changed; compare again"}
+                </li>
+              ))}
+            </ul>
             <button
               onClick={() => {
                 const blob = new Blob(
