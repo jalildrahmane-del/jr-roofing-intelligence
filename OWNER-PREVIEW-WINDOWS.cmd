@@ -26,8 +26,10 @@ echo Building the latest owner preview...
 call npm run build
 if errorlevel 1 goto fail
 echo.
-if not exist ".data\jr.sqlite" (
-  echo First launch: set up your private manager login.
+node scripts\check-owner-account.ts
+if errorlevel 2 goto fail
+if errorlevel 1 (
+  echo No manager account found: set up your private manager login.
   powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\owner-preview-setup.ps1"
   if errorlevel 1 goto fail
 )
