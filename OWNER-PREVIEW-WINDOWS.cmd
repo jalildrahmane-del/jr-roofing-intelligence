@@ -34,8 +34,8 @@ if not exist ".data\jr.sqlite" (
 echo Sign in with your own account. New preview accounts use username: owner.
 echo No default password is provided.
 echo.
-echo Open http://127.0.0.1:3000 in your browser.
-start "" "http://127.0.0.1:3000"
+echo Waiting for the local server before opening your browser...
+start "JR Roofing browser readiness" /min powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\open-owner-preview.ps1"
 echo Press Ctrl+C to stop the local server.
 call npm start
 exit /b %errorlevel%
