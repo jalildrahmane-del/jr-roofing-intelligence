@@ -10,7 +10,7 @@ test('Windows preview checks Node 24, builds and uses the local-only server',()=
   assert.match(launcher,/process\.versions\.node/);
   assert.match(launcher,/npm run build/);
   assert.match(launcher,/npm start/);
-  assert.match(launcher,/127\.0\.0\.1:3000/);
+  assert.match(ready,/127\.0\.0\.1:3000/);
   assert.doesNotMatch(launcher,/npm run dev/);
 });
 test('first launch provisions private credentials without hardcoded password or reset',()=>{
