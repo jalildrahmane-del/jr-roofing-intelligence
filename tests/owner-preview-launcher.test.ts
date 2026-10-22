@@ -14,7 +14,9 @@ test('Windows preview checks Node 24, builds and uses the local-only server',()=
   assert.doesNotMatch(launcher,/npm run dev/);
 });
 test('first launch provisions private credentials without hardcoded password or reset',()=>{
-  assert.match(launcher,/if not exist "\.data\\jr\.sqlite"/);
+  assert.match(launcher,/check-owner-account/);
+  assert.match(launcher,/if errorlevel 2 goto fail/);
+  assert.match(readFileSync('scripts/check-owner-account.ts','utf8'),/readOnly:true/);
   assert.match(launcher,/owner-preview-setup\.ps1/);
   assert.match(setup,/Read-Host.*-AsSecureString/);
   assert.match(setup,/scripts\/create-user\.ts/);
