@@ -50,7 +50,21 @@ try{
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
- await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();await page.screenshot({path:'artifacts/dashboard-mobile.png',fullPage:true});
+ await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
+ // Owner-preview contract: real five-stage links, preserved drone assets and honest activity labelling.
+ assert.equal(await page.locator('.owner-stage').count(),5,'Five owner journey stages');
+ for(const route of ['survey','estimating','design','construction','handover']){
+   assert.equal(await page.locator('.owner-stage[href="#'+route+'"]').count(),1,'Missing stage '+route);
+ }
+ assert.equal(await page.locator('.owner-film video source[src="/legacy/roof-drone.mp4"]').count(),1,'Drone footage path');
+ assert.equal(await page.locator('.owner-film video[poster="/legacy/roof-poster.jpg"]').count(),1,'Drone poster path');
+ assert.match(await page.locator('.owner-disclaimer').innerText(),/not task completion, engineering approval or permission to work/i);
+ for(const asset of ['/legacy/roof-drone.mp4','/legacy/roof-poster.jpg']){
+   const response=await page.request.get(base+asset);
+   assert.equal(response.status(),200,'Owner preview media missing: '+asset);
+   assert.ok((await response.body()).length>100,'Owner preview media empty: '+asset);
+ }
+ await page.screenshot({path:'artifacts/dashboard-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'artifacts/dashboard-desktop.png',fullPage:true});
  // A backend error is shown with retry, rather than disappearing into a login reset.
  await page.route('**/api/me',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary test failure'})}));await page.reload();await page.getByRole('alert').getByText(/Unable to load workspace/).waitFor();await page.unroute('**/api/me');await page.getByRole('button',{name:'Retry connection'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();

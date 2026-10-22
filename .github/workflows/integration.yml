@@ -1,0 +1,63 @@
+name: Integration validation
+
+on:
+  push:
+    branches:
+      - feature/owner-command-centre-expansion
+  pull_request:
+    branches:
+      - feature/document-ai-safe-gates
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jr-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck, unit, build, browser and PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install Playwright Chromium for browser acceptance tests
+        run: npx playwright install --with-deps chromium
+      - name: Install PDF inspection tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Run full integration validation
+        run: npm run validate
+
+      - name: Package source-based Windows owner preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          git archive --format=zip --output="artifacts/JR-Roofing-Owner-Preview-${GITHUB_SHA:0:8}.zip" HEAD
+          python3 - <<'PY'
+          import glob, zipfile
+          archives=glob.glob('artifacts/JR-Roofing-Owner-Preview-*.zip')
+          assert len(archives)==1
+          with zipfile.ZipFile(archives[0]) as archive:
+              bad=[n for n in archive.namelist() if n.startswith(('.data/','node_modules/','dist/')) or n.endswith(('.sqlite','.sqlite3','.db')) or n.startswith('.env') and n != '.env.example']
+              required=['OWNER-PREVIEW-WINDOWS.cmd','scripts/owner-preview-setup.ps1','scripts/open-owner-preview.ps1','scripts/check-owner-account.ts','package-lock.json']
+              assert not bad, f'Forbidden archive entries: {bad}'
+              assert all(name in archive.namelist() for name in required), 'Missing preview launcher or setup files'
+              assert archive.testzip() is None, 'Corrupt preview archive'
+          print('Verified source ZIP: no local databases, dependencies or env files.')
+          PY
+      - name: Publish private owner-preview ZIP for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: JR-Roofing-Owner-Preview-${{ github.sha }}
+          path: artifacts/JR-Roofing-Owner-Preview-*.zip
+          if-no-files-found: error
+          retention-days: 1
