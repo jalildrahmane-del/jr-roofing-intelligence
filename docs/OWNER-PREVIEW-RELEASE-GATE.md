@@ -1,14 +1,18 @@
 # Owner preview release gate — Expansion PR #15
 
-**State: BLOCKED pending execution of the complete test suite.** These changes are committed but must not be described as tested, released, deployed or merged.
+**State: automated integration passed on commit 606672a (GitHub Actions run #22).** Windows owner preview and manual acceptance remain unverified. Do not describe this as released, deployed or merged. New commits require another successful validation.
 
 ## Verified by source inspection
 - App routes include commercial, construction, quality, handover, documents and workforce.
 - New modules have imports and user-facing integrations in main/ApprovalWorkflow/Workforce/Documents.
 - Commercial changes are server-side manager-only and stored as auditable project records.
 - V3.6 is preserved as a separate legacy workspace; no migration or silent data merge.
-- The original drone video and poster have binary repository paths, but browser playback has not been exercised.
+- The original drone video and poster returned HTTP 200 and non-empty bodies in automated browser tests; visual playback on the owner's actual devices is not yet verified.
 - No paid AI provider, hosting service or deployment was enabled.
+
+## Local Windows owner preview
+
+On a Windows laptop with Node.js 24+, obtain the source of this feature branch and double-click `OWNER-PREVIEW-WINDOWS.cmd` from the extracted project folder. It installs locked dependencies when missing, builds the UI and opens the local browser at `http://127.0.0.1:3000`. It does **not** create accounts, disable authentication, seed production data, reset the database, deploy to the internet or install Node.js. A manager account must first be provisioned privately as documented in README.md. Do not use real project data during the preview.
 
 ## Mandatory no-cost local validation
 On an already available local development machine (do not provision a paid runner or new hosted environment):
