@@ -134,6 +134,58 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
           Supervisor verification remains independent.
         </p>
       )}
+      {state && (
+        <section>
+          <h2>Scheduled shifts</h2>
+          <p>
+            Planned hours only. Attendance and payment require independently
+            verified events. Times are shown in UTC.
+          </p>
+          {["manager", "supervisor"].includes(user.role) && (
+            <>
+              <Entry
+                title="Schedule shift"
+                fields={["workerId", "start", "end", "breakMinutes", "reason"]}
+                submit={(d) => send("shift", d)}
+              />
+              <p>
+                Enter start/end as YYYY-MM-DDTHH:mm:ssZ, or with an explicit
+                timezone offset.
+              </p>
+              <Entry
+                title="Revise shift"
+                fields={[
+                  "replaces",
+                  "workerId",
+                  "start",
+                  "end",
+                  "breakMinutes",
+                  "reason",
+                ]}
+                submit={(d) => send("shift", d)}
+              />
+              <Entry
+                title="Cancel shift"
+                fields={["replaces", "reason"]}
+                submit={(d) => send("cancel-shift", d)}
+              />
+            </>
+          )}
+          {(state.schedules || []).map((r: any) => (
+            <article key={r.id}>
+              <strong>
+                {r.data.cancelled ? "Cancelled" : "Planned"}: {r.data.workerId}
+              </strong>
+              <p>
+                {r.data.start} – {r.data.end} · {r.plannedHours.toFixed(2)}{" "}
+                planned hours · {r.data.breakMinutes} minute planned break
+              </p>
+              <p>{r.data.reason}</p>
+              <small>Current revision: {r.id}</small>
+            </article>
+          ))}
+        </section>
+      )}
       {user.role === "manager" && (
         <section>
           <Entry
