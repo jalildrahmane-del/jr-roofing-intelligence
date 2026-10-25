@@ -60,4 +60,40 @@ jobs:
           name: JR-Roofing-Owner-Preview-${{ github.sha }}
           path: artifacts/JR-Roofing-Owner-Preview-*.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
+
+  windows-preview-smoke:
+    name: Windows preview build and startup
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies and build on Windows
+        run: |
+          npm ci
+          npm run build
+      - name: Verify launcher scripts and local HTTP startup on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (!(Test-Path 'OWNER-PREVIEW-WINDOWS.cmd')) { throw 'Missing Windows launcher' }
+          if (!(Test-Path 'scripts/owner-preview-setup.ps1')) { throw 'Missing owner setup' }
+          if (!(Test-Path 'scripts/open-owner-preview.ps1')) { throw 'Missing browser readiness helper' }
+          $server = Start-Process -FilePath 'node.exe' -ArgumentList 'server/index.ts' -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              try {
+                $r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000' -UseBasicParsing -TimeoutSec 2
+                if ($r.StatusCode -eq 200) { $ready = $true; break }
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            if (!$ready) { throw 'Windows local preview did not respond with HTTP 200' }
+            Write-Host 'Windows local preview returned HTTP 200.'
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          }
