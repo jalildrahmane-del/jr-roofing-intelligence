@@ -4,7 +4,7 @@ import { saveCommercial } from "./commercial-control.ts";
 import { workforceCommand, workforceState } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, extname } from "node:path";
+import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
 import { saveGate } from "./gates.ts";
@@ -49,7 +49,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         if (req.method !== "GET" && req.method !== "HEAD")
           return reply(405, { error: "Method not allowed" });
         let path = resolve(root, "." + decodeURIComponent(url.pathname));
-        if (!path.startsWith(root + "/") && path !== root)
+        if (!path.startsWith(root + sep) && path !== root)
           return reply(403, { error: "Forbidden" });
         if (existsSync(path) && statSync(path).isDirectory())
           path = resolve(path, "index.html");
