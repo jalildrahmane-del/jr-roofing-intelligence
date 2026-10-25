@@ -94,6 +94,15 @@ jobs:
             }
             if (!$ready) { throw 'Windows local preview did not respond with HTTP 200' }
             Write-Host 'Windows local preview returned HTTP 200.'
+            $index = (Invoke-WebRequest -Uri 'http://127.0.0.1:3000' -UseBasicParsing).Content
+            $assets = [regex]::Matches($index, '(?:src|href)="(/assets/[^\"]+)"')
+            if ($assets.Count -lt 1) { throw 'No bundled assets found in Windows index' }
+            foreach ($match in $assets) {
+              $assetPath = $match.Groups[1].Value
+              $assetResponse = Invoke-WebRequest -Uri ("http://127.0.0.1:3000" + $assetPath) -UseBasicParsing -TimeoutSec 10
+              if ($assetResponse.StatusCode -ne 200) { throw "Asset failed: $assetPath" }
+            }
+            Write-Host "Windows bundled asset requests passed: $($assets.Count)"
           } finally {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
           }
