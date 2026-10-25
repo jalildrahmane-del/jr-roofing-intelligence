@@ -48,3 +48,7 @@ Continue granular non-workforce project permissions, attendance plan matching an
 - Revisions must reference the latest uncancelled revision and cannot change worker identity. Cancellation preserves history and frees the interval.
 - API/unit tests cover worker/owner write rejection, owner company filtering, stale cancellation, revision history and zero verified attendance from plans. Browser tests cover manager creation and owner export at 390/768/1440px.
 - Synthetic-only restriction remains. This does not complete Issue #5 or authorise real-person use.
+
+## 25 October report detail update
+Verified completed shifts now export and display their reviewed UTC start/end and actual verified break minutes alongside net hours and rounded amount. Planned breaks are never substituted. Existing reconciliation hashes may become stale because the report now includes these additional evidence fields; compare again rather than treating old comparisons as current. Automatic schedule matching remains outstanding.
+Validation: 54 local unit/API tests and production build passed. Browser regression outcome is recorded in the run report; no CI success is claimed.

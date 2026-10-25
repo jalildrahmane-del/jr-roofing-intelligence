@@ -466,6 +466,15 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                   pending
                 </p>
                 <ul>
+                  {r.shifts.map((shift: any, i: number) => (
+                    <li key={i}>
+                      {shift.start} to {shift.end} (UTC) · {shift.breakMinutes}{" "}
+                      minutes verified breaks · {shift.hours.toFixed(2)} hours ·
+                      £{shift.amount.toFixed(2)}
+                    </li>
+                  ))}
+                </ul>
+                <ul>
                   {r.exceptions.map((e: string) => (
                     <li key={e}>{e}</li>
                   ))}

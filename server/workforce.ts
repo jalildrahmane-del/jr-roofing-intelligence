@@ -209,6 +209,9 @@ export function attendanceReport(records: RecordItem[]) {
         const shiftPence = Math.round(hours * rate * 100);
         amount += shiftPence;
         shifts.push({
+          start: new Date(start).toISOString(),
+          end: new Date(stamp).toISOString(),
+          breakMinutes: breakMs / 60000,
           day: new Date(start).toISOString().slice(0, 10),
           hours,
           rate,
