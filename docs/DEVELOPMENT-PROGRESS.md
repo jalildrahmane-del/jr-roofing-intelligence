@@ -52,3 +52,9 @@ Continue granular non-workforce project permissions, attendance plan matching an
 ## 25 October report detail update
 Verified completed shifts now export and display their reviewed UTC start/end and actual verified break minutes alongside net hours and rounded amount. Planned breaks are never substituted. Existing reconciliation hashes may become stale because the report now includes these additional evidence fields; compare again rather than treating old comparisons as current. Automatic schedule matching remains outstanding.
 Validation: 54 local unit/API tests and production build passed. Browser regression outcome is recorded in the run report; no CI success is claimed.
+
+## 26 October schedule comparison
+- [x] Scoped planned-versus-verified overlap diagnostics in UI and JSON export. A variance appears only for a unique one-to-one overlap; multiple attendance spans or a span crossing multiple plans requires review. Cancelled/superseded plans are excluded. No overlap is labelled as no verified completed overlap, never as proven absence.
+- [x] Actual reviewed net hours are compared with planned net hours; planned breaks never change verified attendance or payment totals.
+- [ ] Explicit supervisor-confirmed assignment of attendance to scheduled work, payroll integration and remaining release criteria above are still outstanding. Time overlap is only a diagnostic.
+Validation: 56 local unit/API tests and build passed. New tests cover absent evidence, worker isolation, actual break differences, cancellation and ambiguous overlaps. Browser outcome is reported separately. PR #15 remains untouched at d77644d; this change extends PR #16 only. No AI activation, merge or deployment.

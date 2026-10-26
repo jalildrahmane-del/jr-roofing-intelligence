@@ -137,6 +137,21 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
       {state && (
         <section>
           <h2>Scheduled shifts</h2>
+          {(state.scheduleComparison || []).map((c: any) => (
+            <p key={c.revisionId}>
+              {c.workerId}: {c.status} · {c.plannedHours.toFixed(2)} planned
+              hours
+              {c.verifiedHours !== null && (
+                <>
+                  {" "}
+                  · {c.verifiedHours.toFixed(2)} verified hours ·{" "}
+                  {c.varianceHours.toFixed(2)} hours variance
+                </>
+              )}
+              <br />
+              {c.notice}
+            </p>
+          ))}
           <p>
             Planned hours only. Attendance and payment require independently
             verified events. Times are shown in UTC.

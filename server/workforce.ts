@@ -1,3 +1,4 @@
+import { matchSchedules } from "./workforce-matching.ts";
 import { createHash } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
@@ -119,6 +120,7 @@ export function workforceState(store: Store, user: User, pid: string) {
         : (Date.parse(r.data.end) - Date.parse(r.data.start)) / 3600000 -
           r.data.breakMinutes / 60,
     })),
+    scheduleComparison: matchSchedules(visible, attendanceReport(visible)),
     report: attendanceReport(visible),
     weekly: Object.values(weekly),
     exceptions: attendanceReport(visible).flatMap((r) =>

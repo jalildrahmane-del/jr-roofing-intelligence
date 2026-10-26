@@ -113,6 +113,8 @@ try {
   const exported = JSON.parse(
     readFileSync(await (await download).path(), "utf8"),
   );
+  assert.equal(exported.scheduleComparison.length, 1);
+  assert.equal(exported.scheduleComparison[0].verifiedHours, null);
   assert.equal(exported.schedules.length, 1);
   assert.equal(exported.schedules[0].plannedHours, 7.5);
   assert.equal(exported.report[0].verifiedHours, 0);
