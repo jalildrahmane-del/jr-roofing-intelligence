@@ -106,6 +106,12 @@ try {
     0,
   );
   assert.ok(!(await page.locator("body").innerText()).includes(other.id));
+  const csvDownload = page.waitForEvent("download");
+  await page.getByRole("button", {name:"Download verified timesheet CSV",exact:true}).click();
+  const csv = readFileSync(await (await csvDownload).path(), "utf8");
+  assert.ok(csv.includes("Verified hours"));
+  assert.ok(!csv.includes(other.id));
+  assert.ok(!csv.includes(worker.id)); // This worker has pending evidence only.
   const download = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Download records and report" })

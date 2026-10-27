@@ -58,3 +58,9 @@ Validation: 54 local unit/API tests and production build passed. Browser regress
 - [x] Actual reviewed net hours are compared with planned net hours; planned breaks never change verified attendance or payment totals.
 - [ ] Explicit supervisor-confirmed assignment of attendance to scheduled work, payroll integration and remaining release criteria above are still outstanding. Time overlap is only a diagnostic.
 Validation: 56 local unit/API tests and build passed. New tests cover absent evidence, worker isolation, actual break differences, cancellation and ambiguous overlaps. Browser outcome is reported separately. PR #15 remains untouched at d77644d; this change extends PR #16 only. No AI activation, merge or deployment.
+
+## 27 October verified timesheet export
+- [x] Spreadsheet-ready CSV of completed verified shifts, with UTC dates/times, actual breaks, net hours, recorded rates and rounded shift amounts. Uses the already-authorised workforce report, preserving company/worker scope.
+- [x] Spreadsheet formula-leading text is neutralised and quoted; pending events and schedule plans never become payable rows. Export explicitly states that calculations are not payment authorisation.
+- [ ] Payroll-provider integration and independent payment approval remain outside this export. All earlier privacy, project-permission and document acceptance gaps remain open.
+Validation: 57 local unit/API tests and build passed. Added CSV formula/quoting and pending-only exclusion tests plus owner browser download assertions. Full browser outcomes are recorded in the run report. AI remains disabled; no deployment or merge.

@@ -1,3 +1,4 @@
+import { attendanceCsv } from "./workforce-csv.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User } from "./model.ts";
@@ -496,6 +497,26 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                 </ul>
               </article>
             ))}
+            <button
+              onClick={() => {
+                const url = URL.createObjectURL(
+                  new Blob([attendanceCsv(state.report)], {
+                    type: "text/csv;charset=utf-8",
+                  }),
+                );
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "verified-attendance.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download verified timesheet CSV
+            </button>
+            <p>
+              CSV contains completed verified shifts only. Review pending events
+              and exceptions before using it for reconciliation.
+            </p>
             <h3>Payment comparison history</h3>
             <ul>
               {state.reconciliations?.map((r: any) => (
