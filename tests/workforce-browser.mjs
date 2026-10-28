@@ -106,6 +106,14 @@ try {
       ),
     );
   }
+  await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(k => k.startsWith("jr-workforce-queue:"));
+    localStorage.setItem(key, "{}");
+  });
+  await page.reload();
+  await page.getByText(/Saved offline queue cannot be read/).waitFor();
+  assert.equal(await page.getByRole("button", {name:"Sync pending offline events"}).isDisabled(),true);
+  assert.equal(await page.evaluate(() => localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith("jr-workforce-queue:")))), "{}");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: supervisor QR -> worker GPS -> pending review; offline queue survives reload and syncs; mobile/tablet/desktop; zero page errors",

@@ -64,3 +64,8 @@ Validation: 56 local unit/API tests and build passed. New tests cover absent evi
 - [x] Spreadsheet formula-leading text is neutralised and quoted; pending events and schedule plans never become payable rows. Export explicitly states that calculations are not payment authorisation.
 - [ ] Payroll-provider integration and independent payment approval remain outside this export. All earlier privacy, project-permission and document acceptance gaps remain open.
 Validation: 57 local unit/API tests and build passed. Added CSV formula/quoting and pending-only exclusion tests plus owner browser download assertions. Full browser outcomes are recorded in the run report. AI remains disabled; no deployment or merge.
+
+## 28 October offline reliability repair
+- [x] Workforce session state remounts on project or user change, isolating queued events, tokens, challenge images and loaded reports. This prevents a previous project's in-memory queue being submitted under a newly selected project.
+- [x] Offline storage is shape-validated. Corrupt JSON/non-array/invalid events fail closed with an explicit recovery message; original storage is preserved, sync is disabled and new offline writes cannot overwrite it.
+Validation: 58 local automated tests and build passed; browser regression includes malformed storage preservation and disabled sync. No real-person data used. Remaining acceptance criteria above stay open.
