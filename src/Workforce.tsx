@@ -1,3 +1,4 @@
+import { AttendanceScanner } from "./AttendanceScanner.tsx";
 import { readOfflineQueue } from "./workforce-queue.ts";
 import { attendanceCsv } from "./workforce-csv.ts";
 import React, { useState, useEffect } from "react";
@@ -324,6 +325,7 @@ function WorkforceSession({ pid, user }: { pid: string; user: User }) {
             Supervisor QR token
             <input value={token} onChange={(e) => setToken(e.target.value)} />
           </label>
+          <AttendanceScanner onToken={setToken} />
           <label>
             Read QR image
             <input

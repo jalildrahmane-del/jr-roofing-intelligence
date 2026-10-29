@@ -69,3 +69,9 @@ Validation: 57 local unit/API tests and build passed. Added CSV formula/quoting 
 - [x] Workforce session state remounts on project or user change, isolating queued events, tokens, challenge images and loaded reports. This prevents a previous project's in-memory queue being submitted under a newly selected project.
 - [x] Offline storage is shape-validated. Corrupt JSON/non-array/invalid events fail closed with an explicit recovery message; original storage is preserved, sync is disabled and new offline writes cannot overwrite it.
 Validation: 58 local automated tests and build passed; browser regression includes malformed storage preservation and disabled sync. No real-person data used. Remaining acceptance criteria above stay open.
+
+## 29 October live camera QR
+- [x] Camera QR capture using browser BarcodeDetector support, explicit user start, rear-camera preference and no audio. Captured tokens still require the existing server worker/project/event signature, expiry and replay validation.
+- [x] Tracks stop on capture, cancel, page hidden, timeout or unmount. Async permission/detection results from cancelled sessions are ignored and late streams stopped.
+- [x] Permission/unsupported-browser errors are visible; existing image import and token paste remain available. No frames are uploaded or stored.
+Validation: 58 unit/API tests and build passed. Browser tests exercise synthetic camera capture, track shutdown and permission rejection followed by the normal GPS submission flow. Full browser regression outcomes are recorded in the run report. Physical iPhone/Safari and real-camera compatibility remain unverified; unsupported browsers use the token fallback. This does not close Issue #5 or remove the synthetic-only/privacy gate.
