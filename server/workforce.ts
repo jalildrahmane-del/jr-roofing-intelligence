@@ -403,6 +403,44 @@ export function workforceCommand(
           .digest("hex"),
       });
     }
+    if (action === "material-request") {
+      if (!["worker", "supervisor", "manager"].includes(user.role))
+        throw Error("Forbidden: workforce role required");
+      const workerId = user.role === "worker" ? user.id : d.workerId;
+      allocated(workerId);
+      const neededBy = text(d.neededBy, "Required date", 10);
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(neededBy) ||
+          !Number.isFinite(Date.parse(neededBy + "T00:00:00Z")))
+        throw Error("Invalid required date");
+      return append("material-request", {
+        workerId,
+        description: text(d.description, "Material description", 500),
+        specification: text(d.specification, "Specification", 500),
+        quantity: positive(d.quantity, "Quantity"),
+        unit: text(d.unit, "Unit", 30),
+        neededBy,
+        deliveryPoint: text(d.deliveryPoint, "Delivery point", 300),
+        reason: text(d.reason, "Reason for request", 1000),
+        status: "pending supervisor review",
+      });
+    }
+    if (action === "material-review") {
+      supervisor();
+      const request = records.find(r => r.id === d.requestId && r.kind === "workforce.material-request");
+      if (!request) throw Error("Material request not found for this project");
+      if (request.author === user.id) throw Error("Independent reviewer required");
+      if (!["approved", "rejected"].includes(d.decision))
+        throw Error("Invalid material review decision");
+      if (records.some(r => r.kind === "workforce.material-review" && r.data.requestId === request.id))
+        throw Error("Material request already reviewed");
+      return append("material-review", {
+        workerId: request.data.workerId,
+        requestId: request.id,
+        decision: d.decision,
+        reason: text(d.reason, "Review reason", 1000),
+        status: "Review recorded; procurement not confirmed",
+      });
+    }
     if (action === "progress") {
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
