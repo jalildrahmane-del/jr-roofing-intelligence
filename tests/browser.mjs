@@ -115,7 +115,7 @@ try{
  }
  assert.equal(await page.locator('.owner-film video source[src="/legacy/roof-drone.mp4"]').count(),1,'Drone footage path');
  assert.equal(await page.locator('.owner-film video[poster="/legacy/roof-poster.jpg"]').count(),1,'Drone poster path');
- assert.match(await page.locator('.owner-disclaimer').innerText(),/not task completion, engineering approval or permission to work/i);
+ assert.match(await page.locator('.owner-disclaimer').filter({hasText:'Activity indicators show'}).innerText(),/not task completion, engineering approval or permission to work/i);
  for(const asset of ['/legacy/roof-drone.mp4','/legacy/roof-poster.jpg']){
    const response=await page.request.get(base+asset);
    assert.equal(response.status(),200,'Owner preview media missing: '+asset);
