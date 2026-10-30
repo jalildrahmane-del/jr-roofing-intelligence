@@ -26,6 +26,39 @@ const signalLabels: Record<SiteSignal, string> = {
   red: "Delayed (recorded)",
   unknown: "Status not reported",
 };
+type DirectorRow = { projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number };
+function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
+  const [rows,setRows] = useState<DirectorRow[]|null>(null);
+  const [error,setError] = useState("");
+  const [loading,setLoading] = useState(false);
+  async function load() {
+    setLoading(true);setError("");
+    try { setRows(await api("workforce-director") as DirectorRow[]); }
+    catch(e) { setError((e as Error).message); }
+    finally { setLoading(false); }
+  }
+  useEffect(()=>{ void load(); },[]);
+  return <section className="owner-workforce" aria-labelledby="director-workforce-heading">
+    <div className="owner-section-head"><h2 id="director-workforce-heading">Director workforce overview</h2><button className="quiet" type="button" onClick={()=>void load()} disabled={loading}>{loading?"Refreshing…":"Refresh"}</button></div>
+    <p className="owner-disclaimer">Recorded test activity only. Attendance events do not establish current presence. Pending reviews require human decisions.</p>
+    {error && <p role="alert">{error}</p>}
+    {!rows && !error && <p role="status">Loading workforce records…</p>}
+    <div className="owner-workforce-grid">
+    {rows?.map(r=><article className="owner-workforce-card" key={r.projectId}>
+      <h3>{r.projectName}</h3>
+      <dl>
+        <div><dt>Allocated workers</dt><dd>{r.allocatedWorkers}</dd></div>
+        <div><dt>Attendance events / awaiting review</dt><dd>{r.attendanceEvents} / {r.attendancePending}</dd></div>
+        <div><dt>Daily reports / awaiting review</dt><dd>{r.dailyReports} / {r.dailyPending}</dd></div>
+        <div><dt>Submitted photographs</dt><dd>{r.photos}</dd></div>
+        <div><dt>Materials requests / awaiting review</dt><dd>{r.materialRequests} / {r.materialPending}</dd></div>
+      </dl>
+      <a href="#workforce" onClick={()=>select?.(r.projectId)}>Open workforce records →</a>
+    </article>)}
+    </div>
+    {rows?.length===0 && <p>No projects recorded.</p>}
+  </section>;
+}
 export function OwnerDashboard({ snapshot, project, pid, onSelectProject, isDirector = false }: { snapshot: Snapshot; project?: Project; pid: string; onSelectProject?: (id: string) => void; isDirector?: boolean }) {
   const records = snapshot.records.filter(r => r.pid === pid && !r.kind.startsWith("commercial."));
   const stageCounts = phases.map(phase => records.filter(r => phase.match(r.kind)).length);
