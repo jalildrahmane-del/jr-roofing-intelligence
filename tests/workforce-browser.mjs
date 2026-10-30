@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import { Store } from "../server/store.ts";
 import { createApp } from "../server/index.ts";
-import { workforceCommand } from "../server/workforce.ts";
+import { workforceCommand, workforceDirectorSummary } from "../server/workforce.ts";
 import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 const s = new Store(":memory:");
@@ -107,6 +107,29 @@ try {
       ),
     );
   }
+  // Regression: materials must be project scoped, independently reviewed and
+  // visible in the manager-only multi-project operations summary.
+  const material = workforceCommand(s, worker, pid, "material-request", {
+    description: "Roof insulation boards",
+    specification: "Fictional 120mm test board",
+    quantity: 12, unit: "packs", neededBy: "2026-11-03",
+    deliveryPoint: "Fictional site compound", reason: "Next roofing phase",
+  }, key);
+  assert.equal(material.kind, "workforce.material-request");
+  assert.throws(() => workforceCommand(s, worker, pid, "material-review", {
+    requestId: material.id, decision: "approved", reason: "Self approval",
+  }, key), /Forbidden/);
+  const materialReview = workforceCommand(s, supervisor, pid, "material-review", {
+    requestId: material.id, decision: "approved", reason: "Reviewed test request",
+  }, key);
+  assert.equal(materialReview.data.decision, "approved");
+  assert.throws(() => workforceCommand(s, supervisor, pid, "material-review", {
+    requestId: material.id, decision: "approved", reason: "Duplicate",
+  }, key), /already reviewed/);
+  const director = workforceDirectorSummary(s, manager).find(r => r.projectId === pid);
+  assert.equal(director.materialRequests, 1);
+  assert.equal(director.materialPending, 0);
+  assert.throws(() => workforceDirectorSummary(s, worker), /Forbidden/);
   assert.deepEqual(errors, []);
   console.log(
     "PASS: supervisor QR -> worker GPS -> pending review; offline queue survives reload and syncs; mobile/tablet/desktop; zero page errors",
