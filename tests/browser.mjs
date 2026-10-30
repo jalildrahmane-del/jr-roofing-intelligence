@@ -48,6 +48,21 @@ try{
  await page.getByRole('link',{name:'Project Register',exact:true}).click();
  for(const [label,value] of [['Project name','Luton reference test'],['Client','Test Client'],['Site address','8 Prince Way, Luton'],['Roof area (m²)','94'],['Sector','Commercial'],['Roof type','Flat']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
+ // Project QR opens this exact project after login; scanning alone must never create attendance.
+ await page.getByRole('link',{name:'Subcontractors & Workforce',exact:true}).click();
+ await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
+ const siteQr=page.locator('.site-qr-print');
+ await siteQr.getByRole('heading',{name:'Luton reference test'}).waitFor();
+ await siteQr.locator('img[alt*="QR code"]').waitFor();
+ assert.ok((await siteQr.innerText()).includes('does not bypass login'),'QR notice must state authentication requirement');
+ const deepLink=await page.evaluate(() => {
+   const selected=document.querySelector('select[aria-label="Active project"]');
+   return location.origin+'/?site='+encodeURIComponent(selected.value)+'#workforce';
+ });
+ await page.goto(deepLink);
+ await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
+ assert.ok((await page.locator('.site-qr-print').innerText()).includes('Luton reference test'),'QR deep link must preserve selected project');
+ await page.getByRole('link',{name:'Project Register',exact:true}).click();
  // Project Register must expose the saved record, not only a blank new-project form.
  await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
  const savedDetails=await page.getByRole('region',{name:'Selected project details'}).innerText();
