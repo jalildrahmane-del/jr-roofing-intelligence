@@ -9,3 +9,51 @@
 .gate-workflow .attestation input { width:1.2rem; flex:none; margin-top:.25rem; }
 .gate-workflow code { overflow-wrap:anywhere; }
 @media(max-width:600px) { .gate-workflow dl { display:block; } .gate-workflow dt { font-weight:bold; margin-top:.6rem; } }
+
+/* Saved Project Register details */
+.project-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.project-details>div{background:#f6f7fa;border-left:3px solid #c79b31;padding:12px 16px;min-width:0}
+.project-details dt{font-size:12px;font-weight:700;color:#647184}
+.project-details dd{margin:6px 0 0;overflow-wrap:anywhere;font-size:15px;font-weight:600}
+@media(max-width:600px){.project-details{grid-template-columns:1fr}}
+
+/* Survey report: legible narrative and explicitly separated assumptions */
+.survey-report-sections{display:grid;gap:16px;margin-top:18px}
+.survey-report-sections>div{padding:18px 20px;background:#f7f8fa;border-left:4px solid #c79b31;min-width:0}
+.survey-report-sections h3{margin:0 0 10px;font-size:16px}
+.survey-notes p{margin:0 0 12px;white-space:pre-line;overflow-wrap:anywhere}
+.survey-notes p:last-child{margin-bottom:0}
+.survey-limitations{background:#fff7e7!important;border-left-color:#b57828!important}
+.survey-empty{font-style:italic}
+
+/* Worker mobile attendance: deliberate site confirmation, no background GPS */
+.workforce-project-confirm{display:flex;align-items:flex-start;gap:12px;padding:16px;background:#f6edcf;border:1px solid #d8bf78;border-radius:8px;font-weight:700;line-height:1.5}
+.workforce-project-confirm input{width:22px;height:22px;flex:none;margin:0;accent-color:#303e5b}
+@media(max-width:550px){.workforce-project-confirm{font-size:15px}section button{max-width:100%;white-space:normal}}
+
+/* Printable site-specific QR notice; QR is a navigation link, not attendance proof. */
+.site-qr-print{max-width:660px;background:#fff;border:3px solid #1e3655;border-radius:10px;text-align:center;padding:28px;margin:16px 0 22px;color:#1e3655}
+.site-qr-print .site-qr-brand{font-weight:900;letter-spacing:2px;color:#bd8e30}
+.site-qr-print h2{font-size:clamp(22px,3vw,32px);margin:14px 0}
+.site-qr-print h3{font-size:23px;overflow-wrap:anywhere}
+.site-qr-print img{display:block;width:min(100%,340px);height:auto;margin:12px auto}
+.site-qr-instructions{font-size:17px}
+.site-qr-print small{display:block;margin-top:16px;overflow-wrap:anywhere}
+@media print {
+  @page{size:A4 portrait;margin:15mm}
+  body *{visibility:hidden!important}
+  .site-qr-print,.site-qr-print *{visibility:visible!important}
+  .site-qr-print{position:absolute;top:0;left:0;width:170mm;max-width:none;box-sizing:border-box;margin:0;padding:15mm 8mm;border:3px solid #1e3655;box-shadow:none}
+  .site-qr-print img{width:95mm}
+  .site-qr-print h2{font-size:26px}
+}
+
+/* Site diary: responsive evidence cards, photo previews and review records. */
+.workforce-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:14px;margin:14px 0}
+.workforce-photo-grid>div,.workforce-photo-grid figure{margin:0;min-width:0;background:#f6f8fb;border:1px solid #dce3ec;border-radius:10px;padding:10px}
+.workforce-photo-grid img{display:block;width:100%;height:160px;object-fit:cover;border-radius:6px}
+.workforce-photo-grid figcaption{overflow-wrap:anywhere;font-size:13px;margin-top:8px}
+.workforce-photo-grid label{display:block;margin-top:8px}
+.workforce-photo-grid input{max-width:100%;box-sizing:border-box}
+.workforce-report-card{border:1px solid #dce3ec;border-radius:10px;background:#fff;padding:16px;margin:14px 0}
+.workforce-report-card p{white-space:pre-wrap;overflow-wrap:anywhere}

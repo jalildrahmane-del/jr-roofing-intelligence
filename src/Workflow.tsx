@@ -10,6 +10,10 @@ import {
 } from "./tender.ts";
 import type { LineInput, Pricing } from "./tender.ts";
 import { api } from "./api.ts";
+import { compareTenderOptions } from "./commercial.ts";
+import "./commercial.css";
+import { roofEvidenceSummary } from "./survey-intelligence.ts";
+import "./survey-intelligence.css";
 type Field = {
   name: string;
   label: string;
@@ -19,6 +23,24 @@ type Field = {
   value?: any;
   placeholder?: string;
 };
+/** Render survey notes as readable paragraphs, preserving emphasis without injecting HTML. */
+function SurveyNotes({ value, label }: { value: unknown; label: string }) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return <p className="survey-empty">{label} not recorded.</p>;
+  return (
+    <div className="survey-notes">
+      {raw.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => (
+        <p key={index}>
+          {paragraph.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
+            part.startsWith("**") && part.endsWith("**")
+              ? <strong key={i}>{part.slice(2, -2)}</strong>
+              : <React.Fragment key={i}>{part}</React.Fragment>
+          )}
+        </p>
+      ))}
+    </div>
+  );
+}
 const today = () => new Date().toISOString().slice(0, 10);
 function Input({ field, values }: { field: Field; values: any }) {
   const {
@@ -977,6 +999,29 @@ export function Workflow({
             assumptions, then link defects and photographs. Observations are not
             structural certification.
           </p>
+          <section className="survey-intelligence" aria-labelledby="survey-evidence-heading">
+            <h2 id="survey-evidence-heading">Roof evidence overview</h2>
+            <p>Current survey revisions only. These are evidence gaps for follow-up, not structural assessment or permission to access the roof.</p>
+            {!roofs.length ? (
+              <p>No roof surveys saved yet. Add a roof below to begin.</p>
+            ) : (
+              <div className="survey-evidence-grid">
+                {roofEvidenceSummary(records).map(roof => (
+                  <article key={roof.roofId} className="survey-evidence-card">
+                    <h3>{roof.name}</h3>
+                    <p>{roof.area === null ? "Area not recorded" : `${roof.area.toLocaleString("en-GB")} m²`} · {roof.condition}</p>
+                    <div className="survey-evidence-counts"><span>{roof.defects} defects</span><span>{roof.photos} linked photos</span></div>
+                    {roof.gaps.length ? (
+                      <div><strong>{roof.gaps.length} evidence gap{roof.gaps.length === 1 ? "" : "s"}</strong>
+                        <ul>{roof.gaps.map(gap => <li key={gap}>{gap}</li>)}</ul>
+                      </div>
+                    ) : <p>Listed evidence fields are populated; independent review is still required.</p>}
+                    <button type="button" className="quiet" onClick={() => setRoofId(roof.roofId)}>Review roof →</button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
           <div className="roof-list">
             {roofs.map((r) => (
               <button
@@ -997,8 +1042,16 @@ export function Workflow({
                   {r.data.condition} · {r.data.covering} · {r.data.surveyor} ·{" "}
                   {r.data.surveyDate}
                 </p>
-                <p>{r.data.observations}</p>
-                <p className="warning">{r.data.limitations}</p>
+                <div className="survey-report-sections">
+                  <div>
+                    <h3>Survey observations and recommendations</h3>
+                    <SurveyNotes value={r.data.observations} label="Survey observations" />
+                  </div>
+                  <div className="survey-limitations">
+                    <h3>Access limitations and technical assumptions</h3>
+                    <SurveyNotes value={r.data.limitations} label="Access limitations" />
+                  </div>
+                </div>
                 {canEdit && (
                   <button className="quiet" onClick={() => setEditRoof(r)}>
                     Revise selected roof
@@ -1388,8 +1441,9 @@ export function Workflow({
             preliminaries costs. Contingency applies to direct costs; sales
             margin is applied after contingency; VAT uses the rate you enter.
           </p>
-          <section>
-            <h2>Option comparison</h2>
+          <section className="commercial-comparison">
+            <h2>Commercial option comparison</h2>
+            <p>Compare current, fully priced tender options. Superseded source measurements or unpriced lines are excluded from lowest-price indicators. This is not an approval or tender award.</p>
             {!estimates.length ? (
               <p>No tender options recorded.</p>
             ) : (
@@ -1398,35 +1452,32 @@ export function Workflow({
                   <thead>
                     <tr>
                       <th>Option</th>
-                      <th>Cost</th>
-                      <th>Net</th>
-                      <th>VAT</th>
-                      <th>Total</th>
+                      <th>Direct cost</th>
+                      <th>Profit</th>
+                      <th>Net quote</th>
+                      <th>Inc. VAT</th>
+                      <th>Comparison status</th>
                       <th>Revision / action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {estimates.map((e) => (
-                      <tr key={e.id}>
-                        <th>
-                          {e.data.title}
-                          {estimateWarnings(e, roofs, materials).map((w) => (
-                            <p className="warning" key={w}>
-                              {w}
-                            </p>
-                          ))}
-                        </th>
-                        <td>{pounds(e.data.pricing.costPence)}</td>
-                        <td>{pounds(e.data.pricing.netPence)}</td>
-                        <td>{pounds(e.data.pricing.vatPence)}</td>
-                        <td>{pounds(e.data.pricing.grossPence)}</td>
+                    {compareTenderOptions(estimates, roofs, materials).map((option) => (
+                      <tr key={option.id}>
+                        <th>{option.title}</th>
+                        <td>{pounds(option.directPence)}</td>
+                        <td>{pounds(option.profitPence)}</td>
+                        <td>{pounds(option.netPence)}</td>
+                        <td>{pounds(option.grossPence)}</td>
                         <td>
-                          rev {e.data.version}
+                          {option.lowestCurrentNet && <span className="comparison-label">Lowest current net quote</span>}
+                          {!option.complete && <p className="warning">Unpriced lines — not comparable</p>}
+                          {option.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+                          {option.comparable && !option.lowestCurrentNet && <small>Current and fully priced</small>}
+                        </td>
+                        <td>
+                          rev {option.version}
                           {canEdit && (
-                            <button
-                              className="quiet"
-                              onClick={() => setEditEstimate(e)}
-                            >
+                            <button className="quiet" onClick={() => setEditEstimate(estimates.find(e => e.id === option.id))}>
                               Revise option
                             </button>
                           )}

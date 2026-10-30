@@ -1,0 +1,17 @@
+{
+  "name": "JR Roofing Private Owner Preview",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  "forwardPorts": [
+    3000
+  ],
+  "portsAttributes": {
+    "3000": {
+      "label": "JR Roofing private owner preview",
+      "onAutoForward": "notify",
+      "visibility": "private"
+    }
+  },
+  "remoteEnv": {
+    "PORT": "3000"
+  }
+}

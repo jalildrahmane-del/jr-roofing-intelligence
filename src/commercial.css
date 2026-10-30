@@ -1,0 +1,5 @@
+
+.commercial-comparison{border-radius:12px}
+.commercial-comparison th,.commercial-comparison td{min-width:100px}
+.commercial-comparison .warning{padding:8px;margin:6px 0;font-size:12px}
+.comparison-label{display:inline-block;border-radius:6px;background:#e4f2e8;color:#24583d;font-weight:800;padding:7px 10px;font-size:12px}

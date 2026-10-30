@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { imageSize } from "image-size";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
 import { text, positive } from "../src/model.ts";
@@ -9,6 +10,15 @@ import {
 } from "../src/workforce-qr.ts";
 
 const actions = ["in", "break-start", "break-end", "out"];
+function validWorkforceDate(value: unknown, label: string): string {
+  const day = text(value, label, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw Error("Invalid " + label.toLowerCase());
+  const parsed = new Date(day + "T00:00:00Z");
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day)
+    throw Error("Invalid " + label.toLowerCase());
+  return day;
+}
+
 export function workforceRecords(store: Store, pid: string): RecordItem[] {
   return store.db
     .prepare(
@@ -403,6 +413,93 @@ export function workforceCommand(
           .digest("hex"),
       });
     }
+    if (action === "daily-report") {
+      const workerId = user.role === "worker" ? user.id : text(d.workerId, "Worker", 100);
+      allocated(workerId);
+      if (user.role !== "worker") supervisor();
+      const day = validWorkforceDate(d.day, "Work date");
+      const photos = d.photos;
+      if (!Array.isArray(photos) || photos.length < 1 || photos.length > 4)
+        throw Error("Attach 1 to 4 site photographs");
+      const evidence = photos.map((photo: any) => {
+        if (!photo || typeof photo !== "object" || Array.isArray(photo))
+          throw Error("Invalid photograph");
+        const caption = text(photo.caption, "Photo caption", 300);
+        if (typeof photo.image !== "string" || photo.image.length > 1500000)
+          throw Error("Photograph exceeds the supported upload size");
+        const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo.image);
+        if (!match) throw Error("JPEG or PNG image required");
+        const bytes = Buffer.from(match[2], "base64");
+        if (bytes.length > 1024 * 1024 || bytes.toString("base64") !== match[2])
+          throw Error("Invalid photograph size or encoding");
+        const dimensions = imageSize(bytes);
+        if (dimensions.type !== match[1].replace("jpeg", "jpg") ||
+            !dimensions.width || !dimensions.height ||
+            dimensions.width > 2000 || dimensions.height > 2000)
+          throw Error("Image must be JPEG/PNG, maximum 2000 pixels per side");
+        const assetId = randomUUID();
+        store.db.prepare("INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)")
+          .run(assetId, pid, "image/" + match[1], bytes, createHash("sha256").update(bytes).digest("hex"));
+        return { assetId, caption, width: dimensions.width, height: dimensions.height };
+      });
+      return append("daily-report", {
+        workerId, day,
+        completed: text(d.completed, "Works completed", 3000),
+        delays: text(d.delays, "Delays / restrictions", 2000),
+        nextShift: text(d.nextShift, "Next shift plan", 2000),
+        evidence,
+        status: "submitted for supervisor review",
+      });
+    }
+    if (action === "daily-review") {
+      supervisor();
+      const report = records.find(r => r.kind === "workforce.daily-report" && r.id === d.reportId);
+      if (!report) throw Error("Daily report not found for this project");
+      if (report.author === user.id) throw Error("Independent reviewer required");
+      if (records.some(r => r.kind === "workforce.daily-review" && r.data.reportId === report.id))
+        throw Error("Daily report already reviewed");
+      if (!["accepted", "returned"].includes(d.decision))
+        throw Error("Invalid daily report review decision");
+      return append("daily-review", {
+        workerId: report.data.workerId, reportId: report.id,
+        decision: d.decision, reason: text(d.reason, "Review notes", 1000),
+      });
+    }
+    if (action === "material-request") {
+      if (!["worker", "supervisor", "manager"].includes(user.role))
+        throw Error("Forbidden: workforce role required");
+      const workerId = user.role === "worker" ? user.id : d.workerId;
+      allocated(workerId);
+      const neededBy = validWorkforceDate(d.neededBy, "Required date");
+      return append("material-request", {
+        workerId,
+        description: text(d.description, "Material description", 500),
+        specification: text(d.specification, "Specification", 500),
+        quantity: positive(d.quantity, "Quantity"),
+        unit: text(d.unit, "Unit", 30),
+        neededBy,
+        deliveryPoint: text(d.deliveryPoint, "Delivery point", 300),
+        reason: text(d.reason, "Reason for request", 1000),
+        status: "pending supervisor review",
+      });
+    }
+    if (action === "material-review") {
+      supervisor();
+      const request = records.find(r => r.id === d.requestId && r.kind === "workforce.material-request");
+      if (!request) throw Error("Material request not found for this project");
+      if (request.author === user.id) throw Error("Independent reviewer required");
+      if (!["approved", "rejected"].includes(d.decision))
+        throw Error("Invalid material review decision");
+      if (records.some(r => r.kind === "workforce.material-review" && r.data.requestId === request.id))
+        throw Error("Material request already reviewed");
+      return append("material-review", {
+        workerId: request.data.workerId,
+        requestId: request.id,
+        decision: d.decision,
+        reason: text(d.reason, "Review reason", 1000),
+        status: "Review recorded; procurement not confirmed",
+      });
+    }
     if (action === "progress") {
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
@@ -421,5 +518,40 @@ export function workforceCommand(
       });
     }
     throw Error("Unknown workforce action");
+  });
+}
+
+/** Director-only snapshot of recorded workforce activity; no inferred live presence. */
+export function workforceDirectorSummary(store: Store, user: User) {
+  if (user.role !== "manager") throw Error("Forbidden: director access required");
+  const projects = store.snapshot(user).projects;
+  return projects.map(project => {
+    const records = workforceRecords(store, project.id);
+    const kind = (name: string) => records.filter(r => r.kind === "workforce." + name);
+    const latestAllocations = new Map<string, RecordItem>();
+    for (const record of kind("allocation")) latestAllocations.set(record.data.workerId, record);
+    const attendanceReviews = new Set(kind("review").map(r => r.data.eventId));
+    const dailyReviews = new Set(kind("daily-review").map(r => r.data.reportId));
+    const materialsReviews = new Set(kind("material-review").map(r => r.data.requestId));
+    const daily = kind("daily-report");
+    const materials = kind("material-request");
+    const events = kind("event");
+    return {
+      projectId: project.id, projectName: project.name, address: project.address,
+      allocatedWorkers: [...latestAllocations.values()].filter(r => r.data.active).length,
+      attendanceEvents: events.length,
+      attendancePending: events.filter(r => !attendanceReviews.has(r.id)).length,
+      dailyReports: daily.length,
+      dailyPending: daily.filter(r => !dailyReviews.has(r.id)).length,
+      photos: daily.reduce((sum, r) => sum + (Array.isArray(r.data.evidence) ? r.data.evidence.length : 0), 0),
+      materialRequests: materials.length,
+      materialPending: materials.filter(r => !materialsReviews.has(r.id)).length,
+      latestReport: daily.length ? {
+        id: daily.at(-1)!.id,
+        day: daily.at(-1)!.data.day,
+        completed: daily.at(-1)!.data.completed,
+        submittedAt: daily.at(-1)!.createdAt,
+      } : null,
+    };
   });
 }

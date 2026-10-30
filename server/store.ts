@@ -123,6 +123,7 @@ export class Store {
       records: records.filter(
         (r) =>
           !r.kind.startsWith("workforce.") &&
+          (user.role === "manager" || !r.kind.startsWith("commercial.")) &&
           (user.role !== "worker" ||
             (r.kind === "allocation" && r.data.worker === user.id) ||
             r.author === user.id),

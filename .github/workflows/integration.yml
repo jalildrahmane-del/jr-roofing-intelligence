@@ -1,0 +1,108 @@
+name: Integration validation
+
+on:
+  push:
+    branches:
+      - feature/owner-command-centre-expansion
+  pull_request:
+    branches:
+      - feature/document-ai-safe-gates
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jr-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck, unit, build, browser and PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install Playwright Chromium for browser acceptance tests
+        run: npx playwright install --with-deps chromium
+      - name: Install PDF inspection tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Run full integration validation
+        run: npm run validate
+
+      - name: Package source-based Windows owner preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          git archive --format=zip --output="artifacts/JR-Roofing-Owner-Preview-${GITHUB_SHA:0:8}.zip" HEAD
+          python3 - <<'PY'
+          import glob, zipfile
+          archives=glob.glob('artifacts/JR-Roofing-Owner-Preview-*.zip')
+          assert len(archives)==1
+          with zipfile.ZipFile(archives[0]) as archive:
+              bad=[n for n in archive.namelist() if n.startswith(('.data/','node_modules/','dist/')) or n.endswith(('.sqlite','.sqlite3','.db')) or n.startswith('.env') and n != '.env.example']
+              required=['OWNER-PREVIEW-WINDOWS.cmd','scripts/owner-preview-setup.ps1','scripts/open-owner-preview.ps1','scripts/check-owner-account.ts','package-lock.json']
+              assert not bad, f'Forbidden archive entries: {bad}'
+              assert all(name in archive.namelist() for name in required), 'Missing preview launcher or setup files'
+              assert archive.testzip() is None, 'Corrupt preview archive'
+          print('Verified source ZIP: no local databases, dependencies or env files.')
+          PY
+      - name: Publish private owner-preview ZIP for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: JR-Roofing-Owner-Preview-${{ github.sha }}
+          path: artifacts/JR-Roofing-Owner-Preview-*.zip
+          if-no-files-found: error
+          retention-days: 120
+
+  windows-preview-smoke:
+    name: Windows preview build and startup
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies and build on Windows
+        run: |
+          npm ci
+          npm run build
+      - name: Verify launcher scripts and local HTTP startup on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (!(Test-Path 'OWNER-PREVIEW-WINDOWS.cmd')) { throw 'Missing Windows launcher' }
+          if (!(Test-Path 'scripts/owner-preview-setup.ps1')) { throw 'Missing owner setup' }
+          if (!(Test-Path 'scripts/open-owner-preview.ps1')) { throw 'Missing browser readiness helper' }
+          $server = Start-Process -FilePath 'node.exe' -ArgumentList 'server/index.ts' -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              try {
+                $r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000' -UseBasicParsing -TimeoutSec 2
+                if ($r.StatusCode -eq 200) { $ready = $true; break }
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            if (!$ready) { throw 'Windows local preview did not respond with HTTP 200' }
+            Write-Host 'Windows local preview returned HTTP 200.'
+            $index = (Invoke-WebRequest -Uri 'http://127.0.0.1:3000' -UseBasicParsing).Content
+            $assets = [regex]::Matches($index, '(?:src|href)="(/assets/[^\"]+)"')
+            if ($assets.Count -lt 1) { throw 'No bundled assets found in Windows index' }
+            foreach ($match in $assets) {
+              $assetPath = $match.Groups[1].Value
+              $assetResponse = Invoke-WebRequest -Uri ("http://127.0.0.1:3000" + $assetPath) -UseBasicParsing -TimeoutSec 10
+              if ($assetResponse.StatusCode -ne 200) { throw "Asset failed: $assetPath" }
+            }
+            Write-Host "Windows bundled asset requests passed: $($assets.Count)"
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          }
