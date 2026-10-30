@@ -407,6 +407,40 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
                 ))}
             </ul>
           </section>
+          <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
+            <h2 id="workforce-materials-heading">Materials needed on this job</h2>
+            <p>Request materials for the selected project. Submitting a request does not place an order.</p>
+            <Entry
+              title="Submit materials request"
+              fields={[
+                ...(user.role === "worker" ? [] : ["workerId"]),
+                "description", "specification", "quantity", "unit",
+                "neededBy", "deliveryPoint", "reason",
+              ]}
+              submit={(d) => send("material-request", d)}
+            />
+            <h3>Project materials requests</h3>
+            {!state.records.some((r: any) => r.kind === "workforce.material-request") && <p>No materials requests recorded yet.</p>}
+            <ul>
+              {state.records.filter((r: any) => r.kind === "workforce.material-request").map((r: any) => {
+                const review = state.records.find((v: any) => v.kind === "workforce.material-review" && v.data.requestId === r.id);
+                return <li key={r.id}>
+                  <strong>{r.data.description}</strong> · {r.data.quantity} {r.data.unit} · needed {r.data.neededBy}
+                  <br />{r.data.specification} · {r.data.deliveryPoint}
+                  <br />{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}
+                  <br /><small>Request ID: {r.id}</small>
+                </li>;
+              })}
+            </ul>
+            {["manager", "supervisor"].includes(user.role) && (
+              <Entry
+                title="Review materials request"
+                fields={["requestId", "decision", "reason"]}
+                submit={(d) => send("material-review", d)}
+              />
+            )}
+            <p className="warning">Supervisor approval is not a purchase order. Ordering, delivery and receipt confirmation are separate controls.</p>
+          </section>
           {["manager", "supervisor"].includes(user.role) && <ProductivityPanel state={state} />}
           <section>
             <h2>Weekly reported quantities</h2>
