@@ -51,6 +51,9 @@ try{
  // Project QR opens this exact project after login; scanning alone must never create attendance.
  await page.getByRole('link',{name:'Subcontractors & Workforce',exact:true}).click();
  await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
+ await page.getByRole('heading',{name:'Daily site report with photographs'}).waitFor();
+ await page.getByRole('button',{name:'Submit daily report'}).waitFor();
+ await page.getByRole('heading',{name:'Review daily report'}).waitFor();
  await page.getByRole('heading',{name:'Materials needed on this job'}).waitFor();
  await page.getByRole('heading',{name:'Submit materials request'}).waitFor();
  await page.getByRole('heading',{name:'Review materials request'}).waitFor();
