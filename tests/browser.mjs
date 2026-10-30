@@ -55,6 +55,24 @@ try{
    assert.ok(savedDetails.includes(value),'Missing saved project detail: '+value);
  await page.reload();await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
  assert.ok((await page.getByRole('region',{name:'Selected project details'}).innerText()).includes('Test Client'),'Saved project details lost after reload');
+ // New survey workspace: saved narrative renders safe bold headings and separate access limits.
+ await page.goto(base+'/#survey');
+ const surveyForm=page.locator('section').filter({has:page.getByRole('heading',{name:'Add a roof survey'})}).first();
+ for(const [label,value] of [
+  ['Roof name / asset','Test Roof A'],['Measured roof area (m²)','94'],
+  ['Roof pitch (degrees)','5'],['Primary structure / unknown','Steel'],
+  ['Surveyor','Test Surveyor'],['Access method and restrictions','MEWP only'],
+  ['Drainage observations','Gutters visually checked'],
+  ['Survey observations','**Overall Roof Condition: POOR**\\n\\nDamaged fixings observed.'],
+  ['Access limitations and technical assumptions','Visual inspection only.']
+ ]) await surveyForm.getByLabel(label,{exact:true}).fill(value);
+ for(const [label,value] of [['Roof covering','Standing seam metal'],['Condition','Poor'],['Reported leaks','Unknown']])
+  await surveyForm.getByLabel(label,{exact:true}).selectOption({label:value});
+ await surveyForm.getByRole('button',{name:'Save roof survey'}).click();
+ await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
+ assert.equal(await page.locator('.survey-notes strong').filter({hasText:'Overall Roof Condition: POOR'}).count(),1,'Markdown emphasis should render as bold text');
+ assert.ok((await page.locator('.survey-limitations').innerText()).includes('Visual inspection only.'),'Survey access limitations missing');
+ await page.reload();await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
  await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
