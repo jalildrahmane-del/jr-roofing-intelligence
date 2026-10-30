@@ -409,7 +409,7 @@ export function workforceCommand(
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
       const neededBy = text(d.neededBy, "Required date", 10);
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(neededBy) ||
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(neededBy) ||
           !Number.isFinite(Date.parse(neededBy + "T00:00:00Z")))
         throw Error("Invalid required date");
       return append("material-request", {
