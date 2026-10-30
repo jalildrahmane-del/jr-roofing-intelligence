@@ -45,6 +45,25 @@ export function Entry({
     </form>
   );
 }
+async function prepareDailyPhoto(file: File): Promise<string> {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 20 * 1024 * 1024)
+    throw Error("Choose a JPEG, PNG or WebP photograph under 20 MiB");
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 1600 / bitmap.width, 1600 / bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw Error("Image processing unavailable");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const result = canvas.toDataURL("image/jpeg", 0.7);
+    if (result.length > 1400000) throw Error("Compressed photograph too large. Choose a smaller photograph.");
+    return result;
+  } finally {
+    bitmap.close();
+  }
+}
 export function Workforce({ pid, user, project }: { pid: string; user: User; project?: Project }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
@@ -53,6 +72,8 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
     [siteQr, setSiteQr] = useState(""),
     [confirmedProject, setConfirmedProject] = useState(false),
     [success, setSuccess] = useState("");
+  const [dailyPhotos, setDailyPhotos] = useState<{ image: string; caption: string }[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
   const [queue, setQueue] = useState<any[]>(() => {
     try {
@@ -406,6 +427,78 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
                   </li>
                 ))}
             </ul>
+          </section>
+          <section className="workforce-daily" aria-labelledby="workforce-daily-heading">
+            <h2 id="workforce-daily-heading">Daily site report with photographs</h2>
+            <p>Record work completed on this project. Photos are stored as project evidence; submitting does not constitute supervisor approval.</p>
+            <form onSubmit={async e => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const d = Object.fromEntries(new FormData(form));
+              setError("");
+              setSuccess("");
+              setBusy(true);
+              try {
+                if (!dailyPhotos.length) throw Error("Add at least one site photograph");
+                await send("daily-report", { ...d, photos: dailyPhotos });
+                setDailyPhotos([]);
+                form.reset();
+                setSuccess("Daily report and photographs submitted for supervisor review.");
+              } catch (e) { setError((e as Error).message); }
+              finally { setBusy(false); }
+            }}>
+              <div className="fields">
+                {user.role !== "worker" && <label>Worker ID<input name="workerId" required /></label>}
+                <label>Work date<input type="date" name="day" required defaultValue={new Date().toLocaleDateString("en-CA")} /></label>
+                <label>Works completed<textarea name="completed" maxLength={3000} required /></label>
+                <label>Delays or restrictions (write 'None' if applicable)<textarea name="delays" maxLength={2000} required /></label>
+                <label>Plan for next shift<textarea name="nextShift" maxLength={2000} required /></label>
+              </div>
+              <label>Site photographs (1–4)
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photoBusy || busy}
+                  onChange={async e => {
+                    const input = e.currentTarget;
+                    const files = Array.from(input.files || []);
+                    if (!files.length) return;
+                    setPhotoBusy(true);
+                    setError("");
+                    try {
+                      if (files.length + dailyPhotos.length > 4) throw Error("Maximum four photographs per report");
+                      const prepared = await Promise.all(files.map(async file => ({
+                        image: await prepareDailyPhoto(file),
+                        caption: file.name.slice(0, 300) || "Site photograph",
+                      })));
+                      setDailyPhotos(previous => [...previous, ...prepared]);
+                    } catch (e) { setError((e as Error).message); }
+                    finally { setPhotoBusy(false); input.value = ""; }
+                  }} />
+              </label>
+              <div className="workforce-photo-grid">
+                {dailyPhotos.map((photo, i) => <div key={i}>
+                  <img src={photo.image} alt={`Photo ${i + 1} preview`} />
+                  <label>Photo {i + 1} caption<input value={photo.caption} maxLength={300} required
+                    onChange={e => setDailyPhotos(current => current.map((p, n) => n === i ? { ...p, caption: e.target.value } : p))} /></label>
+                  <button type="button" className="quiet" onClick={() => setDailyPhotos(current => current.filter((_, n) => n !== i))}>Remove photo</button>
+                </div>)}
+              </div>
+              <button type="submit" disabled={busy || photoBusy || dailyPhotos.length === 0}>{busy ? "Submitting…" : "Submit daily report"}</button>
+            </form>
+            <h3>Submitted daily reports</h3>
+            {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
+              const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
+              return <article className="workforce-report-card" key={r.id}>
+                <strong>{r.data.day} · {r.data.workerId}</strong>
+                <p>{r.data.completed}</p>
+                <p>Delays: {r.data.delays}</p>
+                <p>Next shift: {r.data.nextShift}</p>
+                <p>{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}</p>
+                <div className="workforce-photo-grid">{r.data.evidence.map((photo: any) =>
+                  <figure key={photo.assetId}><img loading="lazy" src={"/api/evidence/" + photo.assetId} alt={photo.caption} /><figcaption>{photo.caption}</figcaption></figure>
+                )}</div>
+                <small>Report ID: {r.id}</small>
+              </article>;
+            })}
+            {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
           </section>
           <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
