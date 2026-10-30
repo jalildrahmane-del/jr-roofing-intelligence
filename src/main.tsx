@@ -101,8 +101,9 @@ function App() {
     setState(s);
     setPid((p) => {
       const site = new URLSearchParams(location.search).get("site");
+      if (p && s.projects.some((x: any) => x.id === p)) return p;
       if (site && s.projects.some((x: any) => x.id === site)) return site;
-      return s.projects.some((x: any) => x.id === p) ? p : s.projects[0]?.id || "";
+      return s.projects[0]?.id || "";
     });
   }
   async function load() {
