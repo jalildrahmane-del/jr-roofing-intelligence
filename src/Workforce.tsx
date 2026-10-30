@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
-import type { User } from "./model.ts";
+import type { User, Project } from "./model.ts";
 import QRCode from "qrcode";
 import { ProductivityPanel } from "./ProductivityPanel.tsx";
 
@@ -45,11 +45,12 @@ export function Entry({
     </form>
   );
 }
-export function Workforce({ pid, user }: { pid: string; user: User }) {
+export function Workforce({ pid, user, project }: { pid: string; user: User; project?: Project }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
     [qr, setQr] = useState(""),
+    [siteQr, setSiteQr] = useState(""),
     [confirmedProject, setConfirmedProject] = useState(false),
     [success, setSuccess] = useState("");
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
@@ -77,6 +78,19 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
     try { setQueue(JSON.parse(localStorage.getItem(queueKey) || "[]")); } catch { setQueue([]); }
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
+  // This QR is a project navigation link only, never a login or attendance token.
+  // The server still requires authenticated, allocated workers and supervisor review.
+  const siteLink = pid ? new URL(`?site=${encodeURIComponent(pid)}#workforce`, window.location.origin + "/").href : "";
+  useEffect(() => {
+    let active = true;
+    setSiteQr("");
+    if (pid && ["manager", "supervisor"].includes(user.role)) {
+      QRCode.toDataURL(siteLink, { width: 560, margin: 3, errorCorrectionLevel: "H" })
+        .then(data => { if (active) setSiteQr(data); })
+        .catch(e => { if (active) setError("Unable to create site QR: " + e.message); });
+    }
+    return () => { active = false; };
+  }, [pid, user.role]);
   const send = async (action: string, data: any) => {
     await api("workforce", { pid, action, data });
     await refresh();
@@ -144,6 +158,24 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
       </p>
       {error && <p role="alert">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
+      {["manager", "supervisor"].includes(user.role) && (
+        <section className="site-qr-section" aria-labelledby="site-qr-heading">
+          <h2 id="site-qr-heading">Printable project sign-in QR</h2>
+          <p>Print and display this project-specific notice at the site sign-in point. Scanning opens the correct project; it does <strong>not</strong> sign anybody in automatically.</p>
+          <div className="site-qr-print" aria-label="Printable site QR notice">
+            <div className="site-qr-brand">JR ROOFING CONTRACTS</div>
+            <h2>WORKFORCE SITE SIGN-IN</h2>
+            <h3>{project?.name || "Selected project"}</h3>
+            <p>{project?.address || "Confirm the site address with your supervisor"}</p>
+            {siteQr ? <img src={siteQr} alt={`QR code to open workforce sign-in for ${project?.name || pid}`} /> : <p>Generating QR code…</p>}
+            <p className="site-qr-instructions"><strong>SCAN → SIGN IN → CONFIRM THIS JOB → RECORD ATTENDANCE</strong></p>
+            <p>Use your individual worker account. GPS is requested when you submit an online attendance event. Supervisor review is required.</p>
+            <small>Project reference: {pid} · This QR is not proof of attendance and does not bypass login.</small>
+          </div>
+          <button type="button" disabled={!siteQr} onClick={() => window.print()}>Print A4 site QR notice</button>
+          <p><small>For security, only managers and authorised supervisors can generate the notice. Workers still need project allocation and an authenticated account.</small></p>
+        </section>
+      )}
       {user.role === "manager" && (
         <section>
           <Entry
