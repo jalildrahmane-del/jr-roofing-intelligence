@@ -101,7 +101,7 @@ try{
  await page.reload();await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
- await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
+ await page.goto(base+'/#dashboard');await page.reload();await page.locator('.owner-site-card').getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
  // Director view must not invent green programme status for an unreported project.
  await page.getByRole('heading',{name:'Project status overview'}).waitFor();
  const siteCard=page.locator('.owner-site-card').filter({hasText:'Luton reference test'});
