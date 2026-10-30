@@ -1,7 +1,7 @@
 import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
 import { saveCommercial } from "./commercial-control.ts";
-import { workforceCommand, workforceState } from "./workforce.ts";
+import { workforceCommand, workforceState, workforceDirectorSummary } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
@@ -242,6 +242,8 @@ export function createApp(store: Store, root = resolve("dist")) {
         const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
         res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
       }
+      if (url.pathname === "/api/workforce-director" && req.method === "GET")
+        return reply(200, workforceDirectorSummary(store, user));
       if (url.pathname === "/api/workforce" && req.method === "GET")
         return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));
       if (url.pathname === "/api/workforce" && req.method === "POST")
