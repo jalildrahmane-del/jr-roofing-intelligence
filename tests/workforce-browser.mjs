@@ -174,12 +174,12 @@ try {
   const secondSite = page.locator(".owner-workforce-card").filter({ has: page.getByRole("heading", { name: "Fictional second site", exact: true }) });
   await firstSite.waitFor();
   await secondSite.waitFor();
-  assert.match(await firstSite.innerText(), /Allocated workers\\s*1/);
-  assert.match(await firstSite.innerText(), /Attendance events \/ awaiting review\\s*2 \/ 2/);
-  assert.match(await firstSite.innerText(), /Daily reports \/ awaiting review\\s*1 \/ 0/);
-  assert.match(await firstSite.innerText(), /Submitted photographs\\s*1/);
-  assert.match(await firstSite.innerText(), /Materials requests \/ awaiting review\\s*1 \/ 0/);
-  assert.match(await secondSite.innerText(), /Allocated workers\\s*0/);
+  assert.match(await firstSite.innerText(), /Allocated workers\s*1/);
+  assert.match(await firstSite.innerText(), /Attendance events \/ awaiting review\s*2 \/ 2/);
+  assert.match(await firstSite.innerText(), /Daily reports \/ awaiting review\s*1 \/ 0/);
+  assert.match(await firstSite.innerText(), /Submitted photographs\s*1/);
+  assert.match(await firstSite.innerText(), /Materials requests \/ awaiting review\s*1 \/ 0/);
+  assert.match(await secondSite.innerText(), /Allocated workers\s*0/);
   const response = await page.request.get(base + "/api/workforce-director");
   assert.equal(response.status(), 200);
   const rows = await response.json();
