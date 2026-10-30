@@ -121,6 +121,7 @@ export function OwnerDashboard({ snapshot, project, pid, onSelectProject, isDire
           </div>
         )}
       </section>
+      {isDirector && <DirectorWorkforce select={onSelectProject} />}
       <div className="owner-section-head">
         <div><p className="owner-kicker">WORKFLOW</p><h2>Five stages, one project</h2></div>
         <span>{active} of 5 stages have activity</span>
