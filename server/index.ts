@@ -1,8 +1,10 @@
+import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
-import { workforceCommand, workforceState } from "./workforce.ts";
+import { saveCommercial } from "./commercial-control.ts";
+import { workforceCommand, workforceState, workforceDirectorSummary } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { resolve, extname } from "node:path";
+import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "./store.ts";
 import { saveGate } from "./gates.ts";
@@ -30,11 +32,14 @@ export function createApp(store: Store, root = resolve("dist")) {
       res.end(JSON.stringify(data));
     };
     try {
-      if (
-        !req.headers.host ||
-        !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host)
-      )
-        return reply(403, { error: "Only localhost access is enabled" });
+      const codespace = process.env.CODESPACE_NAME;
+      const forwardedHost = codespace && /^[a-z0-9-]+$/.test(codespace)
+        ? `${codespace}-${process.env.PORT || "3000"}.app.github.dev`
+        : null;
+      const isLocalHost = !!req.headers.host && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host);
+      const isCodespaceHost = !!forwardedHost && req.headers.host === forwardedHost;
+      if (!isLocalHost && !isCodespaceHost)
+        return reply(403, { error: "Only localhost or the configured private Codespaces preview is enabled" });
       const url = new URL(req.url || "/", `http://${req.headers.host}`);
       const legacy = url.pathname.startsWith("/legacy/");
       res.setHeader(
@@ -47,7 +52,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         if (req.method !== "GET" && req.method !== "HEAD")
           return reply(405, { error: "Method not allowed" });
         let path = resolve(root, "." + decodeURIComponent(url.pathname));
-        if (!path.startsWith(root + "/") && path !== root)
+        if (!path.startsWith(root + sep) && path !== root)
           return reply(403, { error: "Forbidden" });
         if (existsSync(path) && statSync(path).isDirectory())
           path = resolve(path, "index.html");
@@ -78,7 +83,8 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (!["GET", "HEAD"].includes(req.method || "")) {
         const origin = req.headers.origin;
-        if (!origin || origin !== `http://${req.headers.host}`)
+        const forwardedOrigin = isCodespaceHost ? `https://${forwardedHost}` : null;
+        if (!origin || (origin !== `http://${req.headers.host}` && origin !== forwardedOrigin))
           return reply(403, { error: "Same-origin request required" });
         if (!req.headers["content-type"]?.startsWith("application/json"))
           return reply(415, { error: "JSON required" });
@@ -122,7 +128,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         attempts.delete(ip);
         res.setHeader(
           "Set-Cookie",
-          `jr_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`,
+          `jr_session=${token}; HttpOnly; SameSite=Strict; ${isCodespaceHost ? "Secure; " : ""}Path=/; Max-Age=28800`,
         );
         return reply(200, { ok: true });
       }
@@ -153,6 +159,17 @@ export function createApp(store: Store, root = resolve("dist")) {
           !store.snapshot(user).projects.some((p) => p.id === asset.pid)
         )
           return reply(404, { error: "Evidence not found" });
+        // Workers may only retrieve photographs attached to their own submitted
+        // workforce daily reports, not other workers' private site evidence.
+        if (user.role === "worker") {
+          const visible = workforceState(store, user, asset.pid).records;
+          const ownPhoto = visible.some(r =>
+            r.kind === "workforce.daily-report" &&
+            r.data.workerId === user.id &&
+            Array.isArray(r.data.evidence) &&
+            r.data.evidence.some((photo: any) => photo.assetId === asset.id));
+          if (!ownPhoto) return reply(404, { error: "Evidence not found" });
+        }
         res.writeHead(200, {
           "Content-Type": asset.mime,
           "Cache-Control": "no-store",
@@ -217,10 +234,22 @@ export function createApp(store: Store, root = resolve("dist")) {
             "Recorded human decisions only; not a safety certificate. Audit hashes are local tamper evidence. Gaps in project-filtered chain refer to other project events.",
         });
       }
+      if (url.pathname === "/api/document-intelligence" && req.method === "GET")
+        return reply(200, documentState(store,user,url.searchParams.get("pid")||""));
+      if (url.pathname === "/api/document-intelligence" && req.method === "POST")
+        return reply(201, documentCommand(store,user,text(body.pid,"Project",200),text(body.action,"Action",50),body.data));
+      if (url.pathname === "/api/document-pdf" && req.method === "GET") {
+        const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
+        res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
+      }
+      if (url.pathname === "/api/workforce-director" && req.method === "GET")
+        return reply(200, workforceDirectorSummary(store, user));
       if (url.pathname === "/api/workforce" && req.method === "GET")
         return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));
       if (url.pathname === "/api/workforce" && req.method === "POST")
         return reply(201, workforceCommand(store, user, text(body.pid,"Project",200), text(body.action,"Action",50),body.data,workforceKey));
+      if (url.pathname === "/api/commercial" && req.method === "POST")
+        return reply(201,saveCommercial(store,user,text(body.pid,"Project",200),text(body.action,"Action",30),body.data));
       if (url.pathname === "/api/state" && req.method === "GET")
         return reply(200, store.snapshot(user));
       if (url.pathname === "/api/projects" && req.method === "POST")
@@ -281,7 +310,8 @@ if (
 ) {
   const port = Number(process.env.PORT || 3000),
     store = new Store(process.env.JR_DB || ".data/jr.sqlite");
-  createApp(store).listen(port, "127.0.0.1", () =>
+  const bindHost = process.env.CODESPACE_NAME && /^[a-z0-9-]+$/.test(process.env.CODESPACE_NAME) ? "0.0.0.0" : "127.0.0.1";
+  createApp(store).listen(port, bindHost, () =>
     console.log(`JR Roofing Intelligence: http://127.0.0.1:${port}`),
   );
 }

@@ -7,6 +7,7 @@ import {
   createHash,
 } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
+import { verifyIntegrity } from "./integrity.ts";
 import { migrate } from "./migrations.ts";
 import { dirname } from "node:path";
 import type { Role, User, Snapshot, RecordItem } from "../src/model.ts";
@@ -22,6 +23,7 @@ export class Store {
         "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",
       );
       migrate(this.db);
+      verifyIntegrity(this.db);
     } catch (error) {
       this.db.close();
       throw error;
@@ -121,6 +123,7 @@ export class Store {
       records: records.filter(
         (r) =>
           !r.kind.startsWith("workforce.") &&
+          (user.role === "manager" || !r.kind.startsWith("commercial.")) &&
           (user.role !== "worker" ||
             (r.kind === "allocation" && r.data.worker === user.id) ||
             r.author === user.id),

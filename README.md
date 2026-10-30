@@ -1,6 +1,6 @@
 # JR Roofing Intelligence — survey-to-tender review build
 
-Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issue #2 adds the survey, source catalogue, estimating and PDF document journey. Issues #3–#5 are not implemented.
+Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issue #2 adds the survey, source catalogue, estimating and PDF document journey. Issue #3 is merged; Issue #4/#5 work and the owner command-centre expansion are under draft pull-request review and are not yet released.
 
 ## Start locally
 
@@ -48,7 +48,7 @@ npx playwright install chromium
 npm run validate
 ```
 
-This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, a development proxy smoke test and PDF content/layout checks. Install Poppler (`poppler-utils` on Ubuntu) for PDF checks. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. GitHub Actions validation is enabled for the authorised Issue #2 branch and manual dispatch. A public-repository guard limits execution to the free standard hosted runner; cache saves and artifact uploads are disabled. It does not deploy or call paid APIs.
+This runs TypeScript checks, unit/integration tests, production build, desktop/mobile Chromium tests, a development proxy smoke test and PDF content/layout checks. Install Poppler (`poppler-utils` on Ubuntu) for PDF checks. Browser tests require the build and write synthetic-data screenshots to `artifacts/`. GitHub Actions integration validation runs for the owner expansion branch and its pull request. The workflow installs Chromium and Poppler on a standard GitHub-hosted runner, then runs the full validation command. No deployment or paid APIs are configured. Confirm current GitHub Actions billing settings before increasing runner usage.
 
 If standard Chromium download is unavailable, the installed bundled Chromium dependency can be extracted locally:
 
