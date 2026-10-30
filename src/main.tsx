@@ -99,9 +99,11 @@ function App() {
   async function refresh() {
     const s = await api("state");
     setState(s);
-    setPid((p) =>
-      s.projects.some((x: any) => x.id === p) ? p : s.projects[0]?.id || "",
-    );
+    setPid((p) => {
+      const site = new URLSearchParams(location.search).get("site");
+      if (site && s.projects.some((x: any) => x.id === site)) return site;
+      return s.projects.some((x: any) => x.id === p) ? p : s.projects[0]?.id || "";
+    });
   }
   async function load() {
     setError("");
