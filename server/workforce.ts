@@ -517,3 +517,38 @@ export function workforceCommand(
     throw Error("Unknown workforce action");
   });
 }
+
+/** Director-only snapshot of recorded workforce activity; no inferred live presence. */
+export function workforceDirectorSummary(store: Store, user: User) {
+  if (user.role !== "manager") throw Error("Forbidden: director access required");
+  const projects = store.snapshot(user).projects;
+  return projects.map(project => {
+    const records = workforceRecords(store, project.id);
+    const kind = (name: string) => records.filter(r => r.kind === "workforce." + name);
+    const latestAllocations = new Map<string, RecordItem>();
+    for (const record of kind("allocation")) latestAllocations.set(record.data.workerId, record);
+    const attendanceReviews = new Set(kind("review").map(r => r.data.eventId));
+    const dailyReviews = new Set(kind("daily-review").map(r => r.data.reportId));
+    const materialsReviews = new Set(kind("material-review").map(r => r.data.requestId));
+    const daily = kind("daily-report");
+    const materials = kind("material-request");
+    const events = kind("event");
+    return {
+      projectId: project.id, projectName: project.name, address: project.address,
+      allocatedWorkers: [...latestAllocations.values()].filter(r => r.data.active).length,
+      attendanceEvents: events.length,
+      attendancePending: events.filter(r => !attendanceReviews.has(r.id)).length,
+      dailyReports: daily.length,
+      dailyPending: daily.filter(r => !dailyReviews.has(r.id)).length,
+      photos: daily.reduce((sum, r) => sum + (Array.isArray(r.data.evidence) ? r.data.evidence.length : 0), 0),
+      materialRequests: materials.length,
+      materialPending: materials.filter(r => !materialsReviews.has(r.id)).length,
+      latestReport: daily.length ? {
+        id: daily.at(-1)!.id,
+        day: daily.at(-1)!.data.day,
+        completed: daily.at(-1)!.data.completed,
+        submittedAt: daily.at(-1)!.createdAt,
+      } : null,
+    };
+  });
+}
