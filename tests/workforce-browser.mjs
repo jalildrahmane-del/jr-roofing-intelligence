@@ -160,6 +160,35 @@ try {
   assert.equal(director.dailyPending, 0);
   assert.equal(director.photos, 1);
   assert.throws(() => workforceDirectorSummary(s, worker), /Forbidden/);
+  // End-to-end: the same submitted records must appear in the manager's
+  // dashboard, with pending counts matching the workforce backend.
+  const forbiddenDirector = await page.request.get(base + "/api/workforce-director");
+  assert.equal(forbiddenDirector.status(), 403, "Workers must not access the director API");
+  const secondPid = s.project(manager, { name: "Fictional second site" }).id;
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login("manager");
+  await page.goto(base + "/#dashboard");
+  const overview = page.getByRole("heading", { name: "Director workforce overview", exact: true });
+  await overview.waitFor();
+  const firstSite = page.locator(".owner-workforce-card").filter({ has: page.getByRole("heading", { name: "Fictional roof", exact: true }) });
+  const secondSite = page.locator(".owner-workforce-card").filter({ has: page.getByRole("heading", { name: "Fictional second site", exact: true }) });
+  await firstSite.waitFor();
+  await secondSite.waitFor();
+  assert.match(await firstSite.innerText(), /Allocated workers\\s*1/);
+  assert.match(await firstSite.innerText(), /Attendance events \/ awaiting review\\s*2 \/ 2/);
+  assert.match(await firstSite.innerText(), /Daily reports \/ awaiting review\\s*1 \/ 0/);
+  assert.match(await firstSite.innerText(), /Submitted photographs\\s*1/);
+  assert.match(await firstSite.innerText(), /Materials requests \/ awaiting review\\s*1 \/ 0/);
+  assert.match(await secondSite.innerText(), /Allocated workers\\s*0/);
+  const response = await page.request.get(base + "/api/workforce-director");
+  assert.equal(response.status(), 200);
+  const rows = await response.json();
+  assert.equal(rows.find(r => r.projectId === pid).dailyReports, 1);
+  assert.equal(rows.find(r => r.projectId === secondPid).materialRequests, 0);
+  await firstSite.getByRole("link", { name: "Open workforce records" }).click();
+  await page.getByRole("heading", { name: "Subcontractors & Workforce", exact: true }).waitFor();
+  assert.match(await page.locator("body").innerText(), /Fictional roof/);
+  assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: supervisor QR -> worker GPS -> pending review; offline queue survives reload and syncs; mobile/tablet/desktop; zero page errors",
