@@ -2,6 +2,7 @@ name: JR full validation
 on:
   push:
     branches:
+      - main
       - feature/project-register-details-review
   workflow_dispatch:
 jobs:
