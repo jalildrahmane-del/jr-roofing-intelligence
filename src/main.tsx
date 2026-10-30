@@ -359,7 +359,7 @@ function App() {
             />
           )}
           {route === "documents" && <Documents key={pid} pid={pid} />}
-          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} />}
+          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} project={project} />}
           {![
             "dashboard",
             "projects",
