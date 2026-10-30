@@ -159,6 +159,17 @@ export function createApp(store: Store, root = resolve("dist")) {
           !store.snapshot(user).projects.some((p) => p.id === asset.pid)
         )
           return reply(404, { error: "Evidence not found" });
+        // Workers may only retrieve photographs attached to their own submitted
+        // workforce daily reports, not other workers' private site evidence.
+        if (user.role === "worker") {
+          const visible = workforceState(store, user, asset.pid).records;
+          const ownPhoto = visible.some(r =>
+            r.kind === "workforce.daily-report" &&
+            r.data.workerId === user.id &&
+            Array.isArray(r.data.evidence) &&
+            r.data.evidence.some((photo: any) => photo.assetId === asset.id));
+          if (!ownPhoto) return reply(404, { error: "Evidence not found" });
+        }
         res.writeHead(200, {
           "Content-Type": asset.mime,
           "Cache-Control": "no-store",
