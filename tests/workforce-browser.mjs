@@ -83,6 +83,7 @@ try {
     .inputValue();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("worker");
+  await page.getByRole("checkbox", { name: /I confirm I am recording attendance/ }).check();
   await page.getByLabel("Supervisor QR token", { exact: true }).fill(token);
   await page
     .getByRole("button", { name: "Submit GPS event for review" })
