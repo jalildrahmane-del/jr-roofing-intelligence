@@ -126,9 +126,39 @@ try {
   assert.throws(() => workforceCommand(s, supervisor, pid, "material-review", {
     requestId: material.id, decision: "approved", reason: "Duplicate",
   }, key), /already reviewed/);
+  assert.throws(() => workforceCommand(s, worker, pid, "material-request", {
+    description: "Roof boards", specification: "Test", quantity: 1, unit: "packs",
+    neededBy: "2026-02-30", deliveryPoint: "Site", reason: "Test",
+  }, key), /Invalid required date/);
+  const tinyPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==";
+  const reportData = {
+    day: "2026-10-30", completed: "Insulation and overlay test",
+    delays: "None", nextShift: "Roof felt test",
+    photos: [{ image: tinyPng, caption: "Test roof image" }],
+  };
+  assert.throws(() => workforceCommand(s, worker, pid, "daily-report", {
+    ...reportData, day: "2026-02-30",
+  }, key), /Invalid work date/);
+  const report = workforceCommand(s, worker, pid, "daily-report", reportData, key);
+  assert.equal(report.kind, "workforce.daily-report");
+  assert.equal(report.data.evidence.length, 1);
+  assert.ok(s.db.prepare("SELECT id FROM evidence WHERE id=?").get(report.data.evidence[0].assetId));
+  assert.throws(() => workforceCommand(s, worker, pid, "daily-review", {
+    reportId: report.id, decision: "accepted", reason: "Self review",
+  }, key), /Forbidden/);
+  const review = workforceCommand(s, supervisor, pid, "daily-review", {
+    reportId: report.id, decision: "accepted", reason: "Reviewed",
+  }, key);
+  assert.equal(review.data.decision, "accepted");
+  assert.throws(() => workforceCommand(s, supervisor, pid, "daily-review", {
+    reportId: report.id, decision: "accepted", reason: "Duplicate",
+  }, key), /already reviewed/);
   const director = workforceDirectorSummary(s, manager).find(r => r.projectId === pid);
   assert.equal(director.materialRequests, 1);
   assert.equal(director.materialPending, 0);
+  assert.equal(director.dailyReports, 1);
+  assert.equal(director.dailyPending, 0);
+  assert.equal(director.photos, 1);
   assert.throws(() => workforceDirectorSummary(s, worker), /Forbidden/);
   assert.deepEqual(errors, []);
   console.log(
