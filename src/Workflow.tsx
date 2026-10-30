@@ -23,6 +23,24 @@ type Field = {
   value?: any;
   placeholder?: string;
 };
+/** Render survey notes as readable paragraphs, preserving emphasis without injecting HTML. */
+function SurveyNotes({ value, label }: { value: unknown; label: string }) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return <p className="survey-empty">{label} not recorded.</p>;
+  return (
+    <div className="survey-notes">
+      {raw.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => (
+        <p key={index}>
+          {paragraph.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
+            part.startsWith("**") && part.endsWith("**")
+              ? <strong key={i}>{part.slice(2, -2)}</strong>
+              : <React.Fragment key={i}>{part}</React.Fragment>
+          )}
+        </p>
+      ))}
+    </div>
+  );
+}
 const today = () => new Date().toISOString().slice(0, 10);
 function Input({ field, values }: { field: Field; values: any }) {
   const {
@@ -1024,8 +1042,16 @@ export function Workflow({
                   {r.data.condition} · {r.data.covering} · {r.data.surveyor} ·{" "}
                   {r.data.surveyDate}
                 </p>
-                <p>{r.data.observations}</p>
-                <p className="warning">{r.data.limitations}</p>
+                <div className="survey-report-sections">
+                  <div>
+                    <h3>Survey observations and recommendations</h3>
+                    <SurveyNotes value={r.data.observations} label="Survey observations" />
+                  </div>
+                  <div className="survey-limitations">
+                    <h3>Access limitations and technical assumptions</h3>
+                    <SurveyNotes value={r.data.limitations} label="Access limitations" />
+                  </div>
+                </div>
                 {canEdit && (
                   <button className="quiet" onClick={() => setEditRoof(r)}>
                     Revise selected roof

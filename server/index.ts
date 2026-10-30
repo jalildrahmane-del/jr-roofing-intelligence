@@ -1,7 +1,7 @@
 import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
 import { saveCommercial } from "./commercial-control.ts";
-import { workforceCommand, workforceState } from "./workforce.ts";
+import { workforceCommand, workforceState, workforceDirectorSummary } from "./workforce.ts";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
@@ -159,6 +159,17 @@ export function createApp(store: Store, root = resolve("dist")) {
           !store.snapshot(user).projects.some((p) => p.id === asset.pid)
         )
           return reply(404, { error: "Evidence not found" });
+        // Workers may only retrieve photographs attached to their own submitted
+        // workforce daily reports, not other workers' private site evidence.
+        if (user.role === "worker") {
+          const visible = workforceState(store, user, asset.pid).records;
+          const ownPhoto = visible.some(r =>
+            r.kind === "workforce.daily-report" &&
+            r.data.workerId === user.id &&
+            Array.isArray(r.data.evidence) &&
+            r.data.evidence.some((photo: any) => photo.assetId === asset.id));
+          if (!ownPhoto) return reply(404, { error: "Evidence not found" });
+        }
         res.writeHead(200, {
           "Content-Type": asset.mime,
           "Cache-Control": "no-store",
@@ -231,6 +242,8 @@ export function createApp(store: Store, root = resolve("dist")) {
         const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
         res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
       }
+      if (url.pathname === "/api/workforce-director" && req.method === "GET")
+        return reply(200, workforceDirectorSummary(store, user));
       if (url.pathname === "/api/workforce" && req.method === "GET")
         return reply(200, workforceState(store, user, url.searchParams.get("pid") || ""));
       if (url.pathname === "/api/workforce" && req.method === "POST")

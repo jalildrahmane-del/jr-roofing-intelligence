@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { api } from "./api.ts";
 import type { Project, RecordItem, Snapshot } from "./model.ts";
 import { current } from "./tender.ts";
 
@@ -11,7 +12,54 @@ const phases: Phase[] = [
   { title: "Handover", route: "handover", subtitle: "Quality, O&M & client closeout", match: k => /^(snag|handover|quality|om|closeout)/i.test(k) },
 ];
 
-export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot; project?: Project; pid: string }) {
+type SiteSignal = "green" | "amber" | "red" | "unknown";
+function siteSignal(status: string): SiteSignal {
+  const normalized = status.trim().toLowerCase();
+  if (["on programme", "on program", "on track"].includes(normalized)) return "green";
+  if (["at risk", "attention required"].includes(normalized)) return "amber";
+  if (["delayed", "behind programme", "behind program"].includes(normalized)) return "red";
+  return "unknown";
+}
+const signalLabels: Record<SiteSignal, string> = {
+  green: "On programme (recorded)",
+  amber: "Attention required (recorded)",
+  red: "Delayed (recorded)",
+  unknown: "Status not reported",
+};
+type DirectorRow = { projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number };
+function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
+  const [rows,setRows] = useState<DirectorRow[]|null>(null);
+  const [error,setError] = useState("");
+  const [loading,setLoading] = useState(false);
+  async function load() {
+    setLoading(true);setError("");
+    try { setRows(await api("workforce-director") as DirectorRow[]); }
+    catch(e) { setError((e as Error).message); }
+    finally { setLoading(false); }
+  }
+  useEffect(()=>{ void load(); },[]);
+  return <section className="owner-workforce" aria-labelledby="director-workforce-heading">
+    <div className="owner-section-head"><h2 id="director-workforce-heading">Director workforce overview</h2><button className="quiet" type="button" onClick={()=>void load()} disabled={loading}>{loading?"Refreshing…":"Refresh"}</button></div>
+    <p className="owner-disclaimer">Recorded test activity only. Attendance events do not establish current presence. Pending reviews require human decisions.</p>
+    {error && <p role="alert">{error}</p>}
+    {!rows && !error && <p role="status">Loading workforce records…</p>}
+    <div className="owner-workforce-grid">
+    {rows?.map(r=><article className="owner-workforce-card" key={r.projectId}>
+      <h3>{r.projectName}</h3>
+      <dl>
+        <div><dt>Allocated workers</dt><dd>{r.allocatedWorkers}</dd></div>
+        <div><dt>Attendance events / awaiting review</dt><dd>{r.attendanceEvents} / {r.attendancePending}</dd></div>
+        <div><dt>Daily reports / awaiting review</dt><dd>{r.dailyReports} / {r.dailyPending}</dd></div>
+        <div><dt>Submitted photographs</dt><dd>{r.photos}</dd></div>
+        <div><dt>Materials requests / awaiting review</dt><dd>{r.materialRequests} / {r.materialPending}</dd></div>
+      </dl>
+      <a href="#workforce" onClick={()=>select?.(r.projectId)}>Open workforce records →</a>
+    </article>)}
+    </div>
+    {rows?.length===0 && <p>No projects recorded.</p>}
+  </section>;
+}
+export function OwnerDashboard({ snapshot, project, pid, onSelectProject, isDirector = false }: { snapshot: Snapshot; project?: Project; pid: string; onSelectProject?: (id: string) => void; isDirector?: boolean }) {
   const records = snapshot.records.filter(r => r.pid === pid && !r.kind.startsWith("commercial."));
   const stageCounts = phases.map(phase => records.filter(r => phase.match(r.kind)).length);
   const active = stageCounts.filter(n => n > 0).length;
@@ -47,6 +95,33 @@ export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot;
         <div><small>Evidence records</small><strong>{records.length}</strong></div>
         <div><small>{roofRecords.length ? "Surveyed roof area" : "Estimated roof area"}</small><strong>{area.toLocaleString("en-GB")} m²</strong></div>
       </div>
+      <section className="owner-site-overview" aria-labelledby="owner-sites-heading">
+        <div className="owner-section-head">
+          <div><p className="owner-kicker">DIRECTOR VIEW</p><h2 id="owner-sites-heading">Project status overview</h2></div>
+          <a href="#projects">Open project register →</a>
+        </div>
+        <p className="owner-disclaimer">Traffic lights reflect only an explicitly recorded project status, not live GPS attendance, safety clearance, programme verification or inferred performance. Unrecognised or missing statuses remain unreported.</p>
+        {snapshot.projects.length === 0 ? (
+          <p>No projects available yet.</p>
+        ) : (
+          <div className="owner-site-grid">
+            {snapshot.projects.map(p => {
+              const signal = siteSignal(p.status || "");
+              const evidenceCount = snapshot.records.filter(r => r.pid === p.id).length;
+              return (
+                <article key={p.id} className={`owner-site-card owner-site-${signal}`}>
+                  <div className="owner-site-status"><span className="owner-site-dot" aria-hidden="true" />{signalLabels[signal]}</div>
+                  <h3>{p.name}</h3>
+                  <p>{p.client || "Client not recorded"}</p>
+                  <small>{evidenceCount} recorded item{evidenceCount === 1 ? "" : "s"} · {p.status || "No project status recorded"}</small>
+                  {onSelectProject && <button type="button" className="quiet" onClick={() => onSelectProject(p.id)} aria-pressed={p.id === pid}>{p.id === pid ? "Current project" : "Select project"}</button>}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+      {isDirector && <DirectorWorkforce select={onSelectProject} />}
       <div className="owner-section-head">
         <div><p className="owner-kicker">WORKFLOW</p><h2>Five stages, one project</h2></div>
         <span>{active} of 5 stages have activity</span>

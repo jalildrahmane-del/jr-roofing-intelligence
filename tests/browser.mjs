@@ -45,12 +45,69 @@ try{
  const broken='{"projects": [null]}';await page.evaluate(v=>localStorage.setItem('roofai_v1',v),broken);await page.reload();await page.getByRole('button',{name:/Launch workspace/}).first().click();await page.getByRole('alert').getByText(/has not been overwritten/).waitFor();assert.equal(await page.evaluate(()=>localStorage.getItem('roofai_v1')),broken);
  const originalDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Export original saved data'}).click();const original=await originalDownload;assert.equal(readFileSync(await original.path(),'utf8'),broken);await page.screenshot({path:'artifacts/legacy-recovery.png',fullPage:true});
  await page.goto(base);await page.getByRole('textbox',{name:'Username',exact:true}).fill('test-manager');await page.getByLabel('Password',{exact:true}).fill('browser-test-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Director workforce overview'}).waitFor();
  await page.getByRole('link',{name:'Project Register',exact:true}).click();
  for(const [label,value] of [['Project name','Luton reference test'],['Client','Test Client'],['Site address','8 Prince Way, Luton'],['Roof area (m²)','94'],['Sector','Commercial'],['Roof type','Flat']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
+ await page.getByRole('link',{name:'Project Command Centre',exact:true}).click();
+ await page.getByText('Attendance events / awaiting review').first().waitFor();
+ await page.getByRole('link',{name:'Project Register',exact:true}).click();
+ // Project QR opens this exact project after login; scanning alone must never create attendance.
+ await page.getByRole('link',{name:'Subcontractors & Workforce',exact:true}).click();
+ await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
+ await page.getByRole('heading',{name:'Daily site report with photographs'}).waitFor();
+ await page.getByRole('button',{name:'Submit daily report'}).waitFor();
+ await page.getByRole('heading',{name:'Review daily report'}).waitFor();
+ await page.getByRole('heading',{name:'Materials needed on this job'}).waitFor();
+ await page.getByRole('heading',{name:'Submit materials request'}).waitFor();
+ await page.getByRole('heading',{name:'Review materials request'}).waitFor();
+
+ const siteQr=page.locator('.site-qr-print');
+ await siteQr.getByRole('heading',{name:'Luton reference test'}).waitFor();
+ await siteQr.locator('img[alt*="QR code"]').waitFor();
+ assert.ok((await siteQr.innerText()).includes('does not bypass login'),'QR notice must state authentication requirement');
+ const deepLink=await page.evaluate(() => {
+   const selected=document.querySelector('select[aria-label="Active project"]');
+   return location.origin+'/?site='+encodeURIComponent(selected.value)+'#workforce';
+ });
+ await page.goto(deepLink);
+ await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
+ assert.ok((await page.locator('.site-qr-print').innerText()).includes('Luton reference test'),'QR deep link must preserve selected project');
+ await page.getByRole('link',{name:'Project Register',exact:true}).click();
+ // Project Register must expose the saved record, not only a blank new-project form.
+ await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
+ const savedDetails=await page.getByRole('region',{name:'Selected project details'}).innerText();
+ for(const value of ['Test Client','8 Prince Way, Luton','94 m²','Commercial','Flat'])
+   assert.ok(savedDetails.includes(value),'Missing saved project detail: '+value);
+ await page.reload();await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
+ assert.ok((await page.getByRole('region',{name:'Selected project details'}).innerText()).includes('Test Client'),'Saved project details lost after reload');
+ // New survey workspace: saved narrative renders safe bold headings and separate access limits.
+ await page.goto(base+'/#survey');
+ const surveyForm=page.locator('section').filter({has:page.getByRole('heading',{name:'Add a roof survey'})}).first();
+ for(const [label,value] of [
+  ['Roof name / asset','Test Roof A'],['Measured roof area (m²)','94'],
+  ['Roof pitch (degrees)','5'],['Primary structure / unknown','Steel'],
+  ['Surveyor','Test Surveyor'],['Access method and restrictions','MEWP only'],
+  ['Drainage observations','Gutters visually checked'],
+  ['Survey observations','**Overall Roof Condition: POOR**\\n\\nDamaged fixings observed.'],
+  ['Access limitations and technical assumptions','Visual inspection only.']
+ ]) await surveyForm.getByLabel(label,{exact:true}).fill(value);
+ for(const [label,value] of [['Roof covering','Standing seam metal'],['Condition','Poor'],['Reported leaks','Unknown']])
+  await surveyForm.getByLabel(label,{exact:true}).selectOption({label:value});
+ await surveyForm.getByRole('button',{name:'Save roof survey'}).click();
+ await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
+ assert.equal(await page.locator('.survey-notes strong').filter({hasText:'Overall Roof Condition: POOR'}).count(),1,'Markdown emphasis should render as bold text');
+ assert.ok((await page.locator('.survey-limitations').innerText()).includes('Visual inspection only.'),'Survey access limitations missing');
+ await page.reload();await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
- await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
+ await page.goto(base+'/#dashboard');await page.reload();await page.locator('.owner-site-card').getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
+ // Director view must not invent green programme status for an unreported project.
+ await page.getByRole('heading',{name:'Project status overview'}).waitFor();
+ const siteCard=page.locator('.owner-site-card').filter({hasText:'Luton reference test'});
+ assert.ok((await siteCard.innerText()).includes('Status not reported'),'Unknown project status must not be shown as green');
+ assert.equal(await siteCard.locator('.owner-site-unknown').count(),0,'Unknown status is a card class, not an inner element');
+ assert.ok(await siteCard.evaluate(el=>el.classList.contains('owner-site-unknown')),'Missing status must remain neutral');
  // Owner-preview contract: real five-stage links, preserved drone assets and honest activity labelling.
  assert.equal(await page.locator('.owner-stage').count(),5,'Five owner journey stages');
  for(const route of ['survey','estimating','design','construction','handover']){
@@ -58,7 +115,7 @@ try{
  }
  assert.equal(await page.locator('.owner-film video source[src="/legacy/roof-drone.mp4"]').count(),1,'Drone footage path');
  assert.equal(await page.locator('.owner-film video[poster="/legacy/roof-poster.jpg"]').count(),1,'Drone poster path');
- assert.match(await page.locator('.owner-disclaimer').innerText(),/not task completion, engineering approval or permission to work/i);
+ assert.match(await page.locator('.owner-disclaimer').filter({hasText:'Activity indicators show'}).innerText(),/not task completion, engineering approval or permission to work/i);
  for(const asset of ['/legacy/roof-drone.mp4','/legacy/roof-poster.jpg']){
    const response=await page.request.get(base+asset);
    assert.equal(response.status(),200,'Owner preview media missing: '+asset);

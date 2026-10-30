@@ -99,9 +99,12 @@ function App() {
   async function refresh() {
     const s = await api("state");
     setState(s);
-    setPid((p) =>
-      s.projects.some((x: any) => x.id === p) ? p : s.projects[0]?.id || "",
-    );
+    setPid((p) => {
+      const site = new URLSearchParams(location.search).get("site");
+      if (p && s.projects.some((x: any) => x.id === p)) return p;
+      if (site && s.projects.some((x: any) => x.id === site)) return site;
+      return s.projects[0]?.id || "";
+    });
   }
   async function load() {
     setError("");
@@ -220,11 +223,48 @@ function App() {
               {error}
             </p>
           )}
-          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} />}
+          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} onSelectProject={setPid} isDirector={user.role === "manager"} />}
           {route === "projects" && (
             <section>
-              <h2>New project</h2>
-              <Form
+              <h2>Existing projects</h2>
+              {state.projects.length === 0 ? (
+                <p>No projects have been created yet.</p>
+              ) : (
+                <>
+                  <p>Select a project to inspect its saved details. The register is read-only until a reviewed edit workflow is available.</p>
+                  <ul>
+                    {state.projects.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className="quiet"
+                          aria-pressed={pid === p.id}
+                          onClick={() => setPid(p.id)}
+                        >
+                          {p.name} · {p.client}{pid === p.id ? " (selected)" : ""}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {project && (
+                    <section aria-label="Selected project details">
+                      <h3>{project.name} — saved project details</h3>
+                      <dl className="project-details">
+                        <div><dt>Project name</dt><dd>{project.name}</dd></div>
+                        <div><dt>Client</dt><dd>{project.client || "Not recorded"}</dd></div>
+                        <div><dt>Site address</dt><dd>{project.address || "Not recorded"}</dd></div>
+                        <div><dt>Roof area</dt><dd>{project.area ? `${project.area.toLocaleString()} m²` : "Not recorded"}</dd></div>
+                        <div><dt>Sector</dt><dd>{project.type || "Not recorded"}</dd></div>
+                        <div><dt>Roof type</dt><dd>{project.roof || "Not recorded"}</dd></div>
+                        <div><dt>Status</dt><dd>{project.status || "Not recorded"}</dd></div>
+                      </dl>
+                      <p>These values come from the saved project record. Survey reports in the V3.6 Original Workspace are stored separately and are not automatically linked to this record.</p>
+                    </section>
+                  )}
+                </>
+              )}
+              {user.role !== "viewer" && <h2>New project</h2>}
+              {user.role !== "viewer" && <Form
                 label="Create project"
                 fields={[
                   ["name", "Project name"],
@@ -239,14 +279,7 @@ function App() {
                   await refresh();
                   setPid(p.id);
                 }}
-              />
-              <ul>
-                {state.projects.map((p) => (
-                  <li key={p.id}>
-                    {p.name} · {p.client}
-                  </li>
-                ))}
-              </ul>
+              />}
             </section>
           )}
           {route === "commercial" && <CommercialControl pid={pid} records={state.records.filter(r=>r.pid===pid)} user={user} refresh={refresh} />}
@@ -327,7 +360,7 @@ function App() {
             />
           )}
           {route === "documents" && <Documents key={pid} pid={pid} />}
-          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} />}
+          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} project={project} />}
           {![
             "dashboard",
             "projects",

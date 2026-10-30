@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
-import type { User } from "./model.ts";
+import type { User, Project } from "./model.ts";
 import QRCode from "qrcode";
 import { ProductivityPanel } from "./ProductivityPanel.tsx";
 
@@ -44,11 +44,35 @@ export function Entry({
     </form>
   );
 }
-export function Workforce({ pid, user }: { pid: string; user: User }) {
+async function prepareDailyPhoto(file: File): Promise<string> {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 20 * 1024 * 1024)
+    throw Error("Choose a JPEG, PNG or WebP photograph under 20 MiB");
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 1600 / bitmap.width, 1600 / bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw Error("Image processing unavailable");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const result = canvas.toDataURL("image/jpeg", 0.7);
+    if (result.length > 1400000) throw Error("Compressed photograph too large. Choose a smaller photograph.");
+    return result;
+  } finally {
+    bitmap.close();
+  }
+}
+export function Workforce({ pid, user, project }: { pid: string; user: User; project?: Project }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
-    [qr, setQr] = useState("");
+    [qr, setQr] = useState(""),
+    [siteQr, setSiteQr] = useState(""),
+    [confirmedProject, setConfirmedProject] = useState(false),
+    [success, setSuccess] = useState("");
+  const [dailyPhotos, setDailyPhotos] = useState<{ image: string; caption: string }[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
   const [queue, setQueue] = useState<any[]>(() => {
     try {
@@ -68,14 +92,36 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
     setState(await api("workforce?pid=" + encodeURIComponent(pid)));
   };
   useEffect(() => {
+    setConfirmedProject(false);
+    setSuccess("");
+    setState(null);
+    try { setQueue(JSON.parse(localStorage.getItem(queueKey) || "[]")); } catch { setQueue([]); }
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
+  // This QR is a project navigation link only, never a login or attendance token.
+  // The server still requires authenticated, allocated workers and supervisor review.
+  const siteLink = pid ? new URL(`?site=${encodeURIComponent(pid)}#workforce`, window.location.origin + "/").href : "";
+  useEffect(() => {
+    let active = true;
+    setSiteQr("");
+    if (pid && ["manager", "supervisor"].includes(user.role)) {
+      QRCode.toDataURL(siteLink, { width: 560, margin: 3, errorCorrectionLevel: "H" })
+        .then(data => { if (active) setSiteQr(data); })
+        .catch(e => { if (active) setError("Unable to create site QR: " + e.message); });
+    }
+    return () => { active = false; };
+  }, [pid, user.role]);
   const send = async (action: string, data: any) => {
     await api("workforce", { pid, action, data });
     await refresh();
   };
   async function checkIn(offline = false) {
     setError("");
+    setSuccess("");
+    if (!confirmedProject) {
+      setError("Confirm the selected project before recording attendance.");
+      return;
+    }
     setBusy(true);
     try {
       if (offline) {
@@ -88,6 +134,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
             requestId: crypto.randomUUID(),
           },
         ]);
+        setSuccess("Unverified event queued on this device for later review. It is not a confirmed attendance record.");
         return;
       }
       let fix: any = null;
@@ -115,6 +162,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
         requestId: crypto.randomUUID(),
       });
       setToken("");
+      setSuccess("Attendance event received for independent review. GPS and QR are not proof of attendance.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -129,6 +177,25 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
         event. All attendance needs independent review; no continuous tracking.
       </p>
       {error && <p role="alert">{error}</p>}
+      {success && <p role="status" className="success">{success}</p>}
+      {["manager", "supervisor"].includes(user.role) && (
+        <section className="site-qr-section" aria-labelledby="site-qr-heading">
+          <h2 id="site-qr-heading">Printable project sign-in QR</h2>
+          <p>Print and display this project-specific notice at the site sign-in point. Scanning opens the correct project; it does <strong>not</strong> sign anybody in automatically.</p>
+          <div className="site-qr-print" aria-label="Printable site QR notice">
+            <div className="site-qr-brand">JR ROOFING CONTRACTS</div>
+            <h2>WORKFORCE SITE SIGN-IN</h2>
+            <h3>{project?.name || "Selected project"}</h3>
+            <p>{project?.address || "Confirm the site address with your supervisor"}</p>
+            {siteQr ? <img src={siteQr} alt={`QR code to open workforce sign-in for ${project?.name || pid}`} /> : <p>Generating QR code…</p>}
+            <p className="site-qr-instructions"><strong>SCAN → SIGN IN → CONFIRM THIS JOB → RECORD ATTENDANCE</strong></p>
+            <p>Use your individual worker account. GPS is requested when you submit an online attendance event. Supervisor review is required.</p>
+            <small>Project reference: {pid} · This QR is not proof of attendance and does not bypass login.</small>
+          </div>
+          <button type="button" disabled={!siteQr} onClick={() => window.print()}>Print A4 site QR notice</button>
+          <p><small>For security, only managers and authorised supervisors can generate the notice. Workers still need project allocation and an authenticated account.</small></p>
+        </section>
+      )}
       {user.role === "manager" && (
         <section>
           <Entry
@@ -206,7 +273,12 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
       )}
       {user.role === "worker" && (
         <section>
-          <h2>My attendance</h2>
+          <h2>My attendance — selected job</h2>
+          <p>Job reference: <strong>{pid}</strong>. Confirm this is the correct site before recording a GPS event. Your location is requested only when you submit an online event.</p>
+          <label className="workforce-project-confirm">
+            <input type="checkbox" checked={confirmedProject} onChange={e => setConfirmedProject(e.target.checked)} />
+            I confirm I am recording attendance for this selected project.
+          </label>
           <label>
             Event
             <select
@@ -253,10 +325,10 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
               }}
             />
           </label>
-          <button disabled={busy} onClick={() => checkIn()}>
+          <button disabled={busy || !confirmedProject} onClick={() => checkIn()}>
             Submit GPS event for review
           </button>
-          <button disabled={busy} onClick={() => checkIn(true)}>
+          <button disabled={busy || !confirmedProject} onClick={() => checkIn(true)}>
             Queue unverified event offline
           </button>
           <p>{queue.length} unverified events held on this device.</p>
@@ -354,6 +426,112 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                   </li>
                 ))}
             </ul>
+          </section>
+          <section className="workforce-daily" aria-labelledby="workforce-daily-heading">
+            <h2 id="workforce-daily-heading">Daily site report with photographs</h2>
+            <p>Record work completed on this project. Photos are stored as project evidence; submitting does not constitute supervisor approval.</p>
+            <form onSubmit={async e => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const d = Object.fromEntries(new FormData(form));
+              setError("");
+              setSuccess("");
+              setBusy(true);
+              try {
+                if (!dailyPhotos.length) throw Error("Add at least one site photograph");
+                await send("daily-report", { ...d, photos: dailyPhotos });
+                setDailyPhotos([]);
+                form.reset();
+                setSuccess("Daily report and photographs submitted for supervisor review.");
+              } catch (e) { setError((e as Error).message); }
+              finally { setBusy(false); }
+            }}>
+              <div className="fields">
+                {user.role !== "worker" && <label>Worker ID<input name="workerId" required /></label>}
+                <label>Work date<input type="date" name="day" required defaultValue={new Date().toLocaleDateString("en-CA")} /></label>
+                <label>Works completed<textarea name="completed" maxLength={3000} required /></label>
+                <label>Delays or restrictions (write 'None' if applicable)<textarea name="delays" maxLength={2000} required /></label>
+                <label>Plan for next shift<textarea name="nextShift" maxLength={2000} required /></label>
+              </div>
+              <label>Site photographs (1–4)
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photoBusy || busy}
+                  onChange={async e => {
+                    const input = e.currentTarget;
+                    const files = Array.from(input.files || []);
+                    if (!files.length) return;
+                    setPhotoBusy(true);
+                    setError("");
+                    try {
+                      if (files.length + dailyPhotos.length > 4) throw Error("Maximum four photographs per report");
+                      const prepared = await Promise.all(files.map(async file => ({
+                        image: await prepareDailyPhoto(file),
+                        caption: file.name.slice(0, 300) || "Site photograph",
+                      })));
+                      setDailyPhotos(previous => [...previous, ...prepared]);
+                    } catch (e) { setError((e as Error).message); }
+                    finally { setPhotoBusy(false); input.value = ""; }
+                  }} />
+              </label>
+              <div className="workforce-photo-grid">
+                {dailyPhotos.map((photo, i) => <div key={i}>
+                  <img src={photo.image} alt={`Photo ${i + 1} preview`} />
+                  <label>Photo {i + 1} caption<input value={photo.caption} maxLength={300} required
+                    onChange={e => setDailyPhotos(current => current.map((p, n) => n === i ? { ...p, caption: e.target.value } : p))} /></label>
+                  <button type="button" className="quiet" onClick={() => setDailyPhotos(current => current.filter((_, n) => n !== i))}>Remove photo</button>
+                </div>)}
+              </div>
+              <button type="submit" disabled={busy || photoBusy || dailyPhotos.length === 0}>{busy ? "Submitting…" : "Submit daily report"}</button>
+            </form>
+            <h3>Submitted daily reports</h3>
+            {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
+              const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
+              return <article className="workforce-report-card" key={r.id}>
+                <strong>{r.data.day} · {r.data.workerId}</strong>
+                <p>{r.data.completed}</p>
+                <p>Delays: {r.data.delays}</p>
+                <p>Next shift: {r.data.nextShift}</p>
+                <p>{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}</p>
+                <div className="workforce-photo-grid">{r.data.evidence.map((photo: any) =>
+                  <figure key={photo.assetId}><img loading="lazy" src={"/api/evidence/" + photo.assetId} alt={photo.caption} /><figcaption>{photo.caption}</figcaption></figure>
+                )}</div>
+                <small>Report ID: {r.id}</small>
+              </article>;
+            })}
+            {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
+          </section>
+          <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
+            <h2 id="workforce-materials-heading">Materials needed on this job</h2>
+            <p>Request materials for the selected project. Submitting a request does not place an order.</p>
+            <Entry
+              title="Submit materials request"
+              fields={[
+                ...(user.role === "worker" ? [] : ["workerId"]),
+                "description", "specification", "quantity", "unit",
+                "neededBy", "deliveryPoint", "reason",
+              ]}
+              submit={(d) => send("material-request", d)}
+            />
+            <h3>Project materials requests</h3>
+            {!state.records.some((r: any) => r.kind === "workforce.material-request") && <p>No materials requests recorded yet.</p>}
+            <ul>
+              {state.records.filter((r: any) => r.kind === "workforce.material-request").map((r: any) => {
+                const review = state.records.find((v: any) => v.kind === "workforce.material-review" && v.data.requestId === r.id);
+                return <li key={r.id}>
+                  <strong>{r.data.description}</strong> · {r.data.quantity} {r.data.unit} · needed {r.data.neededBy}
+                  <br />{r.data.specification} · {r.data.deliveryPoint}
+                  <br />{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}
+                  <br /><small>Request ID: {r.id}</small>
+                </li>;
+              })}
+            </ul>
+            {["manager", "supervisor"].includes(user.role) && (
+              <Entry
+                title="Review materials request"
+                fields={["requestId", "decision", "reason"]}
+                submit={(d) => send("material-review", d)}
+              />
+            )}
+            <p className="warning">Supervisor approval is not a purchase order. Ordering, delivery and receipt confirmation are separate controls.</p>
           </section>
           {["manager", "supervisor"].includes(user.role) && <ProductivityPanel state={state} />}
           <section>
