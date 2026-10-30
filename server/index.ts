@@ -32,11 +32,14 @@ export function createApp(store: Store, root = resolve("dist")) {
       res.end(JSON.stringify(data));
     };
     try {
-      if (
-        !req.headers.host ||
-        !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host)
-      )
-        return reply(403, { error: "Only localhost access is enabled" });
+      const codespace = process.env.CODESPACE_NAME;
+      const forwardedHost = codespace && /^[a-z0-9-]+$/.test(codespace)
+        ? `${codespace}-${process.env.PORT || "3000"}.app.github.dev`
+        : null;
+      const isLocalHost = !!req.headers.host && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host);
+      const isCodespaceHost = !!forwardedHost && req.headers.host === forwardedHost;
+      if (!isLocalHost && !isCodespaceHost)
+        return reply(403, { error: "Only localhost or the configured private Codespaces preview is enabled" });
       const url = new URL(req.url || "/", `http://${req.headers.host}`);
       const legacy = url.pathname.startsWith("/legacy/");
       res.setHeader(
@@ -80,11 +83,8 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (!["GET", "HEAD"].includes(req.method || "")) {
         const origin = req.headers.origin;
-        const codespace = process.env.CODESPACE_NAME;
-                const forwardedOrigin = codespace && /^[a-z0-9-]+$/.test(codespace)
-                  ? `https://${codespace}-${process.env.PORT || '3000'}.app.github.dev`
-                  : null;
-                if (!origin || (origin !== `http://${req.headers.host}` && origin !== forwardedOrigin))
+        const forwardedOrigin = isCodespaceHost ? `https://${forwardedHost}` : null;
+        if (!origin || (origin !== `http://${req.headers.host}` && origin !== forwardedOrigin))
           return reply(403, { error: "Same-origin request required" });
         if (!req.headers["content-type"]?.startsWith("application/json"))
           return reply(415, { error: "JSON required" });
@@ -128,7 +128,7 @@ export function createApp(store: Store, root = resolve("dist")) {
         attempts.delete(ip);
         res.setHeader(
           "Set-Cookie",
-          `jr_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`,
+          `jr_session=${token}; HttpOnly; SameSite=Strict; ${isCodespaceHost ? "Secure; " : ""}Path=/; Max-Age=28800`,
         );
         return reply(200, { ok: true });
       }
@@ -297,7 +297,8 @@ if (
 ) {
   const port = Number(process.env.PORT || 3000),
     store = new Store(process.env.JR_DB || ".data/jr.sqlite");
-  createApp(store).listen(port, "127.0.0.1", () =>
+  const bindHost = process.env.CODESPACE_NAME && /^[a-z0-9-]+$/.test(process.env.CODESPACE_NAME) ? "0.0.0.0" : "127.0.0.1";
+  createApp(store).listen(port, bindHost, () =>
     console.log(`JR Roofing Intelligence: http://127.0.0.1:${port}`),
   );
 }
