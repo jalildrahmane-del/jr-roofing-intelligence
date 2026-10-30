@@ -29,9 +29,9 @@ function SurveyNotes({ value, label }: { value: unknown; label: string }) {
   if (!raw) return <p className="survey-empty">{label} not recorded.</p>;
   return (
     <div className="survey-notes">
-      {raw.split(/\\n\\s*\\n/).filter(Boolean).map((paragraph, index) => (
+      {raw.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => (
         <p key={index}>
-          {paragraph.split(/(\\*\\*[^*\\n]+\\*\\*)/g).map((part, i) =>
+          {paragraph.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
             part.startsWith("**") && part.endsWith("**")
               ? <strong key={i}>{part.slice(2, -2)}</strong>
               : <React.Fragment key={i}>{part}</React.Fragment>
