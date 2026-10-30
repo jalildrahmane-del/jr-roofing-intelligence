@@ -40,6 +40,7 @@ export function Entry({
         ))}
       </div>
       {error && <p role="alert">{error}</p>}
+      {success && <p role="status" className="success">{success}</p>}
       <button disabled={busy}>{busy ? "Saving…" : title}</button>
     </form>
   );
@@ -48,7 +49,9 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
-    [qr, setQr] = useState("");
+    [qr, setQr] = useState(""),
+    [confirmedProject, setConfirmedProject] = useState(false),
+    [success, setSuccess] = useState("");
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
   const [queue, setQueue] = useState<any[]>(() => {
     try {
@@ -68,6 +71,9 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
     setState(await api("workforce?pid=" + encodeURIComponent(pid)));
   };
   useEffect(() => {
+    setConfirmedProject(false);
+    setSuccess("");
+    setState(null);
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
   const send = async (action: string, data: any) => {
@@ -76,6 +82,11 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
   };
   async function checkIn(offline = false) {
     setError("");
+    setSuccess("");
+    if (!confirmedProject) {
+      setError("Confirm the selected project before recording attendance.");
+      return;
+    }
     setBusy(true);
     try {
       if (offline) {
@@ -88,6 +99,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
             requestId: crypto.randomUUID(),
           },
         ]);
+        setSuccess("Unverified event queued on this device for later review. It is not a confirmed attendance record.");
         return;
       }
       let fix: any = null;
@@ -115,6 +127,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
         requestId: crypto.randomUUID(),
       });
       setToken("");
+      setSuccess("Attendance event received for independent review. GPS and QR are not proof of attendance.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -206,7 +219,12 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
       )}
       {user.role === "worker" && (
         <section>
-          <h2>My attendance</h2>
+          <h2>My attendance — selected job</h2>
+          <p>Job reference: <strong>{pid}</strong>. Confirm this is the correct site before recording a GPS event. Your location is requested only when you submit an online event.</p>
+          <label className="workforce-project-confirm">
+            <input type="checkbox" checked={confirmedProject} onChange={e => setConfirmedProject(e.target.checked)} />
+            I confirm I am recording attendance for this selected project.
+          </label>
           <label>
             Event
             <select
@@ -253,10 +271,10 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
               }}
             />
           </label>
-          <button disabled={busy} onClick={() => checkIn()}>
+          <button disabled={busy || !confirmedProject} onClick={() => checkIn()}>
             Submit GPS event for review
           </button>
-          <button disabled={busy} onClick={() => checkIn(true)}>
+          <button disabled={busy || !confirmedProject} onClick={() => checkIn(true)}>
             Queue unverified event offline
           </button>
           <p>{queue.length} unverified events held on this device.</p>
