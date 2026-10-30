@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { imageSize } from "image-size";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
 import { text, positive } from "../src/model.ts";
@@ -401,6 +402,61 @@ export function workforceCommand(
         reportHash: createHash("sha256")
           .update(JSON.stringify(report))
           .digest("hex"),
+      });
+    }
+    if (action === "daily-report") {
+      const workerId = user.role === "worker" ? user.id : text(d.workerId, "Worker", 100);
+      allocated(workerId);
+      if (user.role !== "worker") supervisor();
+      const day = text(d.day, "Work date", 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) ||
+          !Number.isFinite(Date.parse(day + "T00:00:00Z")))
+        throw Error("Invalid work date");
+      const photos = d.photos;
+      if (!Array.isArray(photos) || photos.length < 1 || photos.length > 4)
+        throw Error("Attach 1 to 4 site photographs");
+      const evidence = photos.map((photo: any) => {
+        if (!photo || typeof photo !== "object" || Array.isArray(photo))
+          throw Error("Invalid photograph");
+        const caption = text(photo.caption, "Photo caption", 300);
+        if (typeof photo.image !== "string" || photo.image.length > 1500000)
+          throw Error("Photograph exceeds the supported upload size");
+        const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo.image);
+        if (!match) throw Error("JPEG or PNG image required");
+        const bytes = Buffer.from(match[2], "base64");
+        if (bytes.length > 1024 * 1024 || bytes.toString("base64") !== match[2])
+          throw Error("Invalid photograph size or encoding");
+        const dimensions = imageSize(bytes);
+        if (dimensions.type !== match[1].replace("jpeg", "jpg") ||
+            !dimensions.width || !dimensions.height ||
+            dimensions.width > 2000 || dimensions.height > 2000)
+          throw Error("Image must be JPEG/PNG, maximum 2000 pixels per side");
+        const assetId = randomUUID();
+        store.db.prepare("INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)")
+          .run(assetId, pid, "image/" + match[1], bytes, createHash("sha256").update(bytes).digest("hex"));
+        return { assetId, caption, width: dimensions.width, height: dimensions.height };
+      });
+      return append("daily-report", {
+        workerId, day,
+        completed: text(d.completed, "Works completed", 3000),
+        delays: text(d.delays, "Delays / restrictions", 2000),
+        nextShift: text(d.nextShift, "Next shift plan", 2000),
+        evidence,
+        status: "submitted for supervisor review",
+      });
+    }
+    if (action === "daily-review") {
+      supervisor();
+      const report = records.find(r => r.kind === "workforce.daily-report" && r.id === d.reportId);
+      if (!report) throw Error("Daily report not found for this project");
+      if (report.author === user.id) throw Error("Independent reviewer required");
+      if (records.some(r => r.kind === "workforce.daily-review" && r.data.reportId === report.id))
+        throw Error("Daily report already reviewed");
+      if (!["accepted", "returned"].includes(d.decision))
+        throw Error("Invalid daily report review decision");
+      return append("daily-review", {
+        workerId: report.data.workerId, reportId: report.id,
+        decision: d.decision, reason: text(d.reason, "Review notes", 1000),
       });
     }
     if (action === "material-request") {
