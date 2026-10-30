@@ -25,3 +25,8 @@
 .survey-notes p:last-child{margin-bottom:0}
 .survey-limitations{background:#fff7e7!important;border-left-color:#b57828!important}
 .survey-empty{font-style:italic}
+
+/* Worker mobile attendance: deliberate site confirmation, no background GPS */
+.workforce-project-confirm{display:flex;align-items:flex-start;gap:12px;padding:16px;background:#f6edcf;border:1px solid #d8bf78;border-radius:8px;font-weight:700;line-height:1.5}
+.workforce-project-confirm input{width:22px;height:22px;flex:none;margin:0;accent-color:#303e5b}
+@media(max-width:550px){.workforce-project-confirm{font-size:15px}section button{max-width:100%;white-space:normal}}
