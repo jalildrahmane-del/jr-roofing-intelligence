@@ -48,6 +48,13 @@ try{
  await page.getByRole('link',{name:'Project Register',exact:true}).click();
  for(const [label,value] of [['Project name','Luton reference test'],['Client','Test Client'],['Site address','8 Prince Way, Luton'],['Roof area (m²)','94'],['Sector','Commercial'],['Roof type','Flat']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
+ // Project Register must expose the saved record, not only a blank new-project form.
+ await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
+ const savedDetails=await page.getByRole('region',{name:'Selected project details'}).innerText();
+ for(const value of ['Test Client','8 Prince Way, Luton','94 m²','Commercial','Flat'])
+   assert.ok(savedDetails.includes(value),'Missing saved project detail: '+value);
+ await page.reload();await page.getByRole('heading',{name:'Luton reference test — saved project details'}).waitFor();
+ assert.ok((await page.getByRole('region',{name:'Selected project details'}).innerText()).includes('Test Client'),'Saved project details lost after reload');
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
  await page.goto(base+'/#dashboard');await page.reload();await page.getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
