@@ -52,3 +52,18 @@
 .owner-activity-list strong{text-transform:capitalize;font-size:13px}
 .owner-activity-list li span,.owner-activity-list time{color:#68768a;font-size:12px}
 @media(max-width:650px){.owner-activity-list li{flex-direction:column;gap:5px}}
+
+/* Director's multi-project status: only explicitly recorded states receive colours. */
+.owner-site-overview{border-radius:14px;margin:24px 0}
+.owner-site-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:14px;margin-top:18px}
+.owner-site-card{margin:0;border:1px solid #dfe5ec;border-radius:12px;padding:18px;min-width:0;background:#fff}
+.owner-site-card h3{margin:14px 0 5px}
+.owner-site-card p{margin:0 0 12px}
+.owner-site-card small{display:block;color:#647184}
+.owner-site-card button{margin-bottom:0}
+.owner-site-status{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#536176}
+.owner-site-dot{width:12px;height:12px;border-radius:50%;background:#9ba6b4;flex:none}
+.owner-site-green .owner-site-dot{background:#248653}
+.owner-site-amber .owner-site-dot{background:#d6a21c}
+.owner-site-red .owner-site-dot{background:#c93e3e}
+.owner-site-overview .owner-section-head a{font-size:13px;font-weight:700;color:#334c70}
