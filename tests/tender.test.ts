@@ -237,7 +237,7 @@ test("unpriced, expired quotes and overdue material evidence cannot be approved"
   }
 });
 
-test("v1 to v2 migration and reopening preserve projects, surveys, evidence and issued snapshots", () => {
+test("v1 to v3 migration and reopening preserve projects, surveys, evidence and issued snapshots", () => {
   const dir = mkdtempSync(join(tmpdir(), "jr-tender-")),
     path = join(dir, "db.sqlite"),
     f = fixture(path);
@@ -290,13 +290,13 @@ test("v1 to v2 migration and reopening preserve projects, surveys, evidence and 
     v1.addUser("migrate", "migration-test-password", "manager");
     const u = v1.user(v1.login("migrate", "migration-test-password")!)!;
     v1.project(u, { name: "Old version project" });
-    v1.db.exec("DROP TABLE evidence; DELETE FROM migrations WHERE version=2");
+    v1.db.exec("DROP TABLE workforce_qr_redemptions; DROP TABLE evidence; DELETE FROM migrations WHERE version>=2");
     v1.close();
     const upgraded = new Store(v1path);
     assert.equal(upgraded.snapshot(u).projects[0].name, "Old version project");
     assert.equal(
       upgraded.db.prepare("SELECT count(*) AS n FROM migrations").get()?.n,
-      2,
+      3,
     );
     upgraded.close();
   } finally {

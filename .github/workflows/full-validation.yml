@@ -1,0 +1,25 @@
+name: JR full validation
+on:
+  push:
+    branches:
+      - feature/project-register-details-review
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Install browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Install PDF inspection tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Run full test suite
+        run: npm run validate
