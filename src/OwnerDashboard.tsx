@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { api } from "./api.ts";
 import type { Project, RecordItem, Snapshot } from "./model.ts";
 import { current } from "./tender.ts";
 
@@ -25,7 +26,7 @@ const signalLabels: Record<SiteSignal, string> = {
   red: "Delayed (recorded)",
   unknown: "Status not reported",
 };
-export function OwnerDashboard({ snapshot, project, pid, onSelectProject }: { snapshot: Snapshot; project?: Project; pid: string; onSelectProject?: (id: string) => void }) {
+export function OwnerDashboard({ snapshot, project, pid, onSelectProject, isDirector = false }: { snapshot: Snapshot; project?: Project; pid: string; onSelectProject?: (id: string) => void; isDirector?: boolean }) {
   const records = snapshot.records.filter(r => r.pid === pid && !r.kind.startsWith("commercial."));
   const stageCounts = phases.map(phase => records.filter(r => phase.match(r.kind)).length);
   const active = stageCounts.filter(n => n > 0).length;
