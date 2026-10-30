@@ -46,10 +46,12 @@ try{
  const originalDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Export original saved data'}).click();const original=await originalDownload;assert.equal(readFileSync(await original.path(),'utf8'),broken);await page.screenshot({path:'artifacts/legacy-recovery.png',fullPage:true});
  await page.goto(base);await page.getByRole('textbox',{name:'Username',exact:true}).fill('test-manager');await page.getByLabel('Password',{exact:true}).fill('browser-test-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
  await page.getByRole('heading',{name:'Director workforce overview'}).waitFor();
- await page.getByText('Attendance events / awaiting review').first().waitFor();
  await page.getByRole('link',{name:'Project Register',exact:true}).click();
  for(const [label,value] of [['Project name','Luton reference test'],['Client','Test Client'],['Site address','8 Prince Way, Luton'],['Roof area (m²)','94'],['Sector','Commercial'],['Roof type','Flat']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
+ await page.getByRole('link',{name:'Project Command Centre',exact:true}).click();
+ await page.getByText('Attendance events / awaiting review').first().waitFor();
+ await page.getByRole('link',{name:'Project Register',exact:true}).click();
  // Project QR opens this exact project after login; scanning alone must never create attendance.
  await page.getByRole('link',{name:'Subcontractors & Workforce',exact:true}).click();
  await page.getByRole('heading',{name:'Printable project sign-in QR'}).waitFor();
