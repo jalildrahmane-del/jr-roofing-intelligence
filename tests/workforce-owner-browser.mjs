@@ -61,14 +61,27 @@ try {
     .getByRole("heading", { name: "Project Command Centre", exact: true })
     .waitFor();
   await page.goto(base + "/#workforce");
-  const grant = page
+  const schedule = page
     .locator("form")
     .filter({
-      has: page.getByRole("heading", {
-        name: "Grant subcontractor owner access",
-        exact: true,
-      }),
+      has: page.getByRole("heading", { name: "Schedule shift", exact: true }),
     });
+  for (const [field, value] of Object.entries({
+    workerId: worker.id,
+    start: "2026-10-25T08:00:00Z",
+    end: "2026-10-25T16:00:00Z",
+    breakMinutes: "30",
+    reason: "Browser planned shift",
+  }))
+    await schedule.getByLabel(field, { exact: true }).fill(value);
+  await schedule.getByRole("button").click();
+  await page.getByText("Browser planned shift", { exact: true }).waitFor();
+  const grant = page.locator("form").filter({
+    has: page.getByRole("heading", {
+      name: "Grant subcontractor owner access",
+      exact: true,
+    }),
+  });
   await grant.getByLabel("ownerId", { exact: true }).fill(owner.id);
   await grant.getByRole("button").click();
   await page.waitForFunction(
@@ -93,6 +106,12 @@ try {
     0,
   );
   assert.ok(!(await page.locator("body").innerText()).includes(other.id));
+  const csvDownload = page.waitForEvent("download");
+  await page.getByRole("button", {name:"Download verified timesheet CSV",exact:true}).click();
+  const csv = readFileSync(await (await csvDownload).path(), "utf8");
+  assert.ok(csv.includes("Verified hours"));
+  assert.ok(!csv.includes(other.id));
+  assert.ok(!csv.includes(worker.id)); // This worker has pending evidence only.
   const download = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Download records and report" })
@@ -100,6 +119,11 @@ try {
   const exported = JSON.parse(
     readFileSync(await (await download).path(), "utf8"),
   );
+  assert.equal(exported.scheduleComparison.length, 1);
+  assert.equal(exported.scheduleComparison[0].verifiedHours, null);
+  assert.equal(exported.schedules.length, 1);
+  assert.equal(exported.schedules[0].plannedHours, 7.5);
+  assert.equal(exported.report[0].verifiedHours, 0);
   assert.equal(exported.report.length, 1);
   assert.equal(exported.report[0].workerId, worker.id);
   assert.ok(!JSON.stringify(exported).includes(other.id));

@@ -1,3 +1,4 @@
+import { matchSchedules } from "./workforce-matching.ts";
 import { createHash } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
@@ -7,6 +8,8 @@ import {
   createAttendanceChallenge,
   redeemAttendanceChallenge,
 } from "../src/workforce-qr.ts";
+
+import { latestShifts, shiftTime } from "./workforce-shifts.ts";
 
 const actions = ["in", "break-start", "break-end", "out"];
 export function workforceRecords(store: Store, pid: string): RecordItem[] {
@@ -110,6 +113,14 @@ export function workforceState(store: Store, user: User, pid: string) {
       user.role === "subcontractor-owner"
         ? { syntheticOnly: true, notice: config?.data.notice }
         : config?.data,
+    schedules: latestShifts(visible).map((r) => ({
+      ...r,
+      plannedHours: r.data.cancelled
+        ? 0
+        : (Date.parse(r.data.end) - Date.parse(r.data.start)) / 3600000 -
+          r.data.breakMinutes / 60,
+    })),
+    scheduleComparison: matchSchedules(visible, attendanceReport(visible)),
     report: attendanceReport(visible),
     weekly: Object.values(weekly),
     exceptions: attendanceReport(visible).flatMap((r) =>
@@ -200,6 +211,9 @@ export function attendanceReport(records: RecordItem[]) {
         const shiftPence = Math.round(hours * rate * 100);
         amount += shiftPence;
         shifts.push({
+          start: new Date(start).toISOString(),
+          end: new Date(stamp).toISOString(),
+          breakMinutes: breakMs / 60000,
           day: new Date(start).toISOString().slice(0, 10),
           hours,
           rate,
@@ -330,6 +344,73 @@ export function workforceCommand(
         active: d.active,
         shift: text(d.shift, "Shift", 200),
         rate: positive(d.rate, "Hourly rate", true),
+      });
+    }
+    if (action === "shift" || action === "cancel-shift") {
+      supervisor();
+      const previous = d.replaces
+        ? latestShifts(records).find((r) => r.id === d.replaces)
+        : undefined;
+      if (d.replaces && (!previous || previous.data.cancelled))
+        throw Error("Shift revision is stale or cancelled");
+      if (action === "cancel-shift") {
+        if (!previous) throw Error("Current shift revision required");
+        return append("shift", {
+          ...previous.data,
+          shiftId: previous.data.shiftId || previous.id,
+          replaces: previous.id,
+          cancelled: true,
+          reason: text(d.reason, "Cancellation reason", 500),
+        });
+      }
+      allocated(d.workerId);
+      if (previous && previous.data.workerId !== d.workerId)
+        throw Error("Cannot change shift worker");
+      const start = shiftTime(d.start),
+        end = shiftTime(d.end);
+      const duration = Date.parse(end) - Date.parse(start);
+      const breakMinutes = Number(d.breakMinutes);
+      if (
+        duration <= 0 ||
+        duration > 86400000 ||
+        !Number.isInteger(breakMinutes) ||
+        breakMinutes < 0 ||
+        breakMinutes * 60000 >= duration
+      )
+        throw Error(
+          "Shift must last up to 24 hours with a shorter nonnegative whole-minute break",
+        );
+      const all = store.db
+        .prepare(
+          "SELECT id,pid,data FROM records WHERE kind='workforce.shift' ORDER BY seq",
+        )
+        .all()
+        .map((r: any) => ({
+          ...r,
+          kind: "workforce.shift",
+          data: JSON.parse(r.data),
+        })) as RecordItem[];
+      const shiftId = previous?.data.shiftId || previous?.id;
+      if (
+        latestShifts(all).some(
+          (r) =>
+            !r.data.cancelled &&
+            r.data.workerId === d.workerId &&
+            (r.data.shiftId || r.id) !== shiftId &&
+            Date.parse(r.data.start) < Date.parse(end) &&
+            Date.parse(r.data.end) > Date.parse(start),
+        )
+      )
+        throw Error("Worker already has an overlapping shift");
+      return append("shift", {
+        workerId: d.workerId,
+        shiftId: shiftId || null,
+        replaces: previous?.id || null,
+        start,
+        end,
+        breakMinutes,
+        cancelled: false,
+        reason: text(d.reason, "Shift description or revision reason", 500),
       });
     }
     if (action === "challenge") {

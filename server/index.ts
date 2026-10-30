@@ -79,7 +79,11 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (!["GET", "HEAD"].includes(req.method || "")) {
         const origin = req.headers.origin;
-        if (!origin || origin !== `http://${req.headers.host}`)
+        const codespace = process.env.CODESPACE_NAME;
+                const forwardedOrigin = codespace && /^[a-z0-9-]+$/.test(codespace)
+                  ? `https://${codespace}-${process.env.PORT || '3000'}.app.github.dev`
+                  : null;
+                if (!origin || (origin !== `http://${req.headers.host}` && origin !== forwardedOrigin))
           return reply(403, { error: "Same-origin request required" });
         if (!req.headers["content-type"]?.startsWith("application/json"))
           return reply(415, { error: "JSON required" });

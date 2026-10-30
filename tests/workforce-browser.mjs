@@ -83,7 +83,25 @@ try {
     .inputValue();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("worker");
-  await page.getByLabel("Supervisor QR token", { exact: true }).fill(token);
+  await page.evaluate((token) => {
+    window.cameraStops = 0;
+    window.BarcodeDetector = class { async detect() { return [{rawValue: token}]; } };
+    const canvas=document.createElement("canvas"); canvas.width=100; canvas.height=100;
+    navigator.mediaDevices.getUserMedia = async () => {
+      const stream=canvas.captureStream();
+      for(const track of stream.getTracks()){const stop=track.stop.bind(track);track.stop=()=>{window.cameraStops++;stop();};}
+      return stream;
+    };
+    HTMLMediaElement.prototype.play = async function() {};
+  }, token);
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("QR captured. Submit your GPS event for server validation.").waitFor();
+  assert.equal(await page.getByLabel("Supervisor QR token", {exact:true}).inputValue(), token);
+  assert.ok(await page.evaluate(()=>window.cameraStops>0));
+  await page.evaluate(()=>{navigator.mediaDevices.getUserMedia=async()=>{throw Error("Camera permission denied");};});
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("Camera permission denied",{exact:true}).waitFor();
+
   await page
     .getByRole("button", { name: "Submit GPS event for review" })
     .click();
@@ -106,6 +124,14 @@ try {
       ),
     );
   }
+  await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(k => k.startsWith("jr-workforce-queue:"));
+    localStorage.setItem(key, "{}");
+  });
+  await page.reload();
+  await page.getByText(/Saved offline queue cannot be read/).waitFor();
+  assert.equal(await page.getByRole("button", {name:"Sync pending offline events"}).isDisabled(),true);
+  assert.equal(await page.evaluate(() => localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith("jr-workforce-queue:")))), "{}");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: supervisor QR -> worker GPS -> pending review; offline queue survives reload and syncs; mobile/tablet/desktop; zero page errors",

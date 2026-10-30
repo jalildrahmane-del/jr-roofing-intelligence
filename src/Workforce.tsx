@@ -1,3 +1,6 @@
+import { AttendanceScanner } from "./AttendanceScanner.tsx";
+import { readOfflineQueue } from "./workforce-queue.ts";
+import { attendanceCsv } from "./workforce-csv.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User } from "./model.ts";
@@ -43,19 +46,35 @@ export function Entry({
     </form>
   );
 }
-export function Workforce({ pid, user }: { pid: string; user: User }) {
+export function Workforce(props: { pid: string; user: User }) {
+  return (
+    <WorkforceSession
+      key={JSON.stringify([props.user.id, props.pid])}
+      {...props}
+    />
+  );
+}
+function WorkforceSession({ pid, user }: { pid: string; user: User }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
     [qr, setQr] = useState("");
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
-  const [queue, setQueue] = useState<any[]>(() => {
+  const [initialQueue] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(queueKey) || "[]");
+      return {
+        events: readOfflineQueue(localStorage.getItem(queueKey)),
+        error: "",
+      };
     } catch {
-      return [];
+      return {
+        events: [],
+        error:
+          "Saved offline queue cannot be read. Stored data is preserved; do not clear browser storage.",
+      };
     }
   });
+  const [queue, setQueue] = useState<any[]>(initialQueue.events);
   const saveQueue = (q: any[]) => {
     localStorage.setItem(queueKey, JSON.stringify(q));
     setQueue(q);
@@ -78,6 +97,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
     setBusy(true);
     try {
       if (offline) {
+        if (initialQueue.error) throw Error(initialQueue.error);
         saveQueue([
           ...queue,
           {
@@ -133,6 +153,73 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
           Read-only company workforce view. Exact GPS locations are withheld.
           Supervisor verification remains independent.
         </p>
+      )}
+      {state && (
+        <section>
+          <h2>Scheduled shifts</h2>
+          {(state.scheduleComparison || []).map((c: any) => (
+            <p key={c.revisionId}>
+              {c.workerId}: {c.status} · {c.plannedHours.toFixed(2)} planned
+              hours
+              {c.verifiedHours !== null && (
+                <>
+                  {" "}
+                  · {c.verifiedHours.toFixed(2)} verified hours ·{" "}
+                  {c.varianceHours.toFixed(2)} hours variance
+                </>
+              )}
+              <br />
+              {c.notice}
+            </p>
+          ))}
+          <p>
+            Planned hours only. Attendance and payment require independently
+            verified events. Times are shown in UTC.
+          </p>
+          {["manager", "supervisor"].includes(user.role) && (
+            <>
+              <Entry
+                title="Schedule shift"
+                fields={["workerId", "start", "end", "breakMinutes", "reason"]}
+                submit={(d) => send("shift", d)}
+              />
+              <p>
+                Enter start/end as YYYY-MM-DDTHH:mm:ssZ, or with an explicit
+                timezone offset.
+              </p>
+              <Entry
+                title="Revise shift"
+                fields={[
+                  "replaces",
+                  "workerId",
+                  "start",
+                  "end",
+                  "breakMinutes",
+                  "reason",
+                ]}
+                submit={(d) => send("shift", d)}
+              />
+              <Entry
+                title="Cancel shift"
+                fields={["replaces", "reason"]}
+                submit={(d) => send("cancel-shift", d)}
+              />
+            </>
+          )}
+          {(state.schedules || []).map((r: any) => (
+            <article key={r.id}>
+              <strong>
+                {r.data.cancelled ? "Cancelled" : "Planned"}: {r.data.workerId}
+              </strong>
+              <p>
+                {r.data.start} – {r.data.end} · {r.plannedHours.toFixed(2)}{" "}
+                planned hours · {r.data.breakMinutes} minute planned break
+              </p>
+              <p>{r.data.reason}</p>
+              <small>Current revision: {r.id}</small>
+            </article>
+          ))}
+        </section>
       )}
       {user.role === "manager" && (
         <section>
@@ -238,6 +325,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
             Supervisor QR token
             <input value={token} onChange={(e) => setToken(e.target.value)} />
           </label>
+          <AttendanceScanner onToken={setToken} />
           <label>
             Read QR image
             <input
@@ -274,9 +362,10 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
           <button disabled={busy} onClick={() => checkIn(true)}>
             Queue unverified event offline
           </button>
+          {initialQueue.error && <p role="alert">{initialQueue.error}</p>}
           <p>{queue.length} unverified events held on this device.</p>
           <button
-            disabled={busy || !queue.length}
+            disabled={busy || !!initialQueue.error || !queue.length}
             onClick={async () => {
               setBusy(true);
               setError("");
@@ -414,12 +503,41 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
                   pending
                 </p>
                 <ul>
+                  {r.shifts.map((shift: any, i: number) => (
+                    <li key={i}>
+                      {shift.start} to {shift.end} (UTC) · {shift.breakMinutes}{" "}
+                      minutes verified breaks · {shift.hours.toFixed(2)} hours ·
+                      £{shift.amount.toFixed(2)}
+                    </li>
+                  ))}
+                </ul>
+                <ul>
                   {r.exceptions.map((e: string) => (
                     <li key={e}>{e}</li>
                   ))}
                 </ul>
               </article>
             ))}
+            <button
+              onClick={() => {
+                const url = URL.createObjectURL(
+                  new Blob([attendanceCsv(state.report)], {
+                    type: "text/csv;charset=utf-8",
+                  }),
+                );
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "verified-attendance.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download verified timesheet CSV
+            </button>
+            <p>
+              CSV contains completed verified shifts only. Review pending events
+              and exceptions before using it for reconciliation.
+            </p>
             <h3>Payment comparison history</h3>
             <ul>
               {state.reconciliations?.map((r: any) => (
