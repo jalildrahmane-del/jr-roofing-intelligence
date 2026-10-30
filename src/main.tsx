@@ -220,7 +220,7 @@ function App() {
               {error}
             </p>
           )}
-          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} />}
+          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} onSelectProject={setPid} />}
           {route === "projects" && (
             <section>
               <h2>Existing projects</h2>
