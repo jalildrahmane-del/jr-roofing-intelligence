@@ -11,7 +11,21 @@ const phases: Phase[] = [
   { title: "Handover", route: "handover", subtitle: "Quality, O&M & client closeout", match: k => /^(snag|handover|quality|om|closeout)/i.test(k) },
 ];
 
-export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot; project?: Project; pid: string }) {
+type SiteSignal = "green" | "amber" | "red" | "unknown";
+function siteSignal(status: string): SiteSignal {
+  const normalized = status.trim().toLowerCase();
+  if (["on programme", "on program", "on track"].includes(normalized)) return "green";
+  if (["at risk", "attention required"].includes(normalized)) return "amber";
+  if (["delayed", "behind programme", "behind program"].includes(normalized)) return "red";
+  return "unknown";
+}
+const signalLabels: Record<SiteSignal, string> = {
+  green: "On programme (recorded)",
+  amber: "Attention required (recorded)",
+  red: "Delayed (recorded)",
+  unknown: "Status not reported",
+};
+export function OwnerDashboard({ snapshot, project, pid, onSelectProject }: { snapshot: Snapshot; project?: Project; pid: string; onSelectProject?: (id: string) => void }) {
   const records = snapshot.records.filter(r => r.pid === pid && !r.kind.startsWith("commercial."));
   const stageCounts = phases.map(phase => records.filter(r => phase.match(r.kind)).length);
   const active = stageCounts.filter(n => n > 0).length;
@@ -47,6 +61,32 @@ export function OwnerDashboard({ snapshot, project, pid }: { snapshot: Snapshot;
         <div><small>Evidence records</small><strong>{records.length}</strong></div>
         <div><small>{roofRecords.length ? "Surveyed roof area" : "Estimated roof area"}</small><strong>{area.toLocaleString("en-GB")} m²</strong></div>
       </div>
+      <section className="owner-site-overview" aria-labelledby="owner-sites-heading">
+        <div className="owner-section-head">
+          <div><p className="owner-kicker">DIRECTOR VIEW</p><h2 id="owner-sites-heading">Project status overview</h2></div>
+          <a href="#projects">Open project register →</a>
+        </div>
+        <p className="owner-disclaimer">Traffic lights reflect only an explicitly recorded project status, not live GPS attendance, safety clearance, programme verification or inferred performance. Unrecognised or missing statuses remain unreported.</p>
+        {snapshot.projects.length === 0 ? (
+          <p>No projects available yet.</p>
+        ) : (
+          <div className="owner-site-grid">
+            {snapshot.projects.map(p => {
+              const signal = siteSignal(p.status || "");
+              const evidenceCount = snapshot.records.filter(r => r.pid === p.id).length;
+              return (
+                <article key={p.id} className={`owner-site-card owner-site-${signal}`}>
+                  <div className="owner-site-status"><span className="owner-site-dot" aria-hidden="true" />{signalLabels[signal]}</div>
+                  <h3>{p.name}</h3>
+                  <p>{p.client || "Client not recorded"}</p>
+                  <small>{evidenceCount} recorded item{evidenceCount === 1 ? "" : "s"} · {p.status || "No project status recorded"}</small>
+                  {onSelectProject && <button type="button" className="quiet" onClick={() => onSelectProject(p.id)} aria-pressed={p.id === pid}>{p.id === pid ? "Current project" : "Select project"}</button>}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <div className="owner-section-head">
         <div><p className="owner-kicker">WORKFLOW</p><h2>Five stages, one project</h2></div>
         <span>{active} of 5 stages have activity</span>
