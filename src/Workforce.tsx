@@ -40,7 +40,6 @@ export function Entry({
         ))}
       </div>
       {error && <p role="alert">{error}</p>}
-      {success && <p role="status" className="success">{success}</p>}
       <button disabled={busy}>{busy ? "Saving…" : title}</button>
     </form>
   );
