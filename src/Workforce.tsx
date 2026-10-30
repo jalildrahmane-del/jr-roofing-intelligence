@@ -74,6 +74,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
     setConfirmedProject(false);
     setSuccess("");
     setState(null);
+    try { setQueue(JSON.parse(localStorage.getItem(queueKey) || "[]")); } catch { setQueue([]); }
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
   const send = async (action: string, data: any) => {
@@ -142,6 +143,7 @@ export function Workforce({ pid, user }: { pid: string; user: User }) {
         event. All attendance needs independent review; no continuous tracking.
       </p>
       {error && <p role="alert">{error}</p>}
+      {success && <p role="status" className="success">{success}</p>}
       {user.role === "manager" && (
         <section>
           <Entry
