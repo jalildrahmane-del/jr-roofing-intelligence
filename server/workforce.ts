@@ -10,6 +10,15 @@ import {
 } from "../src/workforce-qr.ts";
 
 const actions = ["in", "break-start", "break-end", "out"];
+function validWorkforceDate(value: unknown, label: string): string {
+  const day = text(value, label, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw Error("Invalid " + label.toLowerCase());
+  const parsed = new Date(day + "T00:00:00Z");
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day)
+    throw Error("Invalid " + label.toLowerCase());
+  return day;
+}
+
 export function workforceRecords(store: Store, pid: string): RecordItem[] {
   return store.db
     .prepare(
@@ -408,10 +417,7 @@ export function workforceCommand(
       const workerId = user.role === "worker" ? user.id : text(d.workerId, "Worker", 100);
       allocated(workerId);
       if (user.role !== "worker") supervisor();
-      const day = text(d.day, "Work date", 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) ||
-          !Number.isFinite(Date.parse(day + "T00:00:00Z")))
-        throw Error("Invalid work date");
+      const day = validWorkforceDate(d.day, "Work date");
       const photos = d.photos;
       if (!Array.isArray(photos) || photos.length < 1 || photos.length > 4)
         throw Error("Attach 1 to 4 site photographs");
@@ -464,10 +470,7 @@ export function workforceCommand(
         throw Error("Forbidden: workforce role required");
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
-      const neededBy = text(d.neededBy, "Required date", 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(neededBy) ||
-          !Number.isFinite(Date.parse(neededBy + "T00:00:00Z")))
-        throw Error("Invalid required date");
+      const neededBy = validWorkforceDate(d.neededBy, "Required date");
       return append("material-request", {
         workerId,
         description: text(d.description, "Material description", 500),
