@@ -49,19 +49,28 @@ export function workforceAccess(store: Store, user: User, pid: string) {
     !(
       user.role === "supervisor" && config?.data.supervisors.includes(user.id)
     ) &&
-    !(user.role === "worker" && allocation?.data.active)
+    !(user.role === "worker" && allocation?.data.active) &&
+    !(user.role === "subcontractor-owner" && records.filter(r => r.kind === "workforce.owner" && r.data.ownerId === user.id).at(-1)?.data.active === true && records.filter(r => r.kind === "workforce.owner" && r.data.ownerId === user.id).at(-1)?.data.company === user.company)
   )
     throw Error("Forbidden: workforce project allocation required");
   return { records, config, allocation };
 }
 export function workforceState(store: Store, user: User, pid: string) {
   const { records, config } = workforceAccess(store, user, pid);
-  const visible =
+  let visible =
     user.role === "worker"
       ? records.filter(
           (r) => r.data.workerId === user.id || r.kind === "workforce.config",
         )
       : records;
+  if (user.role === "subcontractor-owner") {
+    const workerIds = new Set((store.db.prepare("SELECT id FROM users WHERE role='worker' AND company=?").all(user.company) as {id:string}[]).map(w => w.id));
+    visible = records.filter(r => workerIds.has(r.data.workerId) && !["workforce.config", "workforce.owner"].includes(r.kind)).map(r => {
+      if (r.kind !== "workforce.event") return r;
+      const { fix, gps, ...data } = r.data;
+      return { ...r, data: { ...data, gpsStatus: gps?.status || "unverified" } };
+    });
+  }
   const users =
     user.role === "manager"
       ? store.db
@@ -86,7 +95,7 @@ export function workforceState(store: Store, user: User, pid: string) {
   return {
     records: visible,
     users,
-    config: config?.data,
+    config: user.role === "subcontractor-owner" ? { syntheticOnly: true, notice: "Company-scoped fictional workforce data; no GPS coordinates" } : config?.data,
     schedules: latestShifts(visible).map(r => ({ ...r, plannedHours: r.data.cancelled ? 0 : (Date.parse(r.data.end) - Date.parse(r.data.start)) / 3600000 - r.data.breakMinutes / 60 })),
     report: attendanceReport(visible),
     weekly: Object.values(weekly),
@@ -259,6 +268,12 @@ export function workforceCommand(
       });
     }
     if (!config) throw Error("Manager must configure a fictional site first");
+    if (action === "owner") {
+      manager();
+      const owner = store.db.prepare("SELECT id,company FROM users WHERE id=? AND role='subcontractor-owner'").get(d.ownerId) as {id:string,company:string}|undefined;
+      if (!owner || typeof d.active !== "boolean") throw Error("Registered subcontractor owner and active status required");
+      return append("owner", { ownerId: owner.id, company: owner.company, active: d.active });
+    }
     if (action === "allocation") {
       manager();
       worker(d.workerId);
