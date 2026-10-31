@@ -64,7 +64,7 @@ try {
     const r = await response;
     assert.equal(r.status(), 201, await r.text());
     await page
-      .getByText("Saved immutable record. Current gates recalculated.", {
+      .getByText("Record saved. Approval status updated.", {
         exact: true,
       })
       .waitFor();
