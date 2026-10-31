@@ -150,6 +150,10 @@ export function createApp(store: Store, root = resolve("dist")) {
         );
         return reply(200, { ok: true });
       }
+      // Owner accounts are intentionally restricted to their scoped workforce view.
+      if (user.role === "subcontractor-owner" && !(
+        (url.pathname === "/api/state" || url.pathname === "/api/workforce") && req.method === "GET"
+      )) return reply(403, { error: "Forbidden: subcontractor-owner workforce-only access" });
       if (url.pathname.startsWith("/api/evidence/") && req.method === "GET") {
         const asset = store.db
           .prepare("SELECT * FROM evidence WHERE id=?")
