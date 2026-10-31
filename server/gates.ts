@@ -57,6 +57,7 @@ export function saveGate(
   )
     return;
   requireRole(u, allowed);
+  store.requireProject(u,pid,true);
   const records = store.snapshot(u).records.filter((r) => r.pid === pid),
     append = (data: any) =>
       store.append(u, pid, kind, {

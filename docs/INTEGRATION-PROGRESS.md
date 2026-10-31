@@ -19,9 +19,13 @@ Baseline: Step 5 merged PR #19 into main at `e6d5801a5773f444d383b2a27c5b2f3c94f
 - Validation and review details: [Step 6 report](STEP-6-DOCUMENT-REVIEW.md).
 
 ## Still required
+Step 7 is prepared on a separate branch stacked on Step 6 / PR #20. See [project permissions and document revisions](STEP-7-PROJECT-ACCESS-REVISIONS.md) for implementation, upgrade behaviour and validation. These review-branch changes are not yet on main.
+
+- [x] Step 7 review branch: manager-controlled staff project read/edit/revoke permissions, request-time enforcement, audit and backup persistence.
+- [x] Step 7 review branch: multi-source document revision editor, current-source selection and fresh independent review.
 - [ ] CSV UI integration and camera lifecycle integration with the newer UI.
 - [ ] Supervisor-confirmed schedule matching and payroll interface acceptance.
-- [ ] Granular staff project permissions and remaining document intelligence criteria.
+- [ ] Remaining structured document review/checklist and intelligence criteria; acceptance of Step 7 permissions.
 - [ ] Owner privacy/retention policy and corresponding implementation before real-person use.
 - [ ] Physical iPhone/camera verification.
 

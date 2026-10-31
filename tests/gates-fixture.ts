@@ -41,6 +41,7 @@ export function gateFixture(path = ":memory:") {
     type: "Commercial",
     roof: "Flat",
   });
+  for (const who of [users.engineer,users.supervisor,users.viewer]) store.setProjectAccess(users.author,project.id,{userId:who.id,permission:who.role === "viewer" ? "read" : "edit",reason:"Explicit synthetic fixture assignment"});
   const records = () =>
     store.snapshot(users.author).records.filter((r) => r.pid === project.id);
   const save = (kind: string, data: any, who = users.author) =>

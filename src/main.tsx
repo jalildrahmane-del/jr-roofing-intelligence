@@ -10,6 +10,7 @@ import { ApprovalWorkflow } from "./ApprovalWorkflow.tsx";
 import { Workflow } from "./Workflow.tsx";
 import { OwnerDashboard } from "./OwnerDashboard.tsx";
 import { CommercialControl } from "./CommercialControl.tsx";
+import { ProjectAccess } from "./ProjectAccess.tsx";
 import "./owner-dashboard.css";
 export function Form({
   fields,
@@ -129,7 +130,10 @@ function App() {
     return () => window.removeEventListener("hashchange", listener);
   }, []);
   const project = state.projects.find((p) => p.id === pid);
-  const visibleRoute = user?.role === "subcontractor-owner" ? "workforce" : route;
+  const workforceOnly = user?.role === "subcontractor-owner" || state.permissions?.[pid] === "workforce";
+  const visibleRoute = workforceOnly ? "workforce" : route;
+  const readOnly = state.permissions?.[pid] === "read";
+  const projectUser = user && readOnly ? {...user,role:"viewer" as const} : user;
   async function add(kind: string, data: any) {
     await api("records", { pid, kind, data });
     await refresh();
@@ -176,6 +180,8 @@ function App() {
             try {
               await api("logout", {});
               setUser(null);
+              setState({projects:[],records:[],revision:0});
+              setPid("");
             } catch (e) {
               setError((e as Error).message);
             }
@@ -187,7 +193,7 @@ function App() {
       <div className="shell">
         <aside>
           <nav aria-label="Workspace">
-            {(user.role === "subcontractor-owner" ? ["workforce"] : routes).map((r) => (
+            {(workforceOnly ? ["workforce"] : routes).map((r) => (
               <a
                 aria-current={r === route ? "page" : undefined}
                 href={"#" + r}
@@ -219,6 +225,7 @@ function App() {
           </div>
           <p className="eyebrow">From survey to handover</p>
           <h1>{titles[visibleRoute] || "Page not found"}</h1>
+          {readOnly&&<p className="warning">Read-only project assignment. Editing requires a manager to change your permission.</p>}
           {error && (
             <p className="error" role="alert">
               {error}
@@ -229,7 +236,7 @@ function App() {
             <section>
               <h2>Existing projects</h2>
               {state.projects.length === 0 ? (
-                <p>No projects have been created yet.</p>
+                <p>{user.role === "manager"?"No projects have been created yet.":"No projects are assigned to this account."}</p>
               ) : (
                 <>
                   <p>Select a project to inspect its saved details. The register is read-only until a reviewed edit workflow is available.</p>
@@ -264,8 +271,9 @@ function App() {
                   )}
                 </>
               )}
-              {user.role !== "viewer" && <h2>New project</h2>}
-              {user.role !== "viewer" && <Form
+              {user.role === "manager" && project&&<ProjectAccess key={pid} pid={pid} refresh={refresh}/>}
+              {user.role === "manager" && <h2>New project</h2>}
+              {user.role === "manager" && <Form
                 label="Create project"
                 fields={[
                   ["name", "Project name"],
@@ -311,7 +319,7 @@ function App() {
                 Preliminary dead-load arithmetic only. No structural adequacy or
                 construction-stage authorisation.
               </p>
-              <Form
+              {!readOnly&&<Form
                 fields={[
                   ["thickness", "Thickness (mm)", "number"],
                   ["density", "Density (kg/m³)", "number"],
@@ -319,7 +327,7 @@ function App() {
                   ["other", "Other permanent load (kN/m²)", "number"],
                 ]}
                 onSubmit={(d) => add("load", d)}
-              />
+              />}
               <pre>
                 {JSON.stringify(
                   state.records
@@ -336,19 +344,19 @@ function App() {
               <a href="#dashboard">Return to dashboard</a>
             </p>
           )}
-          {["survey", "materials", "estimating"].includes(route) && (
+          {["survey", "materials", "estimating"].includes(visibleRoute) && (
             <Workflow
               key={pid}
               route={route}
               pid={pid}
               project={project}
               records={state.records.filter((r) => r.pid === pid)}
-              user={user}
+              user={projectUser!}
               refresh={refresh}
             />
           )}
           {["design", "construction", "quality", "handover"].includes(
-            route,
+            visibleRoute,
           ) && (
             <ApprovalWorkflow
               key={pid + route}
@@ -356,7 +364,7 @@ function App() {
               pid={pid}
               project={project}
               records={state.records.filter((r) => r.pid === pid)}
-              user={user}
+              user={projectUser!}
               refresh={refresh}
             />
           )}

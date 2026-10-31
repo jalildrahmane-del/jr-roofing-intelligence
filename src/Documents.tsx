@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import { Entry } from "./Workforce.tsx";
 import { SafetyDocumentComposer } from "./SafetyDocumentComposer.tsx";
+import { DocumentRevisionEditor } from "./DocumentRevisionEditor.tsx";
 import "./safety-composer.css";
 export function Documents({ pid }: { pid: string }) {
   const [state, setState] = useState<any>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""), [editing,setEditing] = useState<any>(null);
   const refresh = async () =>
     setState(await api("document-intelligence?pid=" + encodeURIComponent(pid)));
   useEffect(() => {
@@ -27,7 +28,7 @@ export function Documents({ pid }: { pid: string }) {
       {state && (
         <>
           <section>
-            <Entry
+            {state.canWrite&&<Entry
               title="Register source revision"
               fields={[
                 "title",
@@ -44,13 +45,14 @@ export function Documents({ pid }: { pid: string }) {
                       : d["replaces (record ID or none)"],
                 })
               }
-            />
+            />}
             <h3>Source register</h3>
             <ul>
               {state.sources.map((r: any) => (
                 <li key={r.id}>
                   <code>{r.id}</code> · {r.data.title || r.kind} ·{" "}
                   {r.data.reference || ""}
+                  {r.current?" · current revision":" · superseded"}
                   <details>
                     <summary>Read source</summary>
                     <pre
@@ -66,8 +68,9 @@ export function Documents({ pid }: { pid: string }) {
               ))}
             </ul>
           </section>
-          <SafetyDocumentComposer sources={state.sources} send={send} />
-          <section>
+          {!state.canWrite&&<p className="warning">You have read-only access to this project's documents.</p>}
+          {state.canWrite&&<SafetyDocumentComposer sources={state.sources.filter((s:any)=>s.current)} send={send} />}
+          {state.canWrite&&<section>
             <Entry
               title="Create source-linked draft"
               fields={[
@@ -100,7 +103,8 @@ export function Documents({ pid }: { pid: string }) {
               match the registered source. Proposals and gaps are listed
               separately.
             </p>
-          </section>
+          </section>}
+          {state.canWrite&&editing&&<DocumentRevisionEditor key={editing.id} document={editing} sources={state.sources.filter((s:any)=>s.current)} send={send} close={()=>setEditing(null)}/>}
           <section>
             <h2>Document revisions</h2>
             {state.documents.map((r: any) => (
@@ -109,6 +113,7 @@ export function Documents({ pid }: { pid: string }) {
                   {r.data.title} · revision {r.data.version}
                 </h3>
                 <p>{r.status}</p>
+                {state.canWrite&&r.status!=="Superseded"&&<button type="button" className="quiet" onClick={()=>setEditing(r)}>Revise document</button>}
                 <code>{r.id}</code>
                 <p>
                   <a
@@ -124,7 +129,7 @@ export function Documents({ pid }: { pid: string }) {
                 </p>
                 <details>
                   <summary>Read draft and source evidence</summary>
-                  <p>{r.data.proposals}</p>
+                  <p style={{whiteSpace:"pre-wrap"}}>{r.data.proposals}</p>
                   <p>Gaps: {r.data.limitations}</p>
                   <ul>
                     {r.data.sources.map((s: any) => (
@@ -137,7 +142,7 @@ export function Documents({ pid }: { pid: string }) {
               </article>
             ))}
           </section>
-          <section>
+          {state.canWrite&&<section>
             <Entry
               title="Record independent document review"
               fields={[
@@ -157,7 +162,7 @@ export function Documents({ pid }: { pid: string }) {
               Decision: accepted or rejected. Only an independent manager can
               record review. Review the full PDF and sources first.
             </p>
-          </section>
+          </section>}
         </>
       )}
     </>

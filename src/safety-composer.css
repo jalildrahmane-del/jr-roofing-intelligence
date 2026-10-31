@@ -17,4 +17,5 @@
 .safety-composer .risk-matrix p{font-size:13px}
 .safety-composer .safety-draft-preview{margin:16px 0}
 .safety-composer .safety-draft-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;padding:12px;background:#f3f5f8;border-radius:8px}
+[aria-label="Document revision editor"] fieldset{min-width:0;border:1px solid #d7dee8;border-radius:8px;margin:16px 0;padding:12px}
 @media(max-width:700px){.safety-composer .risk-ratings{grid-template-columns:repeat(2,minmax(0,1fr))}}
