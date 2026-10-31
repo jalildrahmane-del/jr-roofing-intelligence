@@ -56,16 +56,37 @@ try {
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const login = async (name) => {
-    await page.goto(base);
+    await page.goto(base + "/#workforce");
     await page.getByLabel("Username", { exact: true }).fill(name);
     await page.getByLabel("Password", { exact: true }).fill("browser-password");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page
-      .getByRole("heading", { name: "Project Command Centre", exact: true })
+      .getByRole("heading", { name: "Subcontractors & Workforce", exact: true })
       .waitFor();
     await page.goto(base + "/#workforce");
   };
   await login("manager");
+  const setup = page.locator("form").filter({ has: page.getByRole("heading", { name: "Site location", exact: true }) });
+  assert.equal(await setup.getByRole("button", { name: "Save site location", exact: true }).isDisabled(), true);
+  await setup.getByRole("button", { name: "Use my location", exact: true }).click();
+  await setup.getByText(/Location found · accuracy ±10 metres/).waitFor();
+  await setup.getByRole("button", { name: "Save site location", exact: true }).click();
+  await setup.getByText("Site location saved.", { exact: true }).waitFor();
+  assert.equal((await page.locator("body").innerText()).includes(worker.id), false);
+  await context.setGeolocation({ latitude: 51, longitude: 0, accuracy: 500 });
+  await setup.getByRole("button", { name: "Use my location", exact: true }).click();
+  await setup.getByText(/accuracy ±500 metres/).waitFor();
+  await setup.getByRole("button", { name: "Save site location", exact: true }).click();
+  await setup.getByRole("alert").filter({ hasText: "Location accuracy is wider" }).waitFor();
+  await context.setGeolocation({ latitude: 51, longitude: 0, accuracy: 10 });
+  await page.evaluate(() => {
+    window.originalGetPosition = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
+    navigator.geolocation.getCurrentPosition = (_success, failure) => failure({ code: 1 });
+  });
+  await setup.getByRole("button", { name: "Use my location", exact: true }).click();
+  await setup.getByRole("alert").filter({ hasText: "Location permission is blocked" }).waitFor();
+  assert.equal(await setup.getByRole("button", { name: "Save site location", exact: true }).isDisabled(), true);
+  await page.evaluate(() => { navigator.geolocation.getCurrentPosition = window.originalGetPosition; });
   const form = page
     .locator("form")
     .filter({
@@ -74,8 +95,8 @@ try {
         exact: true,
       }),
     });
-  await form.getByLabel("workerId", { exact: true }).fill(worker.id);
-  await form.getByLabel("event", { exact: true }).fill("in");
+  await form.getByLabel("Worker", { exact: true }).selectOption(worker.id);
+  await form.getByLabel("Event", { exact: true }).fill("in");
   await form.getByRole("button").click();
   await page.getByAltText("Single-use supervisor attendance QR").waitFor();
   const token = await page
