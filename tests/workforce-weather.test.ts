@@ -37,6 +37,6 @@ test("weather is project-specific, bounded, cached and includes site planning pr
 });
 test("missing postcode and invalid external location fail closed", async () => {
   await assert.rejects(projectWeather("Somewhere without a postcode"), /valid UK postcode/);
-  const invalid = (async () => ({ ok: true, json: async () => ({ status: 404, result: null }) })) as typeof fetch;
+  const invalid = (async () => ({ ok: true, json: async () => ({ status: 404, result: null }) } as Response)) as typeof fetch;
   await assert.rejects(projectWeather("Test LU1 1AA", invalid), /could not be located/);
 });
