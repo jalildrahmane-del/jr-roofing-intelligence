@@ -44,6 +44,65 @@ export function Entry({
     </form>
   );
 }
+function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (action: string, data: any) => Promise<void> }) {
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const editable = ["manager", "supervisor"].includes(user.role);
+  const schedules: any[] = state.schedules || [];
+  const active = schedules.filter((r) => !r.data.cancelled);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      const data = Object.fromEntries(new FormData(event.currentTarget));
+      const replaces = String(data.replaces || "");
+      if (data.action === "cancel-shift") {
+        if (!replaces) throw Error("Select an existing shift to cancel.");
+        await send("cancel-shift", { replaces, reason: data.reason });
+      } else {
+        const start = new Date(String(data.start));
+        const end = new Date(String(data.end));
+        if (!Number.isFinite(+start) || !Number.isFinite(+end)) throw Error("Valid shift dates and times are required.");
+        await send("shift", {
+          workerId: data.workerId,
+          replaces: replaces || undefined,
+          start: start.toISOString(),
+          end: end.toISOString(),
+          breakMinutes: Number(data.breakMinutes),
+          reason: data.reason,
+        });
+      }
+      event.currentTarget.reset();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <section aria-labelledby="shift-planner-heading" className="workforce-shifts">
+    <h2 id="shift-planner-heading">Planned workforce shifts</h2>
+    <p>Times are entered in your device's local time zone and saved as UTC. Plans are not verified attendance or payment authorisation.</p>
+    {!schedules.length && <p>No shifts planned for this project.</p>}
+    <ul>{schedules.map(r => <li key={r.id}>
+      <strong>{r.data.workerId}</strong> · {new Date(r.data.start).toLocaleString()} – {new Date(r.data.end).toLocaleString()} · {r.plannedHours.toFixed(2)} planned hours · {r.data.cancelled ? "Cancelled" : "Active"} · <small>Revision ID: {r.id}</small>
+    </li>)}</ul>
+    {editable && <form onSubmit={submit}>
+      <h3>Create, revise or cancel a shift</h3>
+      <div className="fields">
+        <label>Action<select name="action" defaultValue="shift"><option value="shift">Create or revise</option><option value="cancel-shift">Cancel selected shift</option></select></label>
+        <label>Worker<select name="workerId" required><option value="">Select worker</option>{(state.users || []).filter((u: any) => u.role === "worker").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
+        <label>Existing shift to revise or cancel<select name="replaces" defaultValue=""><option value="">New shift</option>{active.map(r => <option key={r.id} value={r.id}>{r.data.workerId} — {new Date(r.data.start).toLocaleString()} ({r.id.slice(0, 8)})</option>)}</select></label>
+        <label>Start<input type="datetime-local" name="start" /></label>
+        <label>Finish<input type="datetime-local" name="end" /></label>
+        <label>Unpaid break (minutes)<input type="number" name="breakMinutes" min="0" step="1" defaultValue="30" /></label>
+        <label>Reason<input name="reason" maxLength={500} required /></label>
+      </div>
+      {error && <p role="alert">{error}</p>}
+      <button type="submit" disabled={saving}>{saving ? "Saving…" : "Save shift plan"}</button>
+    </form>}
+  </section>;
+}
 async function prepareDailyPhoto(file: File): Promise<string> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 20 * 1024 * 1024)
     throw Error("Choose a JPEG, PNG or WebP photograph under 20 MiB");
@@ -217,6 +276,20 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
               })
             }
           />
+          <h3>Subcontractor owner access</h3>
+          <p>Grant or revoke read-only access to a registered subcontractor owner for this project. The owner can see only their company's workforce.</p>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.currentTarget));
+            try { await send("owner", { ownerId: data.ownerId, active: data.active === "true" }); setSuccess("Owner permission updated."); setError(""); }
+            catch (err) { setError((err as Error).message); }
+          }}>
+            <div className="fields">
+              <label>Registered owner<select name="ownerId" required><option value="">Select owner</option>{(state?.users || []).filter((u: any) => u.role === "subcontractor-owner").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
+              <label>Permission<select name="active"><option value="true">Grant access</option><option value="false">Revoke access</option></select></label>
+            </div>
+            <button type="submit">Update owner access</button>
+          </form>
           <h3>Registered users</h3>
           <ul>
             {state?.users.map((u: any) => (
@@ -359,8 +432,19 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
           </p>
         </section>
       )}
-      {state && (
+      {state && user.role === "subcontractor-owner" && (
+        <section aria-label="Company workforce overview">
+          <h2>My company workforce — read only</h2>
+          <p>Only authorised project records for your company are shown. Exact GPS coordinates, other companies' records and editing controls are unavailable.</p>
+          <ShiftPlanner state={state} user={user} send={send} />
+          <h3>Verified attendance summary</h3>
+          {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
+          {(state.report || []).map((r: any) => <p key={r.workerId}>{r.workerId}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
+        </section>
+      )}
+      {state && user.role !== "subcontractor-owner" && (
         <>
+          <ShiftPlanner state={state} user={user} send={send} />
           <section>
             <h2>Attendance review</h2>
             <ul>
