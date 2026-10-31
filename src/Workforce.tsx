@@ -44,6 +44,50 @@ export function Entry({
     </form>
   );
 }
+function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) {
+  const [forecast, setForecast] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try { setForecast(await api("workforce-weather?pid=" + encodeURIComponent(pid))); }
+    catch (e) { setForecast(null); setError((e as Error).message); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => {
+    let active = true;
+    setForecast(null);
+    setError("");
+    setLoading(true);
+    api("workforce-weather?pid=" + encodeURIComponent(pid)).then((value: any) => { if (active) setForecast(value); }).catch((e: Error) => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [pid]);
+  const show = (value: number | null | undefined, unit: string) => value == null ? "Unavailable" : value.toFixed(1) + unit;
+  return <section className="workforce-weather" aria-labelledby="workforce-weather-heading">
+    <h2 id="workforce-weather-heading">🌦️ Today's site weather forecast</h2>
+    <p><strong>{project?.name || "Selected project"}</strong> · {project?.address || "Site address not recorded"}</p>
+    <p>Forecast is based on the project's saved UK postcode, not your phone location.</p>
+    <button type="button" disabled={loading} onClick={load}>{loading ? "Checking forecast…" : "Refresh forecast"}</button>
+    {error && <p role="alert">{error}</p>}
+    {forecast && <>
+      <p><strong>{forecast.date}</strong> · postcode {forecast.postcode} · checked {new Date(forecast.updatedAt).toLocaleString("en-GB")}</p>
+      <div className="fields" aria-label="Daily forecast summary">
+        <p>🌡️ Temperature <strong>{show(forecast.temperatureMinC, "°C")} – {show(forecast.temperatureMaxC, "°C")}</strong></p>
+        <p>🌧️ Rain <strong>{show(forecast.rainMm, " mm")}</strong> · probability {show(forecast.rainProbabilityPercent, "%")}</p>
+        <p>💨 Wind <strong>{show(forecast.windMaxMph, " mph")}</strong> · gusts up to <strong>{show(forecast.gustMaxMph, " mph")}</strong></p>
+      </div>
+      {forecast.advisory?.length > 0 && <div className="warning"><strong>Planning considerations</strong><ul>{forecast.advisory.map((note: string) => <li key={note}>{note}</li>)}</ul></div>}
+      <details><summary>Hourly site forecast (06:00–19:00 UK time)</summary>
+        {forecast.hourly?.length ? <div style={{ overflowX: "auto" }}><table><thead><tr><th>Time</th><th>Temp</th><th>Rain chance</th><th>Rain</th><th>Wind</th><th>Gusts</th></tr></thead><tbody>
+          {forecast.hourly.map((h: any) => <tr key={h.time}><td>{h.time.slice(11)}</td><td>{show(h.temperatureC, "°C")}</td><td>{show(h.rainProbabilityPercent, "%")}</td><td>{show(h.rainMm, " mm")}</td><td>{show(h.windMph, " mph")}</td><td>{show(h.gustMph, " mph")}</td></tr>)}
+        </tbody></table></div> : <p>Hourly data unavailable.</p>}
+      </details>
+      <p className="warning">{forecast.notice}</p>
+      <p><small>Source: {forecast.source}. This is a forecast, not a live weather measurement or a permit to work.</small></p>
+    </>}
+  </section>;
+}
 function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (action: string, data: any) => Promise<void> }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -236,6 +280,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
         Fictional test records only. GPS is captured only when submitting an
         event. All attendance needs independent review; no continuous tracking.
       </p>
+      <WorkforceWeather pid={pid} project={project} />
       {error && <p role="alert">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
       {["manager", "supervisor"].includes(user.role) && (
