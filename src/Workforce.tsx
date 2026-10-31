@@ -1,3 +1,4 @@
+import { readOfflineQueue } from "./workforce-queue.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User, Project } from "./model.ts";
@@ -167,7 +168,10 @@ async function prepareDailyPhoto(file: File): Promise<string> {
     bitmap.close();
   }
 }
-export function Workforce({ pid, user, project }: { pid: string; user: User; project?: Project }) {
+export function Workforce(props: { pid: string; user: User; project?: Project }) {
+  return <WorkforceSession key={JSON.stringify([props.user.id, props.pid])} {...props} />;
+}
+function WorkforceSession({ pid, user, project }: { pid: string; user: User; project?: Project }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
@@ -178,13 +182,11 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
   const [dailyPhotos, setDailyPhotos] = useState<{ image: string; caption: string }[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
-  const [queue, setQueue] = useState<any[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(queueKey) || "[]");
-    } catch {
-      return [];
-    }
+  const [initialQueue] = useState(() => {
+    try { return {events: readOfflineQueue(localStorage.getItem(queueKey)), error: ""}; }
+    catch { return {events: [], error: "Saved offline queue cannot be read. Stored data is preserved; do not clear browser storage."}; }
   });
+  const [queue, setQueue] = useState<any[]>(initialQueue.events);
   const saveQueue = (q: any[]) => {
     localStorage.setItem(queueKey, JSON.stringify(q));
     setQueue(q);
@@ -199,7 +201,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
     setConfirmedProject(false);
     setSuccess("");
     setState(null);
-    try { setQueue(JSON.parse(localStorage.getItem(queueKey) || "[]")); } catch { setQueue([]); }
+
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
   // This QR is a project navigation link only, never a login or attendance token.
@@ -229,6 +231,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
     setBusy(true);
     try {
       if (offline) {
+        if (initialQueue.error) throw Error(initialQueue.error);
         saveQueue([
           ...queue,
           {
@@ -450,9 +453,10 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
           <button disabled={busy || !confirmedProject} onClick={() => checkIn(true)}>
             Queue unverified event offline
           </button>
+          {initialQueue.error && <p role="alert">{initialQueue.error}</p>}
           <p>{queue.length} unverified events held on this device.</p>
           <button
-            disabled={busy || !queue.length}
+            disabled={busy || !!initialQueue.error || !queue.length}
             onClick={async () => {
               setBusy(true);
               setError("");
