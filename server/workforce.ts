@@ -72,10 +72,10 @@ export function workforceState(store: Store, user: User, pid: string) {
     });
   }
   const users =
-    user.role === "manager"
+    ["manager", "supervisor"].includes(user.role)
       ? store.db
           .prepare("SELECT id,name,role,company FROM users ORDER BY name")
-          .all()
+          .all().filter((u: any) => user.role === "manager" || (u.role === "worker" && records.filter(r => r.kind === "workforce.allocation" && r.data.workerId === u.id).at(-1)?.data.active))
       : [];
   const weekly: Record<string, any> = {};
   for (const r of visible.filter((r) => r.kind === "workforce.progress")) {
