@@ -52,10 +52,11 @@ function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (ac
   const active = schedules.filter((r) => !r.data.cancelled);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setError("");
     setSaving(true);
     try {
-      const data = Object.fromEntries(new FormData(event.currentTarget));
+      const data = Object.fromEntries(new FormData(form));
       const replaces = String(data.replaces || "");
       if (data.action === "cancel-shift") {
         if (!replaces) throw Error("Select an existing shift to cancel.");
@@ -73,7 +74,7 @@ function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (ac
           reason: data.reason,
         });
       }
-      event.currentTarget.reset();
+      form.reset();
     } catch (e) {
       setError((e as Error).message);
     } finally {
