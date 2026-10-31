@@ -2,6 +2,8 @@
 
 Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issues #2/#3 supply the survey-to-tender and approval-gate journeys. The document-control foundation, owner command centre and workforce integration are merged into main through PR #19 (`e6d5801`). Issues #4/#5 still have outstanding acceptance criteria; merge does not authorise production or real-person use. See [current sequence and remaining work](docs/INTEGRATION-PROGRESS.md).
 
+Step 7 adds manager-controlled staff project access and document revision tools on a review branch stacked on Step 6. **Staff now need explicit project assignments**; managers retain administration access. See [upgrade behaviour and validation](docs/STEP-7-PROJECT-ACCESS-REVISIONS.md) before accepting this branch.
+
 ## Start locally
 
 Use Node **24 or newer** and npm:

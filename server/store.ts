@@ -11,6 +11,7 @@ import { verifyIntegrity } from "./integrity.ts";
 import { migrate } from "./migrations.ts";
 import { dirname } from "node:path";
 import type { Role, User, Snapshot, RecordItem } from "../src/model.ts";
+import { text } from "../src/model.ts";
 export class Store {
   db: DatabaseSync;
   constructor(path: string) {
@@ -81,6 +82,38 @@ export class Store {
       .prepare("DELETE FROM sessions WHERE hash=?")
       .run(createHash("sha256").update(token).digest("hex"));
   }
+  projectPermission(user: User, pid: string): "read" | "edit" | null {
+    if (!this.db.prepare("SELECT id FROM projects WHERE id=?").get(pid)) return null;
+    if (user.role === "manager") return "edit";
+    if (!["engineer", "supervisor", "viewer"].includes(user.role)) return null;
+    const row = this.db.prepare("SELECT data FROM records WHERE pid=? AND kind='project.access' AND json_extract(data,'$.userId')=? ORDER BY seq DESC LIMIT 1").get(pid,user.id) as any;
+    const permission = row ? JSON.parse(row.data).permission : null;
+    return permission === "read" || (permission === "edit" && user.role !== "viewer") ? permission : null;
+  }
+  requireProject(user: User, pid: string, write = false) {
+    const permission = this.projectPermission(user,pid);
+    if (!permission || (write && permission !== "edit"))
+      throw Error("Forbidden: " + (write ? "project edit" : "project read") + " access required");
+  }
+  projectAccessState(user: User, pid: string) {
+    if (user.role !== "manager") throw Error("Forbidden: manager required");
+    this.requireProject(user,pid);
+    const users = this.db.prepare("SELECT id,name,role,company FROM users WHERE role IN ('engineer','supervisor','viewer') ORDER BY name").all();
+    const history = this.db.prepare("SELECT id,author,created_at,data FROM records WHERE pid=? AND kind='project.access' ORDER BY seq").all(pid).map((r:any)=>({id:r.id,author:r.author,createdAt:r.created_at,...JSON.parse(r.data)}));
+    return {users,history};
+  }
+  setProjectAccess(user: User, pid: string, data: any) {
+    return this.transaction(()=>{
+      const state = this.projectAccessState(user,pid);
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw Error("Access data required");
+      const target = state.users.find((u:any)=>u.id===data.userId);
+      if (!target) throw Error("Registered engineer, supervisor or viewer required");
+      if (!["read","edit","none"].includes(data.permission) || (target.role === "viewer" && data.permission === "edit")) throw Error("Invalid permission for this role");
+      const latest = state.history.filter((r:any)=>r.userId===data.userId).at(-1);
+      if ((data.previousId ?? null) !== (latest?.id ?? null)) throw Error("Access changed; refresh before updating");
+      return this.append(user,pid,"project.access",{userId:data.userId,permission:data.permission,reason:text(data.reason,"Access change reason",2000),previousId:latest?.id ?? null,version:(latest?.version ?? 0)+1});
+    });
+  }
   snapshot(user: User): Snapshot {
     const projects = this.db
       .prepare("SELECT data FROM projects")
@@ -104,6 +137,7 @@ export class Store {
       });
       return { projects: authorised, records: [], revision: records.filter(r => r.kind === "workforce.owner" && r.data.ownerId === user.id).length };
     }
+    const permissions = new Map<string,"read"|"edit"|null>(projects.map((p:any)=>[p.id,this.projectPermission(user,p.id)]));
     const visibleProjects =
       user.role === "worker"
         ? projects.filter(
@@ -124,20 +158,17 @@ export class Store {
                 )
                 .at(-1)?.data.active,
           )
-        : projects;
+        : projects.filter((p:any)=>permissions.get(p.id) ||
+          (user.role === "supervisor" && records.filter(r=>r.pid===p.id && r.kind==="workforce.config").at(-1)?.data.supervisors?.includes(user.id)));
+    const visibleRecords = records.filter(r=>
+      !r.kind.startsWith("workforce.") && r.kind !== "project.access" &&
+      !!permissions.get(r.pid) &&
+      (user.role === "manager" || !r.kind.startsWith("commercial.")));
     return {
       projects: visibleProjects,
-      records: records.filter(
-        (r) =>
-          !r.kind.startsWith("workforce.") &&
-          (user.role === "manager" || !r.kind.startsWith("commercial.")) &&
-          (user.role !== "worker" ||
-            (r.kind === "allocation" && r.data.worker === user.id) ||
-            r.author === user.id),
-      ),
-      revision: Number(
-        (this.db.prepare("SELECT count(*) AS n FROM audit").get() as any).n,
-      ),
+      permissions: Object.fromEntries(visibleProjects.map((p:any)=>[p.id,permissions.get(p.id)||"workforce"])),
+      records: visibleRecords,
+      revision: visibleRecords.length + visibleProjects.length,
     };
   }
 
@@ -189,6 +220,8 @@ export class Store {
     kind: string,
     data: Record<string, any>,
   ): RecordItem {
+    if (kind === "project.access" && user.role !== "manager") throw Error("Forbidden: manager required");
+    if (!kind.startsWith("workforce.")) this.requireProject(user,pid,true);
     const r = {
       id: randomUUID(),
       pid,

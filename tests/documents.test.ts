@@ -20,6 +20,7 @@ function setup() {
     m = add("reviewer", "manager"),
     worker = add("worker", "worker");
   const pid = s.project(m, { name: "Fictional" }).id;
+  s.setProjectAccess(m,pid,{userId:a.id,permission:"edit",reason:"Synthetic document author assignment"});
   return { s, a, m, worker, pid };
 }
 test("document lifecycle preserves exact source provenance, independent review, revisions and stale status", async () => {
@@ -113,6 +114,7 @@ test("paid AI cannot be activated by client request and cross-project sources ar
       content: "text",
     });
     const other = s.project(m, { name: "Other" }).id;
+    s.setProjectAccess(m,other,{userId:a.id,permission:"edit",reason:"Synthetic second project author assignment"});
     assert.throws(
       () =>
         documentCommand(s, a, other, "draft", {

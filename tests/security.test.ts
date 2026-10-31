@@ -14,6 +14,8 @@ test('HTTP contract: role enforcement, server-owned records, malformed input, se
  const payload={name:'Roof <script>test</script>',client:'Test client',address:'Test site',area:94,type:'Commercial',roof:'Flat'};
  for(const cookie of [worker,viewer])assert.equal((await send('projects',payload,cookie)).status,403);
  const response=await send('projects',{...payload,id:'FORGED',status:'Approved'},manager);assert.equal(response.status,201);const project=await response.json() as any;assert.notEqual(project.id,'FORGED');assert.equal(project.status,'Pre-construction');
+ const boss=s.user(manager.slice('jr_session='.length))!;
+ for(const role of ['viewer','engineer','supervisor'] as const){const target=s.db.prepare('SELECT id FROM users WHERE name=?').get(role)!;s.setProjectAccess(boss,project.id,{userId:target.id,permission:role==='viewer'?'read':'edit',reason:'Explicit security fixture assignment'});}
  const record={pid:project.id,kind:'load',data:{thickness:18,density:650,area:94,other:0,status:'Approved',createdAt:'1999-01-01'}};
  assert.equal((await send('records',record,worker)).status,404);
  assert.equal((await send('records',record,viewer)).status,403);

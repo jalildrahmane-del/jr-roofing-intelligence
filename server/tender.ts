@@ -79,6 +79,7 @@ export function saveTender(
   kind: string,
   d: any,
 ) {
+  store.requireProject(user,pid,true);
   object(d);
   if (!editable.includes(user.role))
     throw Error("Forbidden: survey author role required");

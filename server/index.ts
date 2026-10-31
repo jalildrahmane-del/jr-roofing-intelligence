@@ -159,18 +159,18 @@ export function createApp(store: Store, root = resolve("dist")) {
         const asset = store.db
           .prepare("SELECT * FROM evidence WHERE id=?")
           .get(url.pathname.slice("/api/evidence/".length)) as any;
-        if (
-          !asset ||
-          !store.snapshot(user).projects.some((p) => p.id === asset.pid)
-        )
+        if (!asset)
           return reply(404, { error: "Evidence not found" });
         // Workers may only retrieve photographs attached to their own submitted
         // workforce daily reports, not other workers' private site evidence.
-        if (user.role === "worker") {
-          const visible = workforceState(store, user, asset.pid).records;
+        const workforcePhoto = store.db.prepare("SELECT data FROM records WHERE pid=? AND kind='workforce.daily-report'").all(asset.pid).some((r:any)=>JSON.parse(r.data).evidence?.some((p:any)=>p.assetId===asset.id));
+        if (workforcePhoto || !store.projectPermission(user,asset.pid)) {
+          let visible;
+          try { visible = workforceState(store, user, asset.pid).records; }
+          catch { return reply(404, {error:"Evidence not found"}); }
           const ownPhoto = visible.some(r =>
             r.kind === "workforce.daily-report" &&
-            r.data.workerId === user.id &&
+            (user.role !== "worker" || r.data.workerId === user.id) &&
             Array.isArray(r.data.evidence) &&
             r.data.evidence.some((photo: any) => photo.assetId === asset.id));
           if (!ownPhoto) return reply(404, { error: "Evidence not found" });
@@ -213,6 +213,7 @@ export function createApp(store: Store, root = resolve("dist")) {
           state = store.snapshot(user),
           project = state.projects.find((p) => p.id === pid);
         if (!project) return reply(404, { error: "Project not found" });
+        store.requireProject(user,pid);
         const records = state.records.filter((r) => r.pid === pid);
         const audit = store.db
           .prepare(
@@ -220,7 +221,8 @@ export function createApp(store: Store, root = resolve("dist")) {
           )
           .all()
           .filter((r: any) => {
-            if (r.action.startsWith("workforce.")) return false;
+            if (r.action.startsWith("workforce.") || r.action === "project.access") return false;
+            if (user.role !== "manager" && r.action.startsWith("commercial.")) return false;
             const d = JSON.parse(r.detail);
             return (
               d.pid === pid || (r.action === "project.create" && d.id === pid)
@@ -241,6 +243,10 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       if (url.pathname === "/api/document-intelligence" && req.method === "GET")
         return reply(200, documentState(store,user,url.searchParams.get("pid")||""));
+      if (url.pathname === "/api/project-access" && req.method === "GET")
+        return reply(200,store.projectAccessState(user,text(url.searchParams.get("pid"),"Project",200)));
+      if (url.pathname === "/api/project-access" && req.method === "POST")
+        return reply(201,store.setProjectAccess(user,text(body.pid,"Project",200),body.data));
       if (url.pathname === "/api/document-intelligence" && req.method === "POST")
         return reply(201, documentCommand(store,user,text(body.pid,"Project",200),text(body.action,"Action",50),body.data));
       if (url.pathname === "/api/document-pdf" && req.method === "GET") {
@@ -301,6 +307,7 @@ export function saveRecord(
 ) {
   if (!["manager", "engineer", "supervisor"].includes(user.role))
     throw Error("Forbidden: read-only account");
+  store.requireProject(user,pid,true);
   if (!data || typeof data !== "object" || Array.isArray(data))
     throw Error("Record data required");
   if (kind === "load")

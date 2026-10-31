@@ -12,7 +12,7 @@
     "dev": "node scripts/dev.mjs",
     "start": "node server/index.ts",
     "test": "node --test tests/*.test.ts",
-    "test:browser": "node tests/browser.mjs && node tests/tender-browser.mjs && node tests/gates-browser.mjs && node tests/workforce-browser.mjs && node tests/workforce-integration-browser.mjs && node tests/documents-browser.mjs && node tests/safety-authoring-browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/tender-browser.mjs && node tests/gates-browser.mjs && node tests/workforce-browser.mjs && node tests/workforce-integration-browser.mjs && node tests/documents-browser.mjs && node tests/safety-authoring-browser.mjs && node tests/project-access-browser.mjs",
     "validate": "npm run typecheck && npm test && npm run build && npm run test:browser && npm run test:dev && npm run test:pdf",
     "backup": "node scripts/backup.ts",
     "test:dev": "node tests/dev.mjs",

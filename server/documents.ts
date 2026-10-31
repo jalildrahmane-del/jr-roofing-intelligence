@@ -7,8 +7,9 @@ import { SAFETY_DRAFT_LIMIT } from "../src/risk-authoring.ts";
 const digest = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
 function access(store: Store, user: User, pid: string) {
-  if (!["manager", "supervisor", "engineer"].includes(user.role))
+  if (!["manager", "supervisor", "engineer", "viewer"].includes(user.role))
     throw Error("Forbidden: document staff access required");
+  store.requireProject(user,pid);
   const state = store.snapshot(user);
   if (!state.projects.some((p) => p.id === pid))
     throw Error("Project not found");
@@ -63,10 +64,11 @@ export function documentState(store: Store, user: User, pid: string) {
         !["intelligence.draft", "intelligence.review", "approval"].includes(
           r.kind,
         ),
-    ),
+    ).map(r=>({...r,current:currentSource(records,r)})),
     documents: records
       .filter((r) => r.kind === "intelligence.draft")
       .map((r) => ({ ...r, status: documentStatus(records, r) })),
+    canWrite: store.projectPermission(user,pid) === "edit",
     ai: {
       enabled: false,
       reason:
@@ -84,6 +86,7 @@ export function documentCommand(
   if (!d || typeof d !== "object" || Array.isArray(d))
     throw Error("Document data required");
   return store.transaction(() => {
+    store.requireProject(user,pid,true);
     const records = access(store, user, pid);
     if (action === "generate")
       throw Error(

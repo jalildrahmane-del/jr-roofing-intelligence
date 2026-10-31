@@ -2,7 +2,7 @@ export type Role = 'manager'|'engineer'|'supervisor'|'worker'|'viewer'|'subcontr
 export type User = {id:string; name:string; role:Role; company:string};
 export type Project = {id:string; name:string; client:string; address:string; area:number; type:string; roof:string; status:string};
 export type RecordItem = {id:string; pid:string; kind:string; author:string; createdAt:string; data:Record<string,any>};
-export type Snapshot = {projects:Project[]; records:RecordItem[]; revision:number};
+export type Snapshot = {projects:Project[]; records:RecordItem[]; revision:number; permissions?:Record<string,'read'|'edit'|'workforce'>};
 export const routes = ['dashboard','projects','survey','materials','estimating','commercial','structure','design','construction','quality','handover','documents','workforce','legacy'] as const;
 export const titles:Record<string,string>={dashboard:'Project Command Centre',projects:'Project Register',survey:'Roof Survey Intelligence',materials:'Materials & Specifications',estimating:'Estimating & Tenders',commercial:'Commercial Control',structure:'Structural Screening',design:'Design & Engineering',construction:'Construction Management',quality:'Quality & Inspections',handover:'Client Handover',documents:'Document Intelligence',workforce:'Subcontractors & Workforce',legacy:'V3.6 Original Workspace'};
 export function positive(value:unknown,label:string,zero=false):number { const n=Number(value); if(!['number','string'].includes(typeof value)||(typeof value==='string'&&!value.trim())||!Number.isFinite(n)||(zero?n<0:n<=0))throw Error(`${label} must be a ${zero?'non-negative':'positive'} number`); return n; }
