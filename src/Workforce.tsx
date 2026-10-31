@@ -9,10 +9,12 @@ import { WorkforceComparison } from "./WorkforceComparison.tsx";
 export function Entry({
   title,
   fields,
+  users,
   submit,
 }: {
   title: string;
   fields: string[];
+  users?: any[];
   submit: (d: any) => Promise<void>;
 }) {
   const [error, setError] = useState(""),
@@ -36,8 +38,8 @@ export function Entry({
       <div className="fields">
         {fields.map((f) => (
           <label key={f}>
-            {f}
-            <input name={f} required />
+            {f === "workerId" ? "Worker" : f.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase())}
+            {f === "workerId" && users ? <select aria-label="Worker" name={f} required defaultValue=""><option value="">Select worker</option>{users.filter(u => u.role === "worker").map(u => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select> : <input name={f} required />}
           </label>
         ))}
       </div>
@@ -90,6 +92,56 @@ function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) 
     </>}
   </section>;
 }
+function workerName(state: any, id: string) {
+  const person = state?.users?.find((u: any) => u.id === id);
+  return person ? `${person.name} — ${person.company}` : "Worker";
+}
+
+function SiteSetup({ state, send }: { state: any; send: (action: string, data: any) => Promise<void> }) {
+  const [fix, setFix] = useState<GeolocationPosition | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const locate = () => {
+    setFix(null); setError(""); setMessage("");
+    if (!navigator.geolocation) { setError("Location is unavailable on this device. Try a phone with location enabled."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(position => {
+      setFix(position); setLocating(false);
+    }, err => {
+      setLocating(false);
+      setError(err.code === 1 ? "Location permission is blocked. Allow location for this site in your browser, then try again." : "Could not get your location. Check location services and try again, preferably on your phone outdoors.");
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  };
+  return <form onSubmit={async e => {
+    e.preventDefault(); setError(""); setMessage("");
+    if (!fix || Date.now() - fix.timestamp > 120000) { setError("Select Use my location to get a fresh location before saving."); return; }
+    const data = new FormData(e.currentTarget);
+    const radius = Number(data.get("radiusMetres"));
+    if (fix.coords.accuracy > radius) { setError("Location accuracy is wider than the site radius. Get a more accurate fix before saving."); return; }
+    setSaving(true);
+    try {
+      await send("config", { latitude: fix.coords.latitude, longitude: fix.coords.longitude, radiusMetres: radius, supervisors: data.getAll("supervisors"), syntheticOnly: true });
+      setMessage("Site location saved.");
+    } catch (err) { setError((err as Error).message); }
+    finally { setSaving(false); }
+  }}>
+    <h3>Site location</h3>
+    <p>Stand at the site sign-in point and use your device location to set the attendance area.</p>
+    {state?.config && <p>A site location is already saved. It stays unchanged until you save a new location.</p>}
+    <button type="button" disabled={locating || saving} onClick={locate}>{locating ? "Finding your location…" : "Use my location"}</button>
+    {fix && <p role="status">Location found · accuracy ±{Math.round(fix.coords.accuracy)} metres. Confirm you are at the intended site before saving.</p>}
+    <label>Site radius (metres)<input name="radiusMetres" type="number" min="1" required defaultValue={state?.config?.radiusMetres || 100} /></label>
+    <fieldset><legend>Site supervisors</legend>
+      {(state?.users || []).filter((u: any) => u.role === "supervisor").map((u: any) => <label key={u.id}><input type="checkbox" name="supervisors" value={u.id} defaultChecked={state?.config?.supervisors?.includes(u.id)} />{u.name} — {u.company}</label>)}
+      {!(state?.users || []).some((u: any) => u.role === "supervisor") && <p>No supervisor accounts available yet.</p>}
+    </fieldset>
+    {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    <button type="submit" disabled={!fix || locating || saving}>{saving ? "Saving…" : "Save site location"}</button>
+  </form>;
+}
+
 function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (action: string, data: any) => Promise<void> }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -132,14 +184,14 @@ function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (ac
     <p>Times are entered in your device's local time zone and saved as UTC. Plans are not verified attendance or payment authorisation.</p>
     {!schedules.length && <p>No shifts planned for this project.</p>}
     <ul>{schedules.map(r => <li key={r.id}>
-      <strong>{r.data.workerId}</strong> · {new Date(r.data.start).toLocaleString()} – {new Date(r.data.end).toLocaleString()} · {r.plannedHours.toFixed(2)} planned hours · {r.data.cancelled ? "Cancelled" : "Active"} · <small>Revision ID: {r.id}</small>
+      <strong>{workerName(state, r.data.workerId)}</strong> · {new Date(r.data.start).toLocaleString()} – {new Date(r.data.end).toLocaleString()} · {r.plannedHours.toFixed(2)} planned hours · {r.data.cancelled ? "Cancelled" : "Active"}
     </li>)}</ul>
     {editable && <form onSubmit={submit}>
       <h3>Create, revise or cancel a shift</h3>
       <div className="fields">
         <label>Action<select name="action" defaultValue="shift"><option value="shift">Create or revise</option><option value="cancel-shift">Cancel selected shift</option></select></label>
-        <label>Worker<select name="workerId" required><option value="">Select worker</option>{(state.users || []).filter((u: any) => u.role === "worker").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
-        <label>Existing shift to revise or cancel<select name="replaces" defaultValue=""><option value="">New shift</option>{active.map(r => <option key={r.id} value={r.id}>{r.data.workerId} — {new Date(r.data.start).toLocaleString()} ({r.id.slice(0, 8)})</option>)}</select></label>
+        <label>Worker<select aria-label="Worker" name="workerId" required><option value="">Select worker</option>{(state.users || []).filter((u: any) => u.role === "worker").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
+        <label>Existing shift to revise or cancel<select name="replaces" defaultValue=""><option value="">New shift</option>{active.map(r => <option key={r.id} value={r.id}>{workerName(state, r.data.workerId)} — {new Date(r.data.start).toLocaleString()}</option>)}</select></label>
         <label>Start<input type="datetime-local" name="start" /></label>
         <label>Finish<input type="datetime-local" name="end" /></label>
         <label>Unpaid break (minutes)<input type="number" name="breakMinutes" min="0" step="1" defaultValue="30" /></label>
@@ -296,10 +348,10 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             <h2>WORKFORCE SITE SIGN-IN</h2>
             <h3>{project?.name || "Selected project"}</h3>
             <p>{project?.address || "Confirm the site address with your supervisor"}</p>
-            {siteQr ? <img src={siteQr} alt={`QR code to open workforce sign-in for ${project?.name || pid}`} /> : <p>Generating QR code…</p>}
+            {siteQr ? <img src={siteQr} alt={`QR code to open workforce sign-in for ${project?.name || "Selected project"}`} /> : <p>Generating QR code…</p>}
             <p className="site-qr-instructions"><strong>SCAN → SIGN IN → CONFIRM THIS JOB → RECORD ATTENDANCE</strong></p>
             <p>Use your individual worker account. GPS is requested when you submit an online attendance event. Supervisor review is required.</p>
-            <small>Project reference: {pid} · This QR is not proof of attendance and does not bypass login.</small>
+            <small>Project: {project?.name || "Selected project"} · This QR is not proof of attendance and does not bypass login.</small>
           </div>
           <button type="button" disabled={!siteQr} onClick={() => window.print()}>Print A4 site QR notice</button>
           <p><small>For security, only managers and authorised supervisors can generate the notice. Workers still need project allocation and an authenticated account.</small></p>
@@ -307,25 +359,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
       )}
       {user.role === "manager" && (
         <section>
-          <Entry
-            title="Configure fictional site"
-            fields={[
-              "latitude",
-              "longitude",
-              "radiusMetres",
-              "supervisor IDs (comma separated)",
-            ]}
-            submit={(d) =>
-              send("config", {
-                ...d,
-                syntheticOnly: true,
-                supervisors: d["supervisor IDs (comma separated)"]
-                  .split(",")
-                  .map((v: string) => v.trim())
-                  .filter(Boolean),
-              })
-            }
-          />
+          <SiteSetup state={state} send={send} />
           <h3>Subcontractor owner access</h3>
           <p>Grant or revoke read-only access to a registered subcontractor owner for this project. The owner can see only their company's workforce.</p>
           <form onSubmit={async (e) => {
@@ -344,16 +378,18 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <ul>
             {state?.users.map((u: any) => (
               <li key={u.id}>
-                {u.name} · {u.company} · {u.role} · <code>{u.id}</code>
+                {u.name} · {u.company} · {u.role}
               </li>
             ))}
           </ul>
           <Entry
+            users={state?.users || []}
             title="Allocate worker"
             fields={["workerId", "shift", "rate"]}
             submit={(d) => send("allocation", { ...d, active: true })}
           />
           <Entry
+            users={state?.users || []}
             title="Remove worker allocation"
             fields={["workerId", "shift", "rate"]}
             submit={(d) => send("allocation", { ...d, active: false })}
@@ -363,6 +399,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
       {["manager", "supervisor"].includes(user.role) && (
         <section>
           <Entry
+            users={state?.users || []}
             title="Issue supervisor QR"
             fields={["workerId", "event"]}
             submit={async (d) => {
@@ -397,7 +434,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
       {user.role === "worker" && (
         <section>
           <h2>My attendance — selected job</h2>
-          <p>Job reference: <strong>{pid}</strong>. Confirm this is the correct site before recording a GPS event. Your location is requested only when you submit an online event.</p>
+          <p>Job: <strong>{project?.name || "Selected project"}</strong>. Confirm this is the correct site before recording a GPS event. Your location is requested only when you submit an online event.</p>
           <label className="workforce-project-confirm">
             <input type="checkbox" checked={confirmedProject} onChange={e => setConfirmedProject(e.target.checked)} />
             I confirm I am recording attendance for this selected project.
@@ -491,7 +528,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <WorkforceComparison state={state} user={user} send={send}/>
           <h3>Verified attendance summary</h3>
           {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
-          {(state.report || []).map((r: any) => <p key={r.workerId}>{r.workerId}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
+          {(state.report || []).map((r: any) => <p key={workerName(state, r.workerId)}>{workerName(state, r.workerId)}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
         </section>
       )}
       {state && user.role !== "subcontractor-owner" && (
@@ -505,7 +542,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 .filter((r: any) => r.kind === "workforce.event")
                 .map((r: any) => (
                   <li key={r.id}>
-                    <code>{r.id}</code> · {r.data.workerId} · {r.data.event} ·{" "}
+                    {workerName(state, r.data.workerId)} · {r.data.event} ·{" "}
                     {r.createdAt} ·{" "}
                     {state.records
                       .filter(
@@ -520,6 +557,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             </ul>
             {["manager", "supervisor"].includes(user.role) && (
               <Entry
+            users={state?.users || []}
                 title="Record independent review"
                 fields={[
                   "eventId",
@@ -541,6 +579,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           </section>
           <section>
             <Entry
+            users={state?.users || []}
               title="Record daily progress"
               fields={[
                 ...(user.role === "worker" ? [] : ["workerId"]),
@@ -584,7 +623,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               finally { setBusy(false); }
             }}>
               <div className="fields">
-                {user.role !== "worker" && <label>Worker ID<input name="workerId" required /></label>}
+                {user.role !== "worker" && <label>Worker<select aria-label="Worker" name="workerId" required defaultValue=""><option value="">Select worker</option>{(state?.users || []).filter((u: any) => u.role === "worker").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>}
                 <label>Work date<input type="date" name="day" required defaultValue={new Date().toLocaleDateString("en-CA")} /></label>
                 <label>Works completed<textarea name="completed" maxLength={3000} required /></label>
                 <label>Delays or restrictions (write 'None' if applicable)<textarea name="delays" maxLength={2000} required /></label>
@@ -623,7 +662,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
               const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
               return <article className="workforce-report-card" key={r.id}>
-                <strong>{r.data.day} · {r.data.workerId}</strong>
+                <strong>{r.data.day} · {workerName(state, r.data.workerId)}</strong>
                 <p>{r.data.completed}</p>
                 <p>Delays: {r.data.delays}</p>
                 <p>Next shift: {r.data.nextShift}</p>
@@ -631,7 +670,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 <div className="workforce-photo-grid">{r.data.evidence.map((photo: any) =>
                   <figure key={photo.assetId}><img loading="lazy" src={"/api/evidence/" + photo.assetId} alt={photo.caption} /><figcaption>{photo.caption}</figcaption></figure>
                 )}</div>
-                <small>Report ID: {r.id}</small>
+
               </article>;
             })}
             {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
@@ -640,6 +679,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
             <p>Request materials for the selected project. Submitting a request does not place an order.</p>
             <Entry
+            users={state?.users || []}
               title="Submit materials request"
               fields={[
                 ...(user.role === "worker" ? [] : ["workerId"]),
@@ -657,12 +697,13 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                   <strong>{r.data.description}</strong> · {r.data.quantity} {r.data.unit} · needed {r.data.neededBy}
                   <br />{r.data.specification} · {r.data.deliveryPoint}
                   <br />{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}
-                  <br /><small>Request ID: {r.id}</small>
+
                 </li>;
               })}
             </ul>
             {["manager", "supervisor"].includes(user.role) && (
               <Entry
+            users={state?.users || []}
                 title="Review materials request"
                 fields={["requestId", "decision", "reason"]}
                 submit={(d) => send("material-review", d)}
@@ -676,13 +717,14 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             <ul>
               {state.weekly?.map((r: any) => (
                 <li key={r.workerId + r.week + r.unit}>
-                  {r.week} · {r.workerId} · {r.quantity} {r.unit} · unverified
+                  {r.week} · {workerName(state, r.workerId)} · {r.quantity} {r.unit} · unverified
                 </li>
               ))}
             </ul>
             <h2>Reconciliation report</h2>
             {user.role === "manager" && (
               <Entry
+            users={state?.users || []}
                 title="Record payment comparison"
                 fields={["workerId", "claimedAmount", "note"]}
                 submit={(d) => send("reconcile", d)}
@@ -694,8 +736,8 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               approval.
             </p>
             {state.report.map((r: any) => (
-              <article key={r.workerId}>
-                <h3>{r.workerId}</h3>
+              <article key={workerName(state, r.workerId)}>
+                <h3>{workerName(state, r.workerId)}</h3>
                 <p>
                   £{r.amount.toFixed(2)} at recorded rates ·{" "}
                   {r.verifiedHours.toFixed(2)} verified hours · {r.pending}{" "}

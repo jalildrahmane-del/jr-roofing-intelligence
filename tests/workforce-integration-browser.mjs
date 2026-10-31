@@ -62,7 +62,7 @@ try {
     await page.getByText("25.0 mph").waitFor();
     const planner = page.locator(".workforce-shifts");
     await planner.getByRole("heading", { name: "Planned workforce shifts" }).waitFor();
-    await planner.getByLabel("Worker").selectOption(worker.id);
+    await planner.getByLabel("Worker", { exact: true }).selectOption(worker.id);
     await planner.getByLabel("Start").fill("2026-11-02T08:00");
     await planner.getByLabel("Finish").fill("2026-11-02T16:00");
     await planner.getByLabel("Reason").fill("Synthetic roofing shift");
