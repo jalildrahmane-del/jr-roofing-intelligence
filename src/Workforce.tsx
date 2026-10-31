@@ -10,11 +10,15 @@ export function Entry({
   title,
   fields,
   users,
+  choices = {},
+  labels = {},
   submit,
 }: {
   title: string;
   fields: string[];
   users?: any[];
+  choices?: Record<string, {value: string; label: string}[]>;
+  labels?: Record<string, string>;
   submit: (d: any) => Promise<void>;
 }) {
   const [error, setError] = useState(""),
@@ -36,12 +40,15 @@ export function Entry({
     >
       <h3>{title}</h3>
       <div className="fields">
-        {fields.map((f) => (
-          <label key={f}>
-            {f === "workerId" ? "Worker" : f.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase())}
-            {f === "workerId" && users ? <select aria-label="Worker" name={f} required defaultValue=""><option value="">Select worker</option>{users.filter(u => u.role === "worker").map(u => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select> : <input name={f} required />}
-          </label>
-        ))}
+        {fields.map((f) => {
+          const label = labels[f] || (f === "workerId" ? "Worker" : f.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase()));
+          const options = choices[f] || (f === "workerId" && users ? users.filter(u => u.role === "worker").map(u => ({value:u.id,label:`${u.name} — ${u.company}`})) : undefined);
+          return <label key={f}>{label}
+            {options ? <select aria-label={label} name={f} required defaultValue=""><option value="">Select…</option>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select> :
+              ["content", "proposals", "limitations", "reason", "description", "evidence", "exact source excerpt"].includes(f) ? <textarea aria-label={label} name={f} required /> :
+              <input aria-label={label} name={f} type={f.startsWith("correctedAt") ? "datetime-local" : ["day", "neededBy"].includes(f) ? "date" : ["quantity", "rate", "claimedAmount"].includes(f) ? "number" : "text"} min={["quantity", "rate", "claimedAmount"].includes(f) ? "0" : undefined} step="any" required={!f.startsWith("correctedAt")} />}
+          </label>;
+        })}
       </div>
       {error && <p role="alert">{error}</p>}
       <button disabled={busy}>{busy ? "Saving…" : title}</button>
@@ -401,6 +408,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <Entry
             users={state?.users || []}
             title="Issue supervisor QR"
+            choices={{event:[{value:"in",label:"Start shift"},{value:"break-start",label:"Start break"},{value:"break-end",label:"Finish break"},{value:"out",label:"Finish shift"}]}}
             fields={["workerId", "event"]}
             submit={async (d) => {
               const c = await api("workforce", {
@@ -559,6 +567,8 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               <Entry
             users={state?.users || []}
                 title="Record independent review"
+                labels={{eventId:"Attendance event", "correctedAt (ISO timestamp or none)":"Corrected time (optional, device local time)"}}
+                choices={{eventId:(state.records || []).filter((r:any)=>r.kind === "workforce.event").map((r:any)=>({value:r.id,label:`${workerName(state,r.data.workerId)} · ${r.data.event} · ${r.createdAt}`})),decision:[{value:"accepted",label:"Accept"},{value:"rejected",label:"Reject"}]}}
                 fields={[
                   "eventId",
                   "decision",
@@ -569,9 +579,9 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                   send("review", {
                     ...d,
                     correctedAt:
-                      d["correctedAt (ISO timestamp or none)"] === "none"
+                      !d["correctedAt (ISO timestamp or none)"]
                         ? null
-                        : d["correctedAt (ISO timestamp or none)"],
+                        : new Date(d["correctedAt (ISO timestamp or none)"]).toISOString(),
                   })
                 }
               />
@@ -673,7 +683,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
 
               </article>;
             })}
-            {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
+            {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" labels={{reportId:"Daily report"}} choices={{reportId:state.records.filter((r:any)=>r.kind==="workforce.daily-report" && !state.records.some((v:any)=>v.kind==="workforce.daily-review" && v.data.reportId===r.id)).map((r:any)=>({value:r.id,label:`${workerName(state,r.data.workerId)} · ${r.data.day} · ${r.data.completed.slice(0,70)}`})),decision:[{value:"accepted",label:"Accept"},{value:"returned",label:"Return for changes"}]}} fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
           </section>
           <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
@@ -705,6 +715,8 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               <Entry
             users={state?.users || []}
                 title="Review materials request"
+                labels={{requestId:"Materials request"}}
+                choices={{requestId:state.records.filter((r:any)=>r.kind==="workforce.material-request" && !state.records.some((v:any)=>v.kind==="workforce.material-review" && v.data.requestId===r.id)).map((r:any)=>({value:r.id,label:`${r.data.description} · needed ${r.data.neededBy}`})),decision:[{value:"approved",label:"Approve"},{value:"rejected",label:"Reject"}]}}
                 fields={["requestId", "decision", "reason"]}
                 submit={(d) => send("material-review", d)}
               />

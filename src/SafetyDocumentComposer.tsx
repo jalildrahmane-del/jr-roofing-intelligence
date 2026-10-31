@@ -60,7 +60,7 @@ export function SafetyDocumentComposer({ sources, send }: {
         <div className="fields">
           <label>Document type<select value={type} onChange={e=>setType(e.target.value as "RAMS"|"CPP")}><option>RAMS</option><option>CPP</option></select></label>
           <label>Document title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={300} required /></label>
-          <label>Current source record<select value={sourceId} onChange={e=>setSourceId(e.target.value)} required><option value="">Select a registered source</option>{sources.map((s:any)=><option key={s.id} value={s.id}>{s.data.title || s.data.name || s.kind} · {s.id.slice(0,8)}</option>)}</select></label>
+          <label>Current source record<select value={sourceId} onChange={e=>setSourceId(e.target.value)} required><option value="">Select a registered source</option>{sources.map((s:any)=><option key={s.id} value={s.id}>{s.data.title || s.data.name || s.kind} · {s.data.reference || "Registered source"}</option>)}</select></label>
           <label>Exact excerpt from selected source<textarea aria-label="Exact excerpt from selected source" value={excerpt} onChange={e=>setExcerpt(e.target.value)} maxLength={10000} required /></label>
         </div>
         <label>Project / work scope<textarea aria-label="Project / work scope" value={scope} onChange={e=>setScope(e.target.value)} maxLength={5000} required /></label>

@@ -13,7 +13,7 @@ try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));mkdirSync('artifacts',{recursive:true});
  const legacyRoutes=['Dashboard','Projects','Roof Survey','Structural Screening','Design & Specification','Construction','QA & Inspections','Client Handover'];
- const shellRoutes={dashboard:'Project Command Centre',projects:'Project Register',survey:'Roof Survey Intelligence',materials:'Materials & Specifications',estimating:'Estimating & Tenders',structure:'Structural Screening',design:'Design & Engineering',construction:'Construction Management',quality:'Quality & Inspections',handover:'Client Handover',documents:'Document Intelligence',workforce:'Subcontractors & Workforce',legacy:'V3.6 Original Workspace'};
+ const shellRoutes={dashboard:'Project Command Centre',projects:'Project Register',survey:'Roof Survey Intelligence',materials:'Materials & Specifications',estimating:'Estimating & Tenders',commercial:'Commercial Control',structure:'Structural Screening',design:'Design & Engineering',construction:'Construction Management',quality:'Quality & Inspections',handover:'Client Handover',documents:'Document Intelligence',workforce:'Subcontractors & Workforce',legacy:'V3.6 Original Workspace'};
  const legacy=async name=>{await page.locator('#nav').getByRole('button',{name:new RegExp(name)}).click();assert.ok((await page.locator('#content').innerText()).length>50,name)};
  const fits=async label=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflows');
  await page.goto(base+'/legacy/');await page.getByRole('button',{name:/Launch workspace/}).first().click();
@@ -100,6 +100,9 @@ try{
  assert.ok((await page.locator('.survey-limitations').innerText()).includes('Visual inspection only.'),'Survey access limitations missing');
  await page.reload();await page.getByRole('heading',{name:'Survey observations and recommendations'}).waitFor();
  await page.goto(base+'/#structure');for(const [label,value] of [['Thickness (mm)','18'],['Density (kg/m³)','650'],['Area (m²)','94'],['Other permanent load (kN/m²)','0']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save record'}).click();await page.getByText(/Preliminary \/ Not approved/).waitFor();await page.reload();await page.getByText(/Preliminary \/ Not approved/).waitFor();
+ const loadResult = page.getByRole('region',{name:'Latest structural screening result'});
+ assert.ok((await loadResult.innerText()).includes('0.115 kN/m²'));
+ assert.equal(await loadResult.locator('pre').count(),0);
  for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});for(const [route,title] of Object.entries(shellRoutes)){await page.goto(base+'/#'+route);await page.getByRole('heading',{name:title,exact:true}).waitFor();await fits(`${route} at ${width}`)}}
  await page.goto(base+'/#dashboard');await page.reload();await page.locator('.owner-site-card').getByRole('heading',{name:'Luton reference test',exact:true}).waitFor();
  // Director view must not invent green programme status for an unreported project.
@@ -127,5 +130,5 @@ try{
  await page.route('**/api/me',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary test failure'})}));await page.reload();await page.getByRole('alert').getByText(/Unable to load workspace/).waitFor();await page.unroute('**/api/me');await page.getByRole('button',{name:'Retry connection'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
  await page.goto(base+'/#does-not-exist');await page.getByRole('heading',{name:'Page not found'}).waitFor();await page.getByRole('link',{name:'Return to dashboard'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
  await page.getByRole('button',{name:'Sign out'}).click();await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();assert.deepEqual(errors,[]);
- console.log('PASS: eight legacy routes at mobile/tablet; thirteen shell routes at desktop/tablet/mobile; workflow persistence; import/export/recovery; report preview; load persistence; backend retry; sign-out; zero uncaught page errors');
+ console.log('PASS: eight legacy routes at mobile/tablet; fourteen shell routes at desktop/tablet/mobile; workflow persistence; import/export/recovery; report preview; load persistence; backend retry; sign-out; zero uncaught page errors');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));s.close();rmSync(folder,{recursive:true});}

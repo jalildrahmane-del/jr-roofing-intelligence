@@ -45,7 +45,7 @@ export function ApprovalWorkflow({
       await api("records", { pid, kind, data });
       await refresh();
       setEditing((e) => ({ ...e, [kind]: undefined }));
-      setMessage("Saved immutable record. Current gates recalculated.");
+      setMessage("Record saved. Approval status updated.");
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -167,7 +167,7 @@ export function ApprovalWorkflow({
       {route === "construction" && <ConstructionIntelligence records={records} />}
       {(route === "quality" || route === "handover") && <QualityIntelligence records={records} mode={route} />}
       <p>
-        Your account ID: <code>{user.id}</code>
+        Signed in as {user.name} · {user.role}
       </p>
       {error && (
         <p role="alert" className="warning">
