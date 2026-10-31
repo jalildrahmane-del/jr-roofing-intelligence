@@ -1,3 +1,4 @@
+import { workforcePersonName } from "./workforce-people.ts";
 import React, { useState } from "react";
 import type { User } from "./model.ts";
 import { plannedActualCsv } from "./workforce-csv.ts";
@@ -32,7 +33,7 @@ export function WorkforceComparison({state,user,send}:{state:any;user:User;send:
     </dl>
     {!comparison.rows.length&&<p>No active shift plans to compare.</p>}
     {comparison.rows.map((row:any)=><article key={row.revisionId} aria-label="Shift comparison">
-      <h3>{state.users.find((u:any)=>u.id===row.workerId)?.name||"Worker"}</h3>
+      <h3>{workforcePersonName(state,row.workerId)}</h3>
       <p><strong>{row.matchStatus}</strong></p>
       <p>Plan: {time(row.plannedStart)} → {time(row.plannedEnd)} · {row.plannedBreakMinutes} break minutes · {hours(row.plannedHours)} net hours</p>
       <p>Verified attendance: {row.actual?`${time(row.actual.start)} → ${time(row.actual.end)} · ${row.actual.breakMinutes} break minutes · ${hours(row.verifiedHours)} net hours`:"No unique completed match. Review attendance and plans."}</p>
@@ -42,8 +43,8 @@ export function WorkforceComparison({state,user,send}:{state:any;user:User;send:
     </article>)}
     <h3>Verified attendance awaiting a current confirmed plan match</h3>
     <p>These are already included in verified net hours above. A suggested overlap remains here until confirmed; do not add these hours again.</p>
-    <ul>{comparison.unconfirmedAttendance.map((a:any)=><li key={a.attendanceId}>{state.users.find((u:any)=>u.id===a.workerId)?.name||"Worker"} · {time(a.start)} → {time(a.end)} · {hours(a.hours)} verified hours</li>)}</ul>
-    <details><summary>Recorded shift match history</summary><ul>{state.records.filter((r:any)=>r.kind==="workforce.match").map((r:any)=><li key={r.id}>{state.users.find((u:any)=>u.id===r.data.workerId)?.name||"Worker"} · {r.createdAt} · reviewer {reviewer(r.author)} · {r.data.decision} · {r.data.reason}</li>)}</ul></details>
+    <ul>{comparison.unconfirmedAttendance.map((a:any)=><li key={a.attendanceId}>{workforcePersonName(state,a.workerId)} · {time(a.start)} → {time(a.end)} · {hours(a.hours)} verified hours</li>)}</ul>
+    <details><summary>Recorded shift match history</summary><ul>{state.records.filter((r:any)=>r.kind==="workforce.match").map((r:any)=><li key={r.id}>{workforcePersonName(state,r.data.workerId)} · {r.createdAt} · reviewer {reviewer(r.author)} · {r.data.decision} · {r.data.reason}</li>)}</ul></details>
     <button type="button" onClick={()=>{const url=URL.createObjectURL(new Blob([plannedActualCsv(comparison)],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="workforce-planned-versus-actual.csv";a.click();URL.revokeObjectURL(url);}}>Download planned versus actual CSV</button>
     <p>{comparison.notice}</p>
   </section>;
