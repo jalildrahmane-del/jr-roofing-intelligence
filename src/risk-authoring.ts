@@ -10,6 +10,7 @@ export type RiskRow = {
   residualSeverity: number;
   responsible: string;
 };
+export const SAFETY_DRAFT_LIMIT = 30000;
 export const riskScore = (likelihood: number, severity: number): number => {
   if (![likelihood,severity].every(v => Number.isInteger(v) && v >= 1 && v <= 5))
     throw Error("Risk likelihood and severity must be integers from 1 to 5");
@@ -42,7 +43,7 @@ export function formatSafetyDraft(type: "RAMS"|"CPP", scope: string, method: str
   if (!scope.trim() || !method.trim()) throw Error("Scope and method / arrangements are required");
   if (scope.length > 5000 || method.length > 12000) throw Error("Scope or method is too long");
   const details = formatRiskRows(rows);
-  return [
+  const draft = [
     `${type} — HUMAN-AUTHORED DRAFT FOR INDEPENDENT REVIEW`,
     "Site and task applicability must be confirmed by competent personnel. No permission to work is granted.",
     `\nSCOPE / WORKS\n${scope.trim()}`,
@@ -51,4 +52,7 @@ export function formatSafetyDraft(type: "RAMS"|"CPP", scope: string, method: str
     "\nRISK SCALE: likelihood and severity each 1–5; Low 1–4, Medium 5–12, High 13–25. Ratings are author-entered, not AI verified.",
     "\nREVIEW: Competent independent manager must review site-specific controls, emergency arrangements, access and permits before issue.",
   ].join("\n");
+  if (draft.length > SAFETY_DRAFT_LIMIT)
+    throw Error(`Draft exceeds ${SAFETY_DRAFT_LIMIT.toLocaleString("en-GB")} characters. Shorten the scope, method or risk rows before saving; no content has been removed.`);
+  return draft;
 }

@@ -1,5 +1,7 @@
 # Issue 5 attendance review
 
+> Historical implementation-stage report. The foundation described here is now merged through PR #19; some remaining-work statements below reflect the earlier branch. Use [current integration status](INTEGRATION-PROGRESS.md) and the [Step 6 report](STEP-6-DOCUMENT-REVIEW.md) for current scope.
+
 This branch implements a local, fictional-data review workflow. It does not authorise real-person tracking or payment.
 
 - Manager configures geofence and named supervisors, allocates registered worker accounts with shift/rate, and can revoke allocations.

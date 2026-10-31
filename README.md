@@ -1,6 +1,6 @@
 # JR Roofing Intelligence — survey-to-tender review build
 
-Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issue #2 adds the survey, source catalogue, estimating and PDF document journey. Issue #3 is merged; Issue #4/#5 work and the owner command-centre expansion are under draft pull-request review and are not yet released.
+Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation. Local development only. No deployment, paid integrations, telemetry or default accounts. Issues #2/#3 supply the survey-to-tender and approval-gate journeys. The document-control foundation, owner command centre and workforce integration are merged into main through PR #19 (`e6d5801`). Issues #4/#5 still have outstanding acceptance criteria; merge does not authorise production or real-person use. See [current sequence and remaining work](docs/INTEGRATION-PROGRESS.md).
 
 ## Start locally
 

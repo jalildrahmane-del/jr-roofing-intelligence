@@ -3,4 +3,18 @@
 .safety-composer .risk-entry legend{font-weight:800;padding:0 8px}
 .safety-composer .risk-ratings{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .safety-composer .risk-score{font-size:13px;background:#f3f5f8;padding:12px;border-radius:8px}
+.safety-composer .risk-band-low{background:#dcfce7;color:#14532d}
+.safety-composer .risk-band-medium{background:#fef3c7;color:#713f12}
+.safety-composer .risk-band-high{background:#fee2e2;color:#7f1d1d}
+.safety-composer .risk-score strong{display:inline-block;padding:4px 8px;border-radius:6px}
+.safety-composer .risk-matrix{max-width:660px;margin:16px 0}
+.safety-composer .risk-matrix table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;font-size:13px}
+.safety-composer .risk-matrix caption{text-align:left;font-weight:700;margin-bottom:8px}
+.safety-composer .risk-matrix th,.safety-composer .risk-matrix td{text-align:center;padding:7px 2px;white-space:normal;overflow-wrap:anywhere}
+.safety-composer .risk-matrix th:first-child{width:26%}
+.safety-composer .risk-matrix td{border-radius:5px}
+.safety-composer .risk-matrix td span{display:block;font-size:11px}
+.safety-composer .risk-matrix p{font-size:13px}
+.safety-composer .safety-draft-preview{margin:16px 0}
+.safety-composer .safety-draft-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;padding:12px;background:#f3f5f8;border-radius:8px}
 @media(max-width:700px){.safety-composer .risk-ratings{grid-template-columns:repeat(2,minmax(0,1fr))}}
