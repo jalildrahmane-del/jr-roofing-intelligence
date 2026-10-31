@@ -34,7 +34,7 @@ const weather = {
 try {
   browser = await chromium.launch({
     headless: true, executablePath: process.env.JR_CHROMIUM_PATH,
-    args: ["--no-sandbox", "--disable-gpu", "--no-zygote", "--single-process"],
+    args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
   });
   for (const width of [390, 768, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 850 } });
