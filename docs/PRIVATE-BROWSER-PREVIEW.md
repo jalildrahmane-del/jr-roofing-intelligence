@@ -2,7 +2,7 @@
 
 This is an optional, owner-operated staging preview. It has **not** been deployed. It uses the existing Node/SQLite app and no additional AI API key. GitHub Codespaces usage may count toward your quota; verify billing and configure a zero-spend budget before creating one.
 
-1. In GitHub, open branch `feature/owner-command-centre-expansion` in `jalildrahmane-del/jr-roofing-intelligence`.
+1. In GitHub, open branch `main` in `jalildrahmane-del/jr-roofing-intelligence`.
 2. Select **Code > Codespaces > Create codespace on this branch**. This starts a cloud environment and may consume billable usage; only do this after checking your budget.
 3. In the terminal, run `bash scripts/start-private-preview.sh`. Choose your own password; never paste it into chat.
 4. Open the **Ports** tab. Verify port **3000** visibility is **Private**, not Public. Open its forwarded HTTPS URL. Sign in as `owner`.

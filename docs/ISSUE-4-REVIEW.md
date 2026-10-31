@@ -1,5 +1,7 @@
 # Issue 4 source-linked documents and reliability
 
+> Historical implementation-stage report. The foundation described here is now merged through PR #19; some remaining-work statements below reflect the earlier branch. Use [current integration status](INTEGRATION-PROGRESS.md) and the [Step 6 report](STEP-6-DOCUMENT-REVIEW.md) for current scope.
+
 Stacked on the attendance PR to test the combined application. Neither PR is merged.
 
 Implemented: server-enforced human-authored RAMS/CPP/survey/specification drafting; exact source excerpts with immutable snapshots and SHA-256 provenance; separate proposals and evidence gaps; source and document revision history; independent manager review; source changes invalidate status dynamically; authenticated PDF export; responsive document UI. Worker/viewer accounts cannot use document intelligence. Existing engineering gates remain untouched.

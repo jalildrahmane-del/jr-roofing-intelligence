@@ -3,6 +3,7 @@ import PDFDocument from "pdfkit";
 import { text } from "../src/model.ts";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
+import { SAFETY_DRAFT_LIMIT } from "../src/risk-authoring.ts";
 const digest = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
 function access(store: Store, user: User, pid: string) {
@@ -155,7 +156,7 @@ export function documentCommand(
         proposals: text(
           d.proposals,
           "Proposed method / content for review",
-          30000,
+          SAFETY_DRAFT_LIMIT,
         ),
         limitations: text(d.limitations, "Gaps and limitations", 10000),
         origin: "Human-authored draft; not AI generated",

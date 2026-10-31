@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { riskScore, riskBand, formatSafetyDraft, formatRiskRows } from "../src/risk-authoring.ts";
+import { riskScore, riskBand, formatSafetyDraft, formatRiskRows, SAFETY_DRAFT_LIMIT } from "../src/risk-authoring.ts";
 const row = {activity:"Remove existing felt",hazard:"Falls from roof edge",persons:"Roofers",likelihood:4,severity:5,controls:"Competent scaffold inspection and edge protection verified before access",residualLikelihood:2,residualSeverity:5,responsible:"Site manager"};
 test("5x5 risk score boundaries and bands",()=>{
   assert.equal(riskScore(1,1),1);
@@ -29,4 +29,14 @@ test("reject incomplete hazard controls and out of range rows",()=>{
   assert.throws(()=>formatRiskRows([{...row,controls:""}]),/controls/);
   assert.throws(()=>formatRiskRows([{...row,severity:6}]),/integers/);
   assert.throws(()=>formatRiskRows([]),/between 1 and 25/);
+});
+test("formatted drafts respect the server limit including headings without truncating controls",()=>{
+  const expanded={...row,activity:"a".repeat(2000),hazard:"h".repeat(2000),persons:"p".repeat(2000),controls:"c".repeat(2000),responsible:"r".repeat(2000)};
+  const scope="s".repeat(5000);
+  const one=formatSafetyDraft("RAMS",scope,"m",[expanded,expanded]);
+  const room=SAFETY_DRAFT_LIMIT-one.length;
+  const exact=formatSafetyDraft("RAMS",scope,"m".repeat(room+1),[expanded,expanded]);
+  assert.equal(exact.length,SAFETY_DRAFT_LIMIT);
+  assert.ok(exact.includes(expanded.controls));
+  assert.throws(()=>formatSafetyDraft("RAMS",scope,"m".repeat(room+2),[expanded,expanded]),/30,000 characters/);
 });
