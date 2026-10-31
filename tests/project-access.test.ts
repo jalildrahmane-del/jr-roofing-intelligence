@@ -1,3 +1,4 @@
+import { reviewPayload } from "./document-review-fixture.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
@@ -115,7 +116,7 @@ test("document revisions preserve all sources, need fresh review and reject conc
     const sources=["Source A","Source B"].map(content=>documentCommand(store,manager,a.id,"source",{title:content,reference:content,content}));
     const data={type:"CPP",title:"Versioned CPP",sources:sources.map(r=>({recordId:r.id,excerpt:r.data.content})),proposals:"Original controls",limitations:"Original gaps"};
     const first=documentCommand(store,engineer,a.id,"draft",data);
-    documentCommand(store,manager,a.id,"review",{documentId:first.id,decision:"accepted",attest:true,note:"Independent original review"});
+    documentCommand(store,manager,a.id,"review",{documentId:first.id,decision:"accepted",...reviewPayload("CPP"),attest:true,note:"Independent original review"});
     const next=documentCommand(store,engineer,a.id,"draft",{...data,replaces:first.id,proposals:"Revised controls"});
     assert.equal(next.data.version,2);assert.deepEqual(next.data.sources.map((s:any)=>s.recordId),sources.map(s=>s.id));
     const state=documentState(store,manager,a.id);assert.equal(state.documents[0].status,"Superseded");assert.match(state.documents[1].status,/Draft/);

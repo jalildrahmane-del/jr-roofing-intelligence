@@ -4,6 +4,8 @@ Recovered V3.6 prototype plus a React/TypeScript, Node 24 and SQLite foundation.
 
 Step 7 adds manager-controlled staff project access and document revision tools on a review branch stacked on Step 6. **Staff now need explicit project assignments**; managers retain administration access. See [upgrade behaviour and validation](docs/STEP-7-PROJECT-ACCESS-REVISIONS.md) before accepting this branch.
 
+Step 8 adds structured independent review checklists and PDF review evidence on top of Step 7. **Historical approvals without a checklist require a fresh checklist review**; their original decisions remain stored. See [review workflow and validation](docs/STEP-8-DOCUMENT-CHECKLISTS.md).
+
 ## Start locally
 
 Use Node **24 or newer** and npm:

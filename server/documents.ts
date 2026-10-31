@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import PDFDocument from "pdfkit";
+import { fileURLToPath } from "node:url";
 import { text } from "../src/model.ts";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
 import { SAFETY_DRAFT_LIMIT } from "../src/risk-authoring.ts";
+import { DOCUMENT_CHECKLIST_VERSION, documentReviewItems, reviewChecklistComplete, validateDocumentChecklist } from "../src/document-review.ts";
 const digest = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
 function access(store: Store, user: User, pid: string) {
@@ -50,7 +52,9 @@ export function documentStatus(records: RecordItem[], doc: RecordItem) {
     )
     .at(-1);
   return review?.data.decision === "accepted"
-    ? "Reviewed for issue — not engineering certification"
+    ? (review.data.fingerprint === digest(doc) && reviewChecklistComplete(doc.data.type,review.data.checklistVersion,review.data.checks)
+      ? "Reviewed for issue — not engineering certification"
+      : "Historical review — structured checklist required")
     : review?.data.decision === "rejected"
       ? "Rejected — revise draft"
       : "Draft — independent review required";
@@ -67,7 +71,13 @@ export function documentState(store: Store, user: User, pid: string) {
     ).map(r=>({...r,current:currentSource(records,r)})),
     documents: records
       .filter((r) => r.kind === "intelligence.draft")
-      .map((r) => ({ ...r, status: documentStatus(records, r) })),
+      .map((r) => ({ ...r, status: documentStatus(records, r),
+        canReview: user.role === "manager" && r.author !== user.id && currentSource(records,r) && !documentStatus(records,r).startsWith("Stale"),
+        reviewItems: documentReviewItems(r.data.type),
+        reviewHistory: records.filter(review=>review.kind==="intelligence.review" && review.data.documentId===r.id).map(review=>({...review,reviewerName:store.db.prepare("SELECT name FROM users WHERE id=?").get(review.author)?.name||review.author})),
+      })),
+    canReview: user.role === "manager",
+    checklistVersion: DOCUMENT_CHECKLIST_VERSION,
     canWrite: store.projectPermission(user,pid) === "edit",
     ai: {
       enabled: false,
@@ -183,8 +193,13 @@ export function documentCommand(
         documentStatus(records, doc) === "Superseded"
       )
         throw Error("Source or document superseded; generate a new draft");
+      const latestReview=records.filter(r=>r.kind==="intelligence.review" && r.data.documentId===doc.id).at(-1);
+      if ((d.previousReviewId ?? null) !== (latestReview?.id ?? null)) throw Error("Document review changed; refresh before recording a new decision");
+      const checklist=validateDocumentChecklist(doc.data.type,d.decision,d.checklistVersion,d.checks);
       return store.append(user, pid, "intelligence.review", {
+        ...checklist,
         documentId: doc.id,
+        previousReviewId: latestReview?.id ?? null,
         decision: d.decision,
         note: text(d.note, "Review note", 5000),
         fingerprint: digest(doc),
@@ -211,12 +226,16 @@ export async function documentPdf(
     pdf.on("end", () => resolve(Buffer.concat(chunks)));
     pdf.on("error", reject);
   });
+  pdf.registerFont("Body",fileURLToPath(new URL("./assets/DejaVuSans.ttf",import.meta.url)));
+  pdf.registerFont("Bold",fileURLToPath(new URL("./assets/DejaVuSans-Bold.ttf",import.meta.url)));
   pdf
+    .font("Bold")
     .fontSize(18)
     .text("JR ROOFING INTELLIGENCE")
     .moveDown()
     .text(doc.data.title);
   pdf
+    .font("Body")
     .fontSize(10)
     .text(`${doc.data.type} / revision ${doc.data.version}`)
     .text(documentStatus(records, doc))
@@ -233,17 +252,33 @@ export async function documentPdf(
       .text(`SHA-256 ${s.hash}`);
   pdf
     .moveDown()
+    .font("Bold")
     .fontSize(14)
     .text("Proposed content — human review required")
+    .font("Body")
     .fontSize(10)
     .text(doc.data.proposals)
     .moveDown()
+    .font("Bold")
     .fontSize(14)
     .text("Gaps and limitations")
+    .font("Body")
     .fontSize(10)
     .text(doc.data.limitations)
     .moveDown()
     .text("Not a structural safety certificate or authority to commence work.");
+  const reviews=records.filter(r=>r.kind==="intelligence.review" && r.data.documentId===doc.id);
+  const review=reviews.at(-1);
+  pdf.moveDown().font("Bold").fontSize(14).text("Independent document review").font("Body").fontSize(10);
+  if (review) {
+    const reviewer=store.db.prepare("SELECT name FROM users WHERE id=?").get(review.author)?.name||review.author;
+    pdf.text(`Reviewer: ${reviewer}`).text(`Recorded: ${review.createdAt}`).text(`Decision: ${review.data.decision}`).text(`Document fingerprint: ${review.data.fingerprint}`).text(`Review note: ${review.data.note}`);
+    if (review.data.checklistVersion && Array.isArray(review.data.checklistItems)) {
+      pdf.text(`Checklist version: ${review.data.checklistVersion}`);
+      for (const item of review.data.checklistItems) pdf.text(`${item.confirmed?"Confirmed":"Not confirmed"}: ${item.label}`);
+    } else pdf.text("Historical review: no structured checklist was recorded. A new checklist review is required.");
+    pdf.text("Status shown above is recalculated from current document and source revisions.");
+  } else pdf.text("No independent document review recorded.");
   pdf.end();
   return done;
 }

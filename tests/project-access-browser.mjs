@@ -1,3 +1,4 @@
+import { reviewPayload, completeReview } from "./document-review-fixture.ts";
 import { chromium } from "playwright";
 import { Store } from "../server/store.ts";
 import { createApp } from "../server/index.ts";
@@ -11,7 +12,7 @@ const pid=store.project(manager,{name:"Assigned test roof"}).id,privatePid=store
 const source=content=>documentCommand(store,manager,pid,"source",{title:content,reference:content,content});
 const one=source("Synthetic first source"),two=source("Synthetic second source");
 const original=documentCommand(store,manager,pid,"draft",{type:"CPP",title:"Synthetic CPP",sources:[{recordId:one.id,excerpt:"first source"},{recordId:two.id,excerpt:"second source"}],proposals:"Original controls for review",limitations:"Site checks pending"});
-documentCommand(store,reviewer,pid,"review",{documentId:original.id,decision:"accepted",attest:true,note:"Synthetic independent original review"});
+documentCommand(store,reviewer,pid,"review",{documentId:original.id,decision:"accepted",...reviewPayload("CPP"),attest:true,note:"Synthetic independent original review"});
 const server=createApp(store);await new Promise(r=>server.listen(0,"127.0.0.1",r));const base=`http://127.0.0.1:${server.address().port}`;
 let browser;
 try{
@@ -47,7 +48,7 @@ try{
   await page.reload();await page.getByText("Draft — independent review required",{exact:true}).waitFor();
   await ownerPage.goto(base+"/#documents");
   const review=ownerPage.locator("form").filter({has:ownerPage.getByRole("heading",{name:"Record independent document review",exact:true})});
-  for(const [label,value] of [["documentId",newer.id],["decision","accepted"],["note","Reviewed revised PDF, source references and controls"],["attestation (type reviewed)","reviewed"]])await review.getByLabel(label,{exact:true}).fill(value);
+  await completeReview(review,newer.id,"Reviewed revised PDF, source references and controls");
   await review.getByRole("button").click();await ownerPage.getByText("Reviewed for issue — not engineering certification",{exact:true}).waitFor();
   await ownerPage.goto(base+"/#projects");await access.getByLabel("Registered team member",{exact:true}).selectOption(staff.id);await permission("none","Synthetic revocation");
   assert.equal((await page.request.get(base+`/api/document-pdf?pid=${pid}&id=${newer.id}`)).status(),403);

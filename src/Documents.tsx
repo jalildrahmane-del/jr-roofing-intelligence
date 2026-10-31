@@ -3,6 +3,7 @@ import { api } from "./api.ts";
 import { Entry } from "./Workforce.tsx";
 import { SafetyDocumentComposer } from "./SafetyDocumentComposer.tsx";
 import { DocumentRevisionEditor } from "./DocumentRevisionEditor.tsx";
+import { DocumentReview } from "./DocumentReview.tsx";
 import "./safety-composer.css";
 export function Documents({ pid }: { pid: string }) {
   const [state, setState] = useState<any>(null),
@@ -139,30 +140,18 @@ export function Documents({ pid }: { pid: string }) {
                     ))}
                   </ul>
                 </details>
+                {r.reviewHistory.length>0&&<details>
+                  <summary>Review history ({r.reviewHistory.length})</summary>
+                  {r.reviewHistory.map((review:any)=><div key={review.id}>
+                    <p>{review.reviewerName} · {review.createdAt} · {review.data.decision}</p>
+                    <p>{review.data.note}</p>
+                    {review.data.checklistItems?<ul>{review.data.checklistItems.map((item:any)=><li key={item.id}>{item.confirmed?"Confirmed":"Not confirmed"}: {item.label}</li>)}</ul>:<p>Historical review: no structured checklist recorded.</p>}
+                  </div>)}
+                </details>}
               </article>
             ))}
           </section>
-          {state.canWrite&&<section>
-            <Entry
-              title="Record independent document review"
-              fields={[
-                "documentId",
-                "decision",
-                "note",
-                "attestation (type reviewed)",
-              ]}
-              submit={(d) =>
-                send("review", {
-                  ...d,
-                  attest: d["attestation (type reviewed)"] === "reviewed",
-                })
-              }
-            />
-            <p>
-              Decision: accepted or rejected. Only an independent manager can
-              record review. Review the full PDF and sources first.
-            </p>
-          </section>}
+          {state.canWrite&&state.canReview&&<DocumentReview pid={pid} documents={state.documents} send={send}/>}
         </>
       )}
     </>
