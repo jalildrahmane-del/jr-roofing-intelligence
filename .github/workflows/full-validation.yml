@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
   workflow_dispatch:
 jobs:
