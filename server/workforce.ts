@@ -1,4 +1,5 @@
 import { latestShifts, shiftTime } from "./workforce-shifts.ts";
+import { plannedActualReport } from "./workforce-matching.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { imageSize } from "image-size";
 import type { Store } from "./store.ts";
@@ -92,12 +93,14 @@ export function workforceState(store: Store, user: User, pid: string) {
     };
     weekly[key].quantity += r.data.quantity;
   }
+  const report=attendanceReport(visible);
   return {
     records: visible,
     users,
     config: user.role === "subcontractor-owner" ? { syntheticOnly: true, notice: "Company-scoped fictional workforce data; no GPS coordinates" } : config?.data,
     schedules: latestShifts(visible).map(r => ({ ...r, plannedHours: r.data.cancelled ? 0 : (Date.parse(r.data.end) - Date.parse(r.data.start)) / 3600000 - r.data.breakMinutes / 60 })),
-    report: attendanceReport(visible),
+    report,
+    comparison: plannedActualReport(visible,report),
     weekly: Object.values(weekly),
   };
 }
@@ -114,6 +117,7 @@ export function attendanceReport(records: RecordItem[]) {
       lastStamp = -Infinity,
       rate = 0,
       amount = 0;
+    let shiftEvents:string[]=[],shiftReviews:string[]=[];
     const shifts: any[] = [];
     const exceptions: string[] = [];
     for (const e of events.filter((r) => r.data.workerId === workerId)) {
@@ -139,13 +143,16 @@ export function attendanceReport(records: RecordItem[]) {
         start = stamp;
         breakMs = 0;
         rate = Number(e.data.rate) || 0;
+        shiftEvents=[e.id];shiftReviews=[review.id];
       } else if (
         e.data.event === "break-start" &&
         start !== null &&
         breakStart === null &&
         stamp >= start
-      )
+      ) {
         breakStart = stamp;
+        shiftEvents.push(e.id);shiftReviews.push(review.id);
+      }
       else if (
         e.data.event === "break-end" &&
         breakStart !== null &&
@@ -153,6 +160,7 @@ export function attendanceReport(records: RecordItem[]) {
       ) {
         breakMs += stamp - breakStart;
         breakStart = null;
+        shiftEvents.push(e.id);shiftReviews.push(review.id);
       } else if (
         e.data.event === "out" &&
         start !== null &&
@@ -164,6 +172,10 @@ export function attendanceReport(records: RecordItem[]) {
         const hours = (stamp - start - breakMs) / 3600000;
         amount += hours * rate;
         shifts.push({
+          attendanceId: `${shiftEvents[0]}:${e.id}`,
+          start:new Date(start).toISOString(),end:new Date(stamp).toISOString(),
+          breakMinutes:breakMs/60000,
+          eventIds:[...shiftEvents,e.id],reviewIds:[...shiftReviews,review.id],
           day: new Date(start).toISOString().slice(0, 10),
           hours,
           rate,
@@ -476,6 +488,23 @@ export function workforceCommand(
         decision: d.decision,
         reason: text(d.reason, "Verification evidence and reason", 2000),
         correctedAt,
+      });
+    }
+    if (action === "match") {
+      supervisor();
+      const row=plannedActualReport(records,attendanceReport(records)).rows.find(r=>r.revisionId===d.planRevisionId);
+      if (!row?.actual || !row.inputFingerprint) throw Error("A current unique verified overlap is required; review plans or attendance first");
+      if (row.workerId===user.id) throw Error("Forbidden: independent match reviewer required");
+      if (d.inputFingerprint!==row.inputFingerprint) throw Error("Plan or attendance changed; refresh before matching");
+      if ((d.previousMatchId??null)!==(row.latestMatch?.id??null)) throw Error("Shift match changed; refresh before recording a decision");
+      if (!["confirmed","rejected"].includes(d.decision)||d.attest!==true) throw Error("Explicit match decision and attestation required");
+      return append("match",{
+        workerId:row.workerId,planId:row.planId,planRevisionId:row.revisionId,
+        attendanceId:row.actual.attendanceId,inputFingerprint:row.inputFingerprint,
+        decision:d.decision,attest:true,reason:text(d.reason,"Match verification evidence and reason",2000),
+        previousMatchId:row.latestMatch?.id??null,
+        plannedHours:row.plannedHours,verifiedHours:row.verifiedHours,varianceHours:row.varianceHours,
+        status:"Recorded plan-to-attendance comparison; not payment authorisation",
       });
     }
     if (action === "reconcile") {

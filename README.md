@@ -6,6 +6,8 @@ Step 7 adds manager-controlled staff project access and document revision tools 
 
 Step 8 adds structured independent review checklists and PDF review evidence on top of Step 7. **Historical approvals without a checklist require a fresh checklist review**; their original decisions remain stored. See [review workflow and validation](docs/STEP-8-DOCUMENT-CHECKLISTS.md).
 
+Step 9 adds planned-versus-verified workforce comparisons, supervisor-confirmed matching and company-scoped CSV exports. Plans and match decisions never create verified attendance or approve payment. See [comparison workflow, limitations and tests](docs/STEP-9-WORKFORCE-COMPARISON.md).
+
 ## Start locally
 
 Use Node **24 or newer** and npm:

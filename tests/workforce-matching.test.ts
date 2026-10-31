@@ -59,3 +59,9 @@ test("ambiguous, cancelled and superseded plans cannot double count attendance",
     null,
   );
 });
+test("matching uses UTC intervals across midnight and never matches a zero-duration fix",()=>{
+  const overnight={...plan(),data:{...plan().data,start:"2026-10-25T23:00:00Z",end:"2026-10-26T07:00:00Z"}};
+  const shifts=[{start:"2026-10-26T00:00:00+01:00",end:"2026-10-26T08:00:00+01:00",hours:7.5}];
+  assert.equal(matchSchedules([overnight],[{workerId:"w",shifts}])[0].varianceHours,0);
+  assert.equal(matchSchedules([plan()],[{workerId:"w",shifts:[{start:"2026-10-26T10:00:00Z",end:"2026-10-26T10:00:00Z",hours:0}]}])[0].actual,null);
+});
