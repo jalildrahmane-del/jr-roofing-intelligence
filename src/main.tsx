@@ -328,15 +328,13 @@ function App() {
                 ]}
                 onSubmit={(d) => add("load", d)}
               />}
-              <pre>
-                {JSON.stringify(
-                  state.records
-                    .filter((r) => r.pid === pid && r.kind === "load")
-                    .at(-1)?.data || {},
-                  null,
-                  2,
-                )}
-              </pre>
+              {(() => {
+                const result = state.records.filter(r => r.pid === pid && r.kind === "load").at(-1)?.data;
+                if (!result) return <p>No calculation saved for this project yet.</p>;
+                return <section aria-label="Latest structural screening result"><h2>Latest preliminary result</h2><dl className="project-details">
+                  {[ ["Layer load", result.layer, "kN/m²"], ["Combined permanent load", result.combined, "kN/m²"], ["Total load over area", result.total, "kN"], ["Layer mass", result.mass, "kg"] ].map(([label,value,unit]) => <div key={label}><dt>{label}</dt><dd>{Number(value).toLocaleString("en-GB", {maximumFractionDigits:3})} {unit}</dd></div>)}
+                </dl><p>{result.status}</p></section>;
+              })()}
             </section>
           )}
           {!routes.includes(route as (typeof routes)[number]) && (

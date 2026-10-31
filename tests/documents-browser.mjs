@@ -21,7 +21,10 @@ try{
   };
   await login('author');
   const form=page.locator('form').filter({has:page.getByRole('heading',{name:'Create source-linked draft',exact:true})});
-  for(const [key,value] of Object.entries({type:'CPP',title:'Fictional CPP','source record ID':source.id,'exact source excerpt':'requires review',proposals:'Fictional proposed sequence',limitations:'Site conditions unverified','replaces (record ID or none)':'none'}))await form.getByLabel(key,{exact:true}).fill(value);
+  await form.getByLabel('Type',{exact:true}).selectOption('CPP');
+  await form.getByLabel('Registered source',{exact:true}).selectOption(source.id);
+  await form.getByLabel('Document to replace',{exact:true}).selectOption('none');
+  for(const [key,value] of Object.entries({Title:'Fictional CPP','Exact source excerpt':'requires review',Proposals:'Fictional proposed sequence',Limitations:'Site conditions unverified'}))await form.getByLabel(key,{exact:true}).fill(value);
   await form.getByRole('button').click();await page.getByText('Draft — independent review required',{exact:true}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'Record independent document review',exact:true}).count(),0,'Author role does not get a manager review form');
   const doc=s.snapshot(m).records.find(r=>r.kind==='intelligence.draft');

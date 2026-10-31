@@ -31,6 +31,8 @@ export function Documents({ pid }: { pid: string }) {
           <section>
             {state.canWrite&&<Entry
               title="Register source revision"
+              labels={{"replaces (record ID or none)":"Source to replace"}}
+              choices={{"replaces (record ID or none)":[{value:"none",label:"New source"},...state.sources.filter((r:any)=>r.current).map((r:any)=>({value:r.id,label:`${r.data.title} · ${r.data.reference}`}))]}}
               fields={[
                 "title",
                 "reference",
@@ -51,7 +53,7 @@ export function Documents({ pid }: { pid: string }) {
             <ul>
               {state.sources.map((r: any) => (
                 <li key={r.id}>
-                  <code>{r.id}</code> · {r.data.title || r.kind} ·{" "}
+                  {r.data.title || r.kind} ·{" "}
                   {r.data.reference || ""}
                   {r.current?" · current revision":" · superseded"}
                   <details>
@@ -62,7 +64,7 @@ export function Documents({ pid }: { pid: string }) {
                         overflowWrap: "anywhere",
                       }}
                     >
-                      {JSON.stringify(r.data, null, 2)}
+                      {r.data.content || "No source text recorded."}
                     </pre>
                   </details>
                 </li>
@@ -74,6 +76,8 @@ export function Documents({ pid }: { pid: string }) {
           {state.canWrite&&<section>
             <Entry
               title="Create source-linked draft"
+              labels={{"source record ID":"Registered source", "replaces (record ID or none)":"Document to replace"}}
+              choices={{type:["RAMS","CPP","survey","specification"].map(value=>({value,label:value})),"source record ID":state.sources.filter((r:any)=>r.current).map((r:any)=>({value:r.id,label:`${r.data.title || r.kind} · ${r.data.reference || ""}`})),"replaces (record ID or none)":[{value:"none",label:"New document"},...state.documents.filter((r:any)=>r.status!=="Superseded").map((r:any)=>({value:r.id,label:`${r.data.title} · revision ${r.data.version}`}))]}}
               fields={[
                 "type",
                 "title",
@@ -115,7 +119,7 @@ export function Documents({ pid }: { pid: string }) {
                 </h3>
                 <p>{r.status}</p>
                 {state.canWrite&&r.status!=="Superseded"&&<button type="button" className="quiet" onClick={()=>setEditing(r)}>Revise document</button>}
-                <code>{r.id}</code>
+
                 <p>
                   <a
                     href={

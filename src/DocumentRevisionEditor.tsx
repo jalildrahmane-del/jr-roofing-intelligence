@@ -15,7 +15,7 @@ export function DocumentRevisionEditor({ document, sources, send, close }: {docu
       {references.map((reference,i)=><fieldset key={i}><legend>Source reference {i+1}</legend>
         <label>Current source<select aria-label={`Current source ${i+1}`} value={reference.recordId} required onChange={e=>setReferences(prev=>prev.map((r,n)=>n===i?{...r,recordId:e.target.value}:r))}>
           {!sources.some(s=>s.id===reference.recordId)&&<option value={reference.recordId} disabled>Superseded source — select a current revision</option>}
-          {sources.map(s=><option key={s.id} value={s.id}>{s.data.title||s.data.name||s.kind} · {s.id.slice(0,8)}</option>)}
+          {sources.map(s=><option key={s.id} value={s.id}>{s.data.title||s.data.name||s.kind} · {s.data.reference || "Registered source"}</option>)}
         </select></label>
         <label>Exact source excerpt<textarea aria-label={`Exact source excerpt ${i+1}`} value={reference.excerpt} maxLength={10000} required onChange={e=>setReferences(prev=>prev.map((r,n)=>n===i?{...r,excerpt:e.target.value}:r))}/></label>
       </fieldset>)}

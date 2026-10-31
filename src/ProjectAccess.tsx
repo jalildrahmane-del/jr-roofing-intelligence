@@ -22,7 +22,7 @@ export function ProjectAccess({ pid, refresh }: {pid:string;refresh:()=>Promise<
         <button disabled={busy||!userId}>{busy?"Saving…":"Update project permission"}</button>
       </form>
       <h3>Assignment history</h3>
-      {state.history.length===0?<p>No staff assignments recorded. Staff have no document access until assigned.</p>:<ul>{state.history.map((r:any)=><li key={r.id}>{state.users.find((u:any)=>u.id===r.userId)?.name||r.userId} · {r.permission} · revision {r.version} · {r.createdAt}<p>{r.reason}</p></li>)}</ul>}
+      {state.history.length===0?<p>No staff assignments recorded. Staff have no document access until assigned.</p>:<ul>{state.history.map((r:any)=><li key={r.id}>{state.users.find((u:any)=>u.id===r.userId)?.name||"Former team member"} · {r.permission} · revision {r.version} · {r.createdAt}<p>{r.reason}</p></li>)}</ul>}
       <button type="button" className="quiet" disabled={busy} onClick={()=>{setError("");load().catch(e=>setError(e.message));}}>Refresh assignments</button>
     </>}
   </section>;

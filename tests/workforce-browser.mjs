@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import { Store } from "../server/store.ts";
 import { createApp } from "../server/index.ts";
-import { workforceCommand, workforceDirectorSummary } from "../server/workforce.ts";
+import { workforceCommand, workforceDirectorSummary, workforceState } from "../server/workforce.ts";
 import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 const s = new Store(":memory:");
@@ -96,7 +96,7 @@ try {
       }),
     });
   await form.getByLabel("Worker", { exact: true }).selectOption(worker.id);
-  await form.getByLabel("Event", { exact: true }).fill("in");
+  await form.getByLabel("Event", { exact: true }).selectOption("in");
   await form.getByRole("button").click();
   await page.getByAltText("Single-use supervisor attendance QR").waitFor();
   const token = await page
@@ -218,6 +218,14 @@ try {
   await firstSite.getByRole("link", { name: "Open workforce records" }).click();
   await page.getByRole("heading", { name: "Subcontractors & Workforce", exact: true }).waitFor();
   assert.match(await page.locator("body").innerText(), /Fictional roof/);
+  const reviewForm = page.locator("form").filter({has: page.getByRole("heading", {name:"Record independent review", exact:true})});
+  const eventRecord = workforceState(s, manager, pid).records.find(r => r.kind === "workforce.event" && !r.data.offline);
+  await reviewForm.getByLabel("Attendance event", {exact:true}).selectOption(eventRecord.id);
+  await reviewForm.getByLabel("Decision", {exact:true}).selectOption("accepted");
+  await reviewForm.getByLabel("Reason", {exact:true}).fill("Independent test review of the submitted event.");
+  await reviewForm.getByRole("button").click();
+  await page.getByText(/1 pending/).first().waitFor();
+  assert.ok(workforceState(s, manager, pid).records.some(r => r.kind === "workforce.review" && r.data.eventId === eventRecord.id && r.data.decision === "accepted"));
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(

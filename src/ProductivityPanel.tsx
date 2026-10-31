@@ -10,9 +10,9 @@ export function ProductivityPanel({state}:{state:any}) {
       <p>Compares independently accepted shift hours with separately reported installation quantities for the same worker and calendar week. Quantities are not independently verified; this is not an earned-value, payroll or performance assessment.</p>
       {!rows.length ? <p>No reported quantities are available for a weekly comparison.</p> :
         <div className="table-wrap"><table>
-          <thead><tr><th>Week commencing</th><th>Worker ID</th><th>Reported installation</th><th>Verified shift hours</th><th>Indicative quantity/hour</th><th>Evidence</th></tr></thead>
+          <thead><tr><th>Week commencing</th><th>Worker</th><th>Reported installation</th><th>Verified shift hours</th><th>Indicative quantity/hour</th><th>Evidence</th></tr></thead>
           <tbody>{rows.map(row=><tr key={JSON.stringify([row.workerId,row.week,row.unit])}>
-            <td>{row.week}</td><td><code>{row.workerId}</code></td>
+            <td>{row.week}</td><td>{state.users?.find((u:any)=>u.id===row.workerId)?.name || "Worker"}</td>
             <td>{row.reportedQuantity.toLocaleString("en-GB")} {row.unit}</td>
             <td>{row.verifiedHours.toFixed(2)} h</td>
             <td>{row.quantityPerHour === null ? "Unavailable" : row.quantityPerHour.toFixed(2)+" "+row.unit+"/h"}</td>
