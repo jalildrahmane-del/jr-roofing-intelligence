@@ -1,3 +1,4 @@
+import { completeReview } from "./document-review-fixture.ts";
 import { chromium } from "playwright";
 import { Store } from "../server/store.ts";
 import { createApp } from "../server/index.ts";
@@ -83,8 +84,7 @@ try {
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login(reviewer.name);
   const review = page.locator("form").filter({ has: page.getByRole("heading", { name: "Record independent document review", exact: true }) });
-  for (const [label, value] of [["documentId", draft.id], ["decision", "accepted"], ["note", "Reviewed synthetic risk ratings, controls, sources and PDF"], ["attestation (type reviewed)", "reviewed"]])
-    await review.getByLabel(label, { exact: true }).fill(value);
+  await completeReview(review,draft.id,"Reviewed synthetic risk ratings, controls, sources and PDF");
   await review.getByRole("button").click();
   await page.getByText("Reviewed for issue — not engineering certification", { exact: true }).waitFor();
   await page.reload();

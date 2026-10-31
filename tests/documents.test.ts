@@ -1,3 +1,4 @@
+import { reviewPayload } from "./document-review-fixture.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Store } from "../server/store.ts";
@@ -52,6 +53,7 @@ test("document lifecycle preserves exact source provenance, independent review, 
         documentCommand(s, a, pid, "review", {
           documentId: doc.id,
           decision: "accepted",
+          ...reviewPayload(),
           attest: true,
           note: "self",
         }),
@@ -61,6 +63,7 @@ test("document lifecycle preserves exact source provenance, independent review, 
     documentCommand(s, m, pid, "review", {
       documentId: doc.id,
       decision: "accepted",
+          ...reviewPayload(),
       attest: true,
       note: "Sources and proposed content reviewed",
     });
@@ -79,6 +82,7 @@ test("document lifecycle preserves exact source provenance, independent review, 
         documentCommand(s, m, pid, "review", {
           documentId: doc.id,
           decision: "accepted",
+          ...reviewPayload(),
           attest: true,
           note: "old source",
         }),
