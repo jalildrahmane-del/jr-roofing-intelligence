@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw "Git is required to create a clean preview ZIP." }
 $branch = (& git branch --show-current).Trim()
-if ($branch -ne "feature/owner-command-centre-expansion") { throw "Wrong branch: $branch" }
+if ($branch -ne "main") { throw "Preview releases must be packaged from verified main, not $branch" }
 if ((& git status --porcelain).Length -gt 0) { throw "Uncommitted changes detected. Packaging cancelled." }
 $sha = (& git rev-parse --short HEAD).Trim()
 $target = Join-Path (Get-Location) "JR-Roofing-Owner-Preview-$sha.zip"

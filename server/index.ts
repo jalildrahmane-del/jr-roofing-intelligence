@@ -1,3 +1,4 @@
+import { projectWeather } from "./weather.ts";
 import { documentCommand, documentState, documentPdf } from "./documents.ts";
 import { randomBytes } from "node:crypto";
 import { saveCommercial } from "./commercial-control.ts";
@@ -150,6 +151,10 @@ export function createApp(store: Store, root = resolve("dist")) {
         );
         return reply(200, { ok: true });
       }
+      // Owner accounts are intentionally restricted to their scoped workforce view.
+      if (user.role === "subcontractor-owner" && !(
+        (url.pathname === "/api/state" || url.pathname === "/api/workforce" || url.pathname === "/api/workforce-weather") && req.method === "GET"
+      )) return reply(403, { error: "Forbidden: subcontractor-owner workforce-only access" });
       if (url.pathname.startsWith("/api/evidence/") && req.method === "GET") {
         const asset = store.db
           .prepare("SELECT * FROM evidence WHERE id=?")
@@ -241,6 +246,12 @@ export function createApp(store: Store, root = resolve("dist")) {
       if (url.pathname === "/api/document-pdf" && req.method === "GET") {
         const pdf=await documentPdf(store,user,url.searchParams.get("pid")||"",url.searchParams.get("id")||"");
         res.writeHead(200,{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=jr-document.pdf","Cache-Control":"no-store"});res.end(pdf);return;
+      }
+      if (url.pathname === "/api/workforce-weather" && req.method === "GET") {
+        const pid = text(url.searchParams.get("pid"), "Project", 200);
+        const project = store.snapshot(user).projects.find(p => p.id === pid);
+        if (!project) return reply(403, { error: "Forbidden: project access required" });
+        return reply(200, await projectWeather(project.address || ""));
       }
       if (url.pathname === "/api/workforce-director" && req.method === "GET")
         return reply(200, workforceDirectorSummary(store, user));

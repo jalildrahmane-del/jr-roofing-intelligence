@@ -1,4 +1,4 @@
-export type Role = 'manager'|'engineer'|'supervisor'|'worker'|'viewer';
+export type Role = 'manager'|'engineer'|'supervisor'|'worker'|'viewer'|'subcontractor-owner';
 export type User = {id:string; name:string; role:Role; company:string};
 export type Project = {id:string; name:string; client:string; address:string; area:number; type:string; roof:string; status:string};
 export type RecordItem = {id:string; pid:string; kind:string; author:string; createdAt:string; data:Record<string,any>};

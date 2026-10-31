@@ -1,3 +1,4 @@
+import { readOfflineQueue } from "./workforce-queue.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User, Project } from "./model.ts";
@@ -44,6 +45,110 @@ export function Entry({
     </form>
   );
 }
+function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) {
+  const [forecast, setForecast] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try { setForecast(await api("workforce-weather?pid=" + encodeURIComponent(pid))); }
+    catch (e) { setForecast(null); setError((e as Error).message); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => {
+    let active = true;
+    setForecast(null);
+    setError("");
+    setLoading(true);
+    api("workforce-weather?pid=" + encodeURIComponent(pid)).then((value: any) => { if (active) setForecast(value); }).catch((e: Error) => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [pid]);
+  const show = (value: number | null | undefined, unit: string) => value == null ? "Unavailable" : value.toFixed(1) + unit;
+  return <section className="workforce-weather" aria-labelledby="workforce-weather-heading">
+    <h2 id="workforce-weather-heading">🌦️ Today's site weather forecast</h2>
+    <p><strong>{project?.name || "Selected project"}</strong> · {project?.address || "Site address not recorded"}</p>
+    <p>Forecast is based on the project's saved UK postcode, not your phone location.</p>
+    <button type="button" disabled={loading} onClick={load}>{loading ? "Checking forecast…" : "Refresh forecast"}</button>
+    {error && <p role="alert">{error}</p>}
+    {forecast && <>
+      <p><strong>{forecast.date}</strong> · postcode {forecast.postcode} · checked {new Date(forecast.updatedAt).toLocaleString("en-GB")}</p>
+      <div className="fields" aria-label="Daily forecast summary">
+        <p>🌡️ Temperature <strong>{show(forecast.temperatureMinC, "°C")} – {show(forecast.temperatureMaxC, "°C")}</strong></p>
+        <p>🌧️ Rain <strong>{show(forecast.rainMm, " mm")}</strong> · probability {show(forecast.rainProbabilityPercent, "%")}</p>
+        <p>💨 Wind <strong>{show(forecast.windMaxMph, " mph")}</strong> · gusts up to <strong>{show(forecast.gustMaxMph, " mph")}</strong></p>
+      </div>
+      {forecast.advisory?.length > 0 && <div className="warning"><strong>Planning considerations</strong><ul>{forecast.advisory.map((note: string) => <li key={note}>{note}</li>)}</ul></div>}
+      <details><summary>Hourly site forecast (06:00–19:00 UK time)</summary>
+        {forecast.hourly?.length ? <div style={{ overflowX: "auto" }}><table><thead><tr><th>Time</th><th>Temp</th><th>Rain chance</th><th>Rain</th><th>Wind</th><th>Gusts</th></tr></thead><tbody>
+          {forecast.hourly.map((h: any) => <tr key={h.time}><td>{h.time.slice(11)}</td><td>{show(h.temperatureC, "°C")}</td><td>{show(h.rainProbabilityPercent, "%")}</td><td>{show(h.rainMm, " mm")}</td><td>{show(h.windMph, " mph")}</td><td>{show(h.gustMph, " mph")}</td></tr>)}
+        </tbody></table></div> : <p>Hourly data unavailable.</p>}
+      </details>
+      <p className="warning">{forecast.notice}</p>
+      <p><small>Source: {forecast.source}. This is a forecast, not a live weather measurement or a permit to work.</small></p>
+    </>}
+  </section>;
+}
+function ShiftPlanner({ state, user, send }: { state: any; user: User; send: (action: string, data: any) => Promise<void> }) {
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const editable = ["manager", "supervisor"].includes(user.role);
+  const schedules: any[] = state.schedules || [];
+  const active = schedules.filter((r) => !r.data.cancelled);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setError("");
+    setSaving(true);
+    try {
+      const data = Object.fromEntries(new FormData(form));
+      const replaces = String(data.replaces || "");
+      if (data.action === "cancel-shift") {
+        if (!replaces) throw Error("Select an existing shift to cancel.");
+        await send("cancel-shift", { replaces, reason: data.reason });
+      } else {
+        const start = new Date(String(data.start));
+        const end = new Date(String(data.end));
+        if (!Number.isFinite(+start) || !Number.isFinite(+end)) throw Error("Valid shift dates and times are required.");
+        await send("shift", {
+          workerId: data.workerId,
+          replaces: replaces || undefined,
+          start: start.toISOString(),
+          end: end.toISOString(),
+          breakMinutes: Number(data.breakMinutes),
+          reason: data.reason,
+        });
+      }
+      form.reset();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <section aria-labelledby="shift-planner-heading" className="workforce-shifts">
+    <h2 id="shift-planner-heading">Planned workforce shifts</h2>
+    <p>Times are entered in your device's local time zone and saved as UTC. Plans are not verified attendance or payment authorisation.</p>
+    {!schedules.length && <p>No shifts planned for this project.</p>}
+    <ul>{schedules.map(r => <li key={r.id}>
+      <strong>{r.data.workerId}</strong> · {new Date(r.data.start).toLocaleString()} – {new Date(r.data.end).toLocaleString()} · {r.plannedHours.toFixed(2)} planned hours · {r.data.cancelled ? "Cancelled" : "Active"} · <small>Revision ID: {r.id}</small>
+    </li>)}</ul>
+    {editable && <form onSubmit={submit}>
+      <h3>Create, revise or cancel a shift</h3>
+      <div className="fields">
+        <label>Action<select name="action" defaultValue="shift"><option value="shift">Create or revise</option><option value="cancel-shift">Cancel selected shift</option></select></label>
+        <label>Worker<select name="workerId" required><option value="">Select worker</option>{(state.users || []).filter((u: any) => u.role === "worker").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
+        <label>Existing shift to revise or cancel<select name="replaces" defaultValue=""><option value="">New shift</option>{active.map(r => <option key={r.id} value={r.id}>{r.data.workerId} — {new Date(r.data.start).toLocaleString()} ({r.id.slice(0, 8)})</option>)}</select></label>
+        <label>Start<input type="datetime-local" name="start" /></label>
+        <label>Finish<input type="datetime-local" name="end" /></label>
+        <label>Unpaid break (minutes)<input type="number" name="breakMinutes" min="0" step="1" defaultValue="30" /></label>
+        <label>Reason<input name="reason" maxLength={500} required /></label>
+      </div>
+      {error && <p role="alert">{error}</p>}
+      <button type="submit" disabled={saving}>{saving ? "Saving…" : "Save shift plan"}</button>
+    </form>}
+  </section>;
+}
 async function prepareDailyPhoto(file: File): Promise<string> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 20 * 1024 * 1024)
     throw Error("Choose a JPEG, PNG or WebP photograph under 20 MiB");
@@ -63,7 +168,10 @@ async function prepareDailyPhoto(file: File): Promise<string> {
     bitmap.close();
   }
 }
-export function Workforce({ pid, user, project }: { pid: string; user: User; project?: Project }) {
+export function Workforce(props: { pid: string; user: User; project?: Project }) {
+  return <WorkforceSession key={JSON.stringify([props.user.id, props.pid])} {...props} />;
+}
+function WorkforceSession({ pid, user, project }: { pid: string; user: User; project?: Project }) {
   const [state, setState] = useState<any>(null),
     [error, setError] = useState(""),
     [challenge, setChallenge] = useState<any>(null),
@@ -74,13 +182,11 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
   const [dailyPhotos, setDailyPhotos] = useState<{ image: string; caption: string }[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
   const queueKey = "jr-workforce-queue:" + user.id + ":" + pid;
-  const [queue, setQueue] = useState<any[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(queueKey) || "[]");
-    } catch {
-      return [];
-    }
+  const [initialQueue] = useState(() => {
+    try { return {events: readOfflineQueue(localStorage.getItem(queueKey)), error: ""}; }
+    catch { return {events: [], error: "Saved offline queue cannot be read. Stored data is preserved; do not clear browser storage."}; }
   });
+  const [queue, setQueue] = useState<any[]>(initialQueue.events);
   const saveQueue = (q: any[]) => {
     localStorage.setItem(queueKey, JSON.stringify(q));
     setQueue(q);
@@ -95,7 +201,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
     setConfirmedProject(false);
     setSuccess("");
     setState(null);
-    try { setQueue(JSON.parse(localStorage.getItem(queueKey) || "[]")); } catch { setQueue([]); }
+
     if (pid) refresh().catch((e) => setError(e.message));
   }, [pid]);
   // This QR is a project navigation link only, never a login or attendance token.
@@ -125,6 +231,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
     setBusy(true);
     try {
       if (offline) {
+        if (initialQueue.error) throw Error(initialQueue.error);
         saveQueue([
           ...queue,
           {
@@ -176,6 +283,7 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
         Fictional test records only. GPS is captured only when submitting an
         event. All attendance needs independent review; no continuous tracking.
       </p>
+      <WorkforceWeather pid={pid} project={project} />
       {error && <p role="alert">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
       {["manager", "supervisor"].includes(user.role) && (
@@ -217,6 +325,20 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
               })
             }
           />
+          <h3>Subcontractor owner access</h3>
+          <p>Grant or revoke read-only access to a registered subcontractor owner for this project. The owner can see only their company's workforce.</p>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.currentTarget));
+            try { await send("owner", { ownerId: data.ownerId, active: data.active === "true" }); setSuccess("Owner permission updated."); setError(""); }
+            catch (err) { setError((err as Error).message); }
+          }}>
+            <div className="fields">
+              <label>Registered owner<select name="ownerId" required><option value="">Select owner</option>{(state?.users || []).filter((u: any) => u.role === "subcontractor-owner").map((u: any) => <option key={u.id} value={u.id}>{u.name} — {u.company}</option>)}</select></label>
+              <label>Permission<select name="active"><option value="true">Grant access</option><option value="false">Revoke access</option></select></label>
+            </div>
+            <button type="submit">Update owner access</button>
+          </form>
           <h3>Registered users</h3>
           <ul>
             {state?.users.map((u: any) => (
@@ -331,9 +453,10 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
           <button disabled={busy || !confirmedProject} onClick={() => checkIn(true)}>
             Queue unverified event offline
           </button>
+          {initialQueue.error && <p role="alert">{initialQueue.error}</p>}
           <p>{queue.length} unverified events held on this device.</p>
           <button
-            disabled={busy || !queue.length}
+            disabled={busy || !!initialQueue.error || !queue.length}
             onClick={async () => {
               setBusy(true);
               setError("");
@@ -359,8 +482,19 @@ export function Workforce({ pid, user, project }: { pid: string; user: User; pro
           </p>
         </section>
       )}
-      {state && (
+      {state && user.role === "subcontractor-owner" && (
+        <section aria-label="Company workforce overview">
+          <h2>My company workforce — read only</h2>
+          <p>Only authorised project records for your company are shown. Exact GPS coordinates, other companies' records and editing controls are unavailable.</p>
+          <ShiftPlanner state={state} user={user} send={send} />
+          <h3>Verified attendance summary</h3>
+          {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
+          {(state.report || []).map((r: any) => <p key={r.workerId}>{r.workerId}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
+        </section>
+      )}
+      {state && user.role !== "subcontractor-owner" && (
         <>
+          <ShiftPlanner state={state} user={user} send={send} />
           <section>
             <h2>Attendance review</h2>
             <ul>

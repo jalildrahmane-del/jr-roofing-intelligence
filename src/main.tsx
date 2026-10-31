@@ -129,6 +129,7 @@ function App() {
     return () => window.removeEventListener("hashchange", listener);
   }, []);
   const project = state.projects.find((p) => p.id === pid);
+  const visibleRoute = user?.role === "subcontractor-owner" ? "workforce" : route;
   async function add(kind: string, data: any) {
     await api("records", { pid, kind, data });
     await refresh();
@@ -186,7 +187,7 @@ function App() {
       <div className="shell">
         <aside>
           <nav aria-label="Workspace">
-            {routes.map((r) => (
+            {(user.role === "subcontractor-owner" ? ["workforce"] : routes).map((r) => (
               <a
                 aria-current={r === route ? "page" : undefined}
                 href={"#" + r}
@@ -217,14 +218,14 @@ function App() {
             <span className="tag">LOCAL · REVIEW BUILD</span>
           </div>
           <p className="eyebrow">From survey to handover</p>
-          <h1>{titles[route] || "Page not found"}</h1>
+          <h1>{titles[visibleRoute] || "Page not found"}</h1>
           {error && (
             <p className="error" role="alert">
               {error}
             </p>
           )}
-          {route === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} onSelectProject={setPid} isDirector={user.role === "manager"} />}
-          {route === "projects" && (
+          {visibleRoute === "dashboard" && <OwnerDashboard snapshot={state} project={project} pid={pid} onSelectProject={setPid} isDirector={user.role === "manager"} />}
+          {visibleRoute === "projects" && (
             <section>
               <h2>Existing projects</h2>
               {state.projects.length === 0 ? (
@@ -282,8 +283,8 @@ function App() {
               />}
             </section>
           )}
-          {route === "commercial" && <CommercialControl pid={pid} records={state.records.filter(r=>r.pid===pid)} user={user} refresh={refresh} />}
-          {route === "legacy" && (
+          {visibleRoute === "commercial" && <CommercialControl pid={pid} records={state.records.filter(r=>r.pid===pid)} user={user} refresh={refresh} />}
+          {visibleRoute === "legacy" && (
             <>
               <p>
                 The recovered eight-section prototype retains its browser-local
@@ -296,7 +297,7 @@ function App() {
               </a>
             </>
           )}
-          {route === "structure" && !project && (
+          {visibleRoute === "structure" && !project && (
             <section>
               <p>
                 Select or create a project to record a preliminary calculation.
@@ -304,7 +305,7 @@ function App() {
               <a href="#projects">Open Project Register</a>
             </section>
           )}
-          {route === "structure" && project && (
+          {visibleRoute === "structure" && project && (
             <section>
               <p className="warning">
                 Preliminary dead-load arithmetic only. No structural adequacy or
@@ -359,8 +360,8 @@ function App() {
               refresh={refresh}
             />
           )}
-          {route === "documents" && <Documents key={pid} pid={pid} />}
-          {route === "workforce" && <Workforce key={pid} pid={pid} user={user} project={project} />}
+          {visibleRoute === "documents" && <Documents key={pid} pid={pid} />}
+          {visibleRoute === "workforce" && <Workforce key={pid} pid={pid} user={user} project={project} />}
           {![
             "dashboard",
             "projects",

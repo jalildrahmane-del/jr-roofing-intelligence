@@ -99,6 +99,15 @@ try {
     .getByRole("button", { name: "Sync pending offline events" })
     .click();
   await page.getByText(/2 pending/).waitFor();
+  await page.evaluate(() => {
+    const key=Object.keys(localStorage).find(k=>k.startsWith("jr-workforce-queue:"));
+    localStorage.setItem(key,"{}");
+  });
+  await page.reload();
+  await page.getByText(/Saved offline queue cannot be read/).waitFor();
+  assert.equal(await page.getByRole("button",{name:"Sync pending offline events"}).isDisabled(),true);
+  assert.equal(await page.evaluate(()=>localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith("jr-workforce-queue:")))),"{}");
+
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     assert.ok(

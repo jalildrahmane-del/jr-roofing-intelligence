@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
   workflow_dispatch:
 jobs:
@@ -24,3 +25,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Run full test suite
         run: npm run validate
+      - name: Package verified Windows owner preview
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git archive --format=zip --output=JR-Roofing-Intelligence-Windows-Owner-Preview.zip HEAD
+          unzip -t JR-Roofing-Intelligence-Windows-Owner-Preview.zip
+          unzip -Z1 JR-Roofing-Intelligence-Windows-Owner-Preview.zip | grep -qx 'OWNER-PREVIEW-WINDOWS.cmd'
+          unzip -Z1 JR-Roofing-Intelligence-Windows-Owner-Preview.zip | grep -qx 'package-lock.json'
+          if unzip -Z1 JR-Roofing-Intelligence-Windows-Owner-Preview.zip | grep -E '(^|/)(\.env($|\.)|node_modules/|data/|.*\.sqlite$|.*\.db$)'; then
+            echo 'Refusing to package sensitive or generated content'
+            exit 1
+          fi
+      - name: Publish Windows owner preview archive
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JR-Roofing-Intelligence-Windows-Owner-Preview
+          path: JR-Roofing-Intelligence-Windows-Owner-Preview.zip
+          retention-days: 14
+          if-no-files-found: error

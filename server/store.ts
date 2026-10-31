@@ -32,7 +32,7 @@ export class Store {
 
   addUser(name: string, password: string, role: Role, company = "JR Roofing") {
     if (
-      !["manager", "engineer", "supervisor", "worker", "viewer"].includes(role)
+      !["manager", "engineer", "supervisor", "worker", "viewer", "subcontractor-owner"].includes(role)
     )
       throw Error("Invalid role");
     if (password.length < 12)
@@ -97,6 +97,13 @@ export class Store {
         createdAt: x.created_at,
         data: JSON.parse(x.data),
       }));
+    if (user.role === "subcontractor-owner") {
+      const authorised = projects.filter((p: any) => {
+        const latest = records.filter((r) => r.pid === p.id && r.kind === "workforce.owner" && r.data.ownerId === user.id).at(-1);
+        return latest?.data.active === true && latest.data.company === user.company;
+      });
+      return { projects: authorised, records: [], revision: records.filter(r => r.kind === "workforce.owner" && r.data.ownerId === user.id).length };
+    }
     const visibleProjects =
       user.role === "worker"
         ? projects.filter(
