@@ -4,6 +4,7 @@ import { api } from "./api.ts";
 import type { User, Project } from "./model.ts";
 import QRCode from "qrcode";
 import { ProductivityPanel } from "./ProductivityPanel.tsx";
+import { WorkforceComparison } from "./WorkforceComparison.tsx";
 
 export function Entry({
   title,
@@ -487,6 +488,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <h2>My company workforce — read only</h2>
           <p>Only authorised project records for your company are shown. Exact GPS coordinates, other companies' records and editing controls are unavailable.</p>
           <ShiftPlanner state={state} user={user} send={send} />
+          <WorkforceComparison state={state} user={user} send={send}/>
           <h3>Verified attendance summary</h3>
           {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
           {(state.report || []).map((r: any) => <p key={r.workerId}>{r.workerId}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
@@ -495,6 +497,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
       {state && user.role !== "subcontractor-owner" && (
         <>
           <ShiftPlanner state={state} user={user} send={send} />
+          <WorkforceComparison state={state} user={user} send={send}/>
           <section>
             <h2>Attendance review</h2>
             <ul>

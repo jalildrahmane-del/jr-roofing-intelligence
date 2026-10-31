@@ -24,8 +24,9 @@ Step 7 is prepared on a separate branch stacked on Step 6 / PR #20. See [project
 - [x] Step 7 review branch: manager-controlled staff project read/edit/revoke permissions, request-time enforcement, audit and backup persistence.
 - [x] Step 7 review branch: multi-source document revision editor, current-source selection and fresh independent review.
 - [x] Step 8 review branch, stacked on PR #21: type-specific independent review checklists, server acceptance checks, conflict protection and PDF review evidence. [Scope, upgrade behaviour and tests](STEP-8-DOCUMENT-CHECKLISTS.md).
-- [ ] CSV UI integration and camera lifecycle integration with the newer UI.
-- [ ] Supervisor-confirmed schedule matching and payroll interface acceptance.
+- [x] Step 9 review branch, stacked on PR #22: planned/verified comparison, supervisor-confirmed unique matching, evidence invalidation, history and scoped CSV. [Scope and tests](STEP-9-WORKFORCE-COMPARISON.md).
+- [ ] Date filters and daily/weekly comparison summaries; remaining attendance-only/payroll export acceptance.
+- [ ] Camera lifecycle integration and payroll interface acceptance; ambiguous split allocations remain outside Step 9.
 - [ ] Acceptance of the Step 7/8 permission and checklist stack; remaining document/AI intelligence criteria.
 - [ ] Owner privacy/retention policy and corresponding implementation before real-person use.
 - [ ] Physical iPhone/camera verification.
