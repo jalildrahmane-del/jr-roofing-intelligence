@@ -26,7 +26,7 @@ const signalLabels: Record<SiteSignal, string> = {
   red: "Delayed (recorded)",
   unknown: "Status not reported",
 };
-type DirectorRow = { projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number };
+type DirectorRow = { projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number; materialAwaitingOrder:number; materialAwaitingDelivery:number; materialReceived:number };
 function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
   const [rows,setRows] = useState<DirectorRow[]|null>(null);
   const [error,setError] = useState("");
@@ -52,6 +52,9 @@ function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
         <div><dt>Daily reports / awaiting review</dt><dd>{r.dailyReports} / {r.dailyPending}</dd></div>
         <div><dt>Submitted photographs</dt><dd>{r.photos}</dd></div>
         <div><dt>Materials requests / awaiting review</dt><dd>{r.materialRequests} / {r.materialPending}</dd></div>
+        <div><dt>Approved requests awaiting order</dt><dd>{r.materialAwaitingOrder}</dd></div>
+        <div><dt>Orders awaiting full receipt</dt><dd>{r.materialAwaitingDelivery}</dd></div>
+        <div><dt>Requests received in full</dt><dd>{r.materialReceived}</dd></div>
       </dl>
       <a href="#workforce" onClick={()=>select?.(r.projectId)}>Open workforce records →</a>
     </article>)}

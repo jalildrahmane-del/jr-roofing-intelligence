@@ -1,3 +1,4 @@
+import { materialFulfilment, materialQuantityTolerance } from "../src/material-fulfilment.ts";
 import { latestShifts, shiftTime } from "./workforce-shifts.ts";
 import { plannedActualReport } from "./workforce-matching.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -621,6 +622,40 @@ export function workforceCommand(
         status: "Review recorded; procurement not confirmed",
       });
     }
+    if (action === "material-order" || action === "material-delivery") {
+      if (action === "material-order") manager(); else supervisor();
+      const request = records.find(r => r.id === d.requestId && r.kind === "workforce.material-request");
+      if (!request) throw Error("Material request not found for this project");
+      const fulfilment = materialFulfilment(records, request);
+      if (fulfilment.review?.data.decision !== "approved") throw Error("Independent materials approval required before ordering or receipt");
+      if (d.attest !== true) throw Error("Confirm the order or delivery evidence before saving");
+      if (action === "material-order") {
+        if (fulfilment.order) throw Error("An order is already recorded for this request");
+        return append("material-order", {
+          requestId:request.id,workerId:request.data.workerId,reviewId:fulfilment.review.id,
+          quantity:request.data.quantity,unit:request.data.unit,
+          supplier:text(d.supplier,"Supplier",300),orderReference:text(d.orderReference,"Order reference",200),
+          expectedDate:validWorkforceDate(d.expectedDate,"Expected delivery date"),
+          evidence:text(d.evidence,"Order evidence reference",1000),attest:true,
+        });
+      }
+      if (!fulfilment.order) throw Error("Record the order before recording a delivery");
+      if (d.previousId !== fulfilment.latestId) throw Error("Delivery record changed. Refresh before recording another receipt");
+      if (fulfilment.remaining === 0) throw Error("This request has already been received in full");
+      const acceptedQuantity = positive(d.acceptedQuantity,"Accepted quantity",true);
+      const damagedQuantity = positive(d.damagedQuantity,"Damaged or rejected quantity",true);
+      if (acceptedQuantity + damagedQuantity <= 0 || !Number.isFinite(acceptedQuantity + damagedQuantity)) throw Error("Record a positive delivered quantity");
+      if (acceptedQuantity + damagedQuantity > fulfilment.remaining + materialQuantityTolerance(fulfilment.remaining)) throw Error("Delivery exceeds the outstanding quantity");
+      if (!Number.isFinite(fulfilment.damaged + damagedQuantity) || !Number.isFinite(fulfilment.received + acceptedQuantity)) throw Error("Quantity exceeds the supported numeric range");
+      const deliveredOn = validWorkforceDate(d.deliveredOn,"Delivery date");
+      if (deliveredOn > new Date().toISOString().slice(0,10)) throw Error("Delivery date cannot be in the future");
+      return append("material-delivery", {
+        requestId:request.id,workerId:request.data.workerId,orderId:fulfilment.order.id,previousId:fulfilment.latestId,
+        acceptedQuantity,damagedQuantity,unit:request.data.unit,deliveredOn,
+        deliveryReference:text(d.deliveryReference,"Delivery note reference",200),
+        notes:text(d.notes,"Receipt and condition notes",2000),attest:true,
+      });
+    }
     if (action === "progress") {
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
@@ -656,6 +691,7 @@ export function workforceDirectorSummary(store: Store, user: User) {
     const materialsReviews = new Set(kind("material-review").map(r => r.data.requestId));
     const daily = kind("daily-report");
     const materials = kind("material-request");
+    const fulfilments = materials.map(request => materialFulfilment(records,request));
     const events = kind("event");
     return {
       projectId: project.id, projectName: project.name, address: project.address,
@@ -666,6 +702,9 @@ export function workforceDirectorSummary(store: Store, user: User) {
       dailyPending: daily.filter(r => !dailyReviews.has(r.id)).length,
       photos: daily.reduce((sum, r) => sum + (Array.isArray(r.data.evidence) ? r.data.evidence.length : 0), 0),
       materialRequests: materials.length,
+      materialAwaitingOrder: fulfilments.filter(f => f.review?.data.decision === "approved" && !f.order).length,
+      materialAwaitingDelivery: fulfilments.filter(f => f.order && f.remaining > 0).length,
+      materialReceived: fulfilments.filter(f => f.order && f.remaining === 0).length,
       materialPending: materials.filter(r => !materialsReviews.has(r.id)).length,
       latestReport: daily.length ? {
         id: daily.at(-1)!.id,
