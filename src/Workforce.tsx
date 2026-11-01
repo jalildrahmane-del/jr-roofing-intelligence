@@ -13,6 +13,8 @@ export function Entry({
   users,
   choices = {},
   labels = {},
+  emptyMessage,
+  successMessage,
   submit,
 }: {
   title: string;
@@ -20,18 +22,27 @@ export function Entry({
   users?: any[];
   choices?: Record<string, {value: string; label: string}[]>;
   labels?: Record<string, string>;
+  emptyMessage?: string;
+  successMessage?: string;
   submit: (d: any) => Promise<void>;
 }) {
   const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [saved, setSaved] = useState(false);
+  const blocked = Boolean(emptyMessage && fields.some(f => choices[f]?.length === 0));
   return (
     <form
+      onChange={() => setSaved(false)}
       onSubmit={async (e) => {
         e.preventDefault();
+        if (busy || blocked) return;
+        const form = e.currentTarget;
         setBusy(true);
+        setSaved(false);
         setError("");
         try {
-          await submit(Object.fromEntries(new FormData(e.currentTarget)));
+          await submit(Object.fromEntries(new FormData(form)));
+          if (successMessage) { form.reset(); setSaved(true); }
         } catch (e) {
           setError((e as Error).message);
         } finally {
@@ -40,22 +51,58 @@ export function Entry({
       }}
     >
       <h3>{title}</h3>
+      {blocked && <p role="status">{emptyMessage}</p>}
       <div className="fields">
         {fields.map((f) => {
           const label = labels[f] || (f === "workerId" ? "Worker" : f.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase()));
           const options = choices[f] || (f === "workerId" && users ? users.filter(u => u.role === "worker").map(u => ({value:u.id,label:`${u.name} — ${u.company}`})) : undefined);
           return <label key={f}>{label}
-            {options ? <select aria-label={label} name={f} required defaultValue=""><option value="">Select…</option>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select> :
-              ["content", "proposals", "limitations", "reason", "description", "evidence", "exact source excerpt"].includes(f) ? <textarea aria-label={label} name={f} required /> :
-              <input aria-label={label} name={f} type={f.startsWith("correctedAt") ? "datetime-local" : ["day", "neededBy"].includes(f) ? "date" : ["quantity", "rate", "claimedAmount"].includes(f) ? "number" : "text"} min={["quantity", "rate", "claimedAmount"].includes(f) ? "0" : undefined} step="any" required={!f.startsWith("correctedAt")} />}
+            {options ? <select disabled={busy || blocked} aria-label={label} name={f} required defaultValue=""><option value="">Select…</option>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select> :
+              ["content", "proposals", "limitations", "reason", "description", "evidence", "exact source excerpt"].includes(f) ? <textarea disabled={busy || blocked} aria-label={label} name={f} required /> :
+              <input disabled={busy || blocked} aria-label={label} name={f} type={f.startsWith("correctedAt") ? "datetime-local" : ["day", "neededBy"].includes(f) ? "date" : ["quantity", "rate", "claimedAmount"].includes(f) ? "number" : "text"} min={["quantity", "rate", "claimedAmount"].includes(f) ? "0" : undefined} step="any" required={!f.startsWith("correctedAt")} />}
           </label>;
         })}
       </div>
       {error && <p role="alert">{error}</p>}
-      <button disabled={busy}>{busy ? "Saving…" : title}</button>
+      {saved && <p role="status">{successMessage}</p>}
+      <button disabled={busy || blocked}>{busy ? "Saving…" : title}</button>
     </form>
   );
 }
+function WorkforceReview({kind,state,user,send}:{kind:"attendance"|"daily"|"materials";state:any;user:User;send:(action:string,data:any)=>Promise<void>}) {
+  const definitions = {
+    attendance: {title:"Record independent review", record:"workforce.event", review:"workforce.review", field:"eventId", label:"Attendance event", action:"review", decisions:[{value:"accepted",label:"Accept"},{value:"rejected",label:"Reject"}]},
+    daily: {title:"Review daily report", record:"workforce.daily-report", review:"workforce.daily-review", field:"reportId", label:"Daily report", action:"daily-review", decisions:[{value:"accepted",label:"Accept"},{value:"returned",label:"Return for changes"}]},
+    materials: {title:"Review materials request", record:"workforce.material-request", review:"workforce.material-review", field:"requestId", label:"Materials request", action:"material-review", decisions:[{value:"approved",label:"Approve"},{value:"rejected",label:"Reject"}]},
+  };
+  const definition = definitions[kind];
+  const entries = state.records.filter((r:any) => r.kind === definition.record && r.author !== user.id &&
+    (kind !== "attendance" || r.data.workerId !== user.id) &&
+    (kind === "attendance" || !state.records.some((v:any) => v.kind === definition.review && v.data[definition.field] === r.id)));
+  const options = entries.map((r:any) => {
+    const latest = state.records.filter((v:any) => v.kind === definition.review && v.data[definition.field] === r.id).at(-1);
+    const detail = kind === "attendance" ? `${r.data.event} · ${r.createdAt} · ${latest?.data.decision || "awaiting review"}` :
+      kind === "daily" ? `${r.data.day} · ${r.data.completed.slice(0,70)}` : `${r.data.description} · needed ${r.data.neededBy}`;
+    return {value:r.id,label:`${workerName(state,r.data.workerId)} · ${detail}`};
+  });
+  return <div className="workforce-review">
+    <p>{entries.length} {kind === "attendance" ? "events available for independent review or correction" : "submissions awaiting your independent review"}. Your own submissions require another reviewer.</p>
+    {kind === "attendance" && <p>Accepting an offline event requires a corrected time supported by independent evidence. Times are entered in your device's local time zone.</p>}
+    <Entry title={definition.title}
+      fields={[definition.field,"decision","reason",...(kind === "attendance" ? ["correctedAt (ISO timestamp or none)"] : [])]}
+      labels={{[definition.field]:definition.label,"correctedAt (ISO timestamp or none)":"Corrected time (optional, device local time)"}}
+      choices={{[definition.field]:options,decision:definition.decisions}}
+      emptyMessage="Nothing is available for you to review here. Your own submissions and completed one-time reviews are excluded."
+      successMessage="Review saved. The record and review list have been updated."
+      submit={async d => {
+        if (!entries.some((r:any) => r.id === d[definition.field])) throw Error("This submission is no longer available. Refresh the page before reviewing.");
+        const corrected = d["correctedAt (ISO timestamp or none)"];
+        if (kind === "attendance" && corrected && !Number.isFinite(Date.parse(corrected))) throw Error("Choose a valid corrected date and time.");
+        await send(definition.action,{...d,...(kind === "attendance" ? {correctedAt:corrected ? new Date(corrected).toISOString() : null} : {})});
+      }} />
+  </div>;
+}
+
 function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) {
   const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -561,27 +608,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 ))}
             </ul>
             {["manager", "supervisor"].includes(user.role) && (
-              <Entry
-            users={state?.users || []}
-                title="Record independent review"
-                labels={{eventId:"Attendance event", "correctedAt (ISO timestamp or none)":"Corrected time (optional, device local time)"}}
-                choices={{eventId:(state.records || []).filter((r:any)=>r.kind === "workforce.event").map((r:any)=>({value:r.id,label:`${workerName(state,r.data.workerId)} · ${r.data.event} · ${r.createdAt}`})),decision:[{value:"accepted",label:"Accept"},{value:"rejected",label:"Reject"}]}}
-                fields={[
-                  "eventId",
-                  "decision",
-                  "reason",
-                  "correctedAt (ISO timestamp or none)",
-                ]}
-                submit={(d) =>
-                  send("review", {
-                    ...d,
-                    correctedAt:
-                      !d["correctedAt (ISO timestamp or none)"]
-                        ? null
-                        : new Date(d["correctedAt (ISO timestamp or none)"]).toISOString(),
-                  })
-                }
-              />
+              <WorkforceReview kind="attendance" state={state} user={user} send={send} />
             )}
           </section>
           <section>
@@ -680,7 +707,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
 
               </article>;
             })}
-            {["manager", "supervisor"].includes(user.role) && <Entry title="Review daily report" labels={{reportId:"Daily report"}} choices={{reportId:state.records.filter((r:any)=>r.kind==="workforce.daily-report" && !state.records.some((v:any)=>v.kind==="workforce.daily-review" && v.data.reportId===r.id)).map((r:any)=>({value:r.id,label:`${workerName(state,r.data.workerId)} · ${r.data.day} · ${r.data.completed.slice(0,70)}`})),decision:[{value:"accepted",label:"Accept"},{value:"returned",label:"Return for changes"}]}} fields={["reportId", "decision", "reason"]} submit={d => send("daily-review", d)} />}
+            {["manager", "supervisor"].includes(user.role) && <WorkforceReview kind="daily" state={state} user={user} send={send} />}
           </section>
           <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
@@ -709,14 +736,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               })}
             </ul>
             {["manager", "supervisor"].includes(user.role) && (
-              <Entry
-            users={state?.users || []}
-                title="Review materials request"
-                labels={{requestId:"Materials request"}}
-                choices={{requestId:state.records.filter((r:any)=>r.kind==="workforce.material-request" && !state.records.some((v:any)=>v.kind==="workforce.material-review" && v.data.requestId===r.id)).map((r:any)=>({value:r.id,label:`${r.data.description} · needed ${r.data.neededBy}`})),decision:[{value:"approved",label:"Approve"},{value:"rejected",label:"Reject"}]}}
-                fields={["requestId", "decision", "reason"]}
-                submit={(d) => send("material-review", d)}
-              />
+              <WorkforceReview kind="materials" state={state} user={user} send={send} />
             )}
             <p className="warning">Supervisor approval is not a purchase order. Ordering, delivery and receipt confirmation are separate controls.</p>
           </section>
