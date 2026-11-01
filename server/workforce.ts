@@ -540,6 +540,15 @@ export function workforceCommand(
       allocated(workerId);
       if (user.role !== "worker") supervisor();
       const day = validWorkforceDate(d.day, "Work date");
+      // Older submissions remain valid; new clients supply all three structured fields.
+      const siteDetails: Record<string, unknown> = {};
+      if (d.operatives !== undefined || d.workAreas !== undefined || d.conditions !== undefined) {
+        if (typeof d.operatives !== "number" || !Number.isInteger(d.operatives) || d.operatives < 1 || d.operatives > 10000)
+          throw Error("Operatives must be a whole number between 1 and 10000");
+        siteDetails.operatives = d.operatives;
+        siteDetails.workAreas = text(d.workAreas, "Work areas", 1000);
+        siteDetails.conditions = text(d.conditions, "Site conditions", 2000);
+      }
       const photos = d.photos;
       if (!Array.isArray(photos) || photos.length < 1 || photos.length > 4)
         throw Error("Attach 1 to 4 site photographs");
@@ -565,7 +574,7 @@ export function workforceCommand(
         return { assetId, caption, width: dimensions.width, height: dimensions.height };
       });
       return append("daily-report", {
-        workerId, day,
+        workerId, day, ...siteDetails,
         completed: text(d.completed, "Works completed", 3000),
         delays: text(d.delays, "Delays / restrictions", 2000),
         nextShift: text(d.nextShift, "Next shift plan", 2000),
