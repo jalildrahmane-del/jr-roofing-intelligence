@@ -1,3 +1,4 @@
+import { MaterialFulfilment } from "./MaterialFulfilment.tsx";
 import { workforcePersonName as workerName } from "./workforce-people.ts";
 import { readOfflineQueue } from "./workforce-queue.ts";
 import React, { useState, useEffect } from "react";
@@ -578,6 +579,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <p>Only authorised project records for your company are shown. Exact GPS coordinates, other companies' records and editing controls are unavailable.</p>
           <ShiftPlanner state={state} user={user} send={send} />
           <WorkforceComparison state={state} user={user} send={send}/>
+          <MaterialFulfilment state={state} user={user} send={send} />
           <h3>Verified attendance summary</h3>
           {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
           {(state.report || []).map((r: any) => <p key={r.workerId}>{workerName(state, r.workerId)}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
@@ -722,23 +724,11 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               ]}
               submit={(d) => send("material-request", d)}
             />
-            <h3>Project materials requests</h3>
-            {!state.records.some((r: any) => r.kind === "workforce.material-request") && <p>No materials requests recorded yet.</p>}
-            <ul>
-              {state.records.filter((r: any) => r.kind === "workforce.material-request").map((r: any) => {
-                const review = state.records.find((v: any) => v.kind === "workforce.material-review" && v.data.requestId === r.id);
-                return <li key={r.id}>
-                  <strong>{r.data.description}</strong> · {r.data.quantity} {r.data.unit} · needed {r.data.neededBy}
-                  <br />{r.data.specification} · {r.data.deliveryPoint}
-                  <br />{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}
-
-                </li>;
-              })}
-            </ul>
+            <MaterialFulfilment state={state} user={user} send={send} />
             {["manager", "supervisor"].includes(user.role) && (
               <WorkforceReview kind="materials" state={state} user={user} send={send} />
             )}
-            <p className="warning">Supervisor approval is not a purchase order. Ordering, delivery and receipt confirmation are separate controls.</p>
+            <p className="warning">Approval, placed orders and checked delivery receipts are recorded separately.</p>
           </section>
           {["manager", "supervisor"].includes(user.role) && <ProductivityPanel state={state} />}
           <section>
