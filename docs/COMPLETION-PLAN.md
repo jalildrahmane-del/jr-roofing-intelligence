@@ -12,7 +12,8 @@ This is the agreed finish sequence. A passing test suite validates implemented b
 ## 1. Complete site operations
 
 - Implemented for review: manager-only placed-order records after independent approval; manager/supervisor delivery receipts; partial deliveries; damaged quantities remaining outstanding; reference-based order/receipt evidence; server timestamps, immutable history and stale/duplicate guards.
-- Remaining: daily-report drafts and the outstanding structured site fields (operatives, work areas and conditions); material priority and photo evidence; delivery photos; notification workflow and explicit offline draft/sync behaviour.
+- Implemented for review after #28: explicit device-local daily-report drafts with photographs, reload restoration, discard, storage-failure feedback, and account/project separation. New reports capture operative count, work areas and site conditions; existing reports remain readable. Drafts can be saved while offline on an already loaded page, then submitted manually when online. This is not cross-device sync or offline app startup.
+- Remaining: material priority and photo evidence; delivery photos; notification workflow; cross-device draft/sync behaviour if required.
 - Acceptance: worker submission through independent review, recorded order and checked receipt works on one authorised project, persists through restart and cannot be altered by unauthorised roles. Do not call this entire milestone complete until the remaining fields/evidence/draft requirements pass.
 
 ## 2. Complete workforce reporting and mobile operation
