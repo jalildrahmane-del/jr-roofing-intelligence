@@ -12,13 +12,17 @@ async function loadPhoto(file: File): Promise<{ source: CanvasImageSource; width
   const url = URL.createObjectURL(file);
   try {
     const image = new Image();
-    image.src = url;
-    if (typeof image.decode === "function") await image.decode();
-    else await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(Error("Unable to read photograph"));
-      if (image.complete) image.naturalWidth ? resolve() : reject(Error("Unable to read photograph"));
-    });
+    // Register handlers before assigning src so cached/fast image loads cannot be missed.
+    if (typeof image.decode === "function") {
+      image.src = url;
+      await image.decode();
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(Error("Unable to read photograph"));
+        image.src = url;
+      });
+    }
     if (!image.naturalWidth || !image.naturalHeight) throw Error("Unable to read photograph");
     return { source: image, width: image.naturalWidth, height: image.naturalHeight, release: () => URL.revokeObjectURL(url) };
   } catch (error) {
