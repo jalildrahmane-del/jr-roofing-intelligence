@@ -262,6 +262,41 @@ try {
   await materialsReview.getByText("Review saved. The record and review list have been updated.",{exact:true}).waitFor();
   assert.equal(await materialsReview.getByRole("button").isDisabled(),true);
   assert.equal(await materialsReview.getByLabel("Reason",{exact:true}).inputValue(),"");
+  const orderCard = page.getByRole("article",{name:"Materials: Next shift boards",exact:true}).filter({hasText:"Approved — awaiting order"});
+  await orderCard.getByLabel("Supplier",{exact:true}).fill("Test supplier");
+  await orderCard.getByLabel("Order reference",{exact:true}).fill("PO-BROWSER-1");
+  await orderCard.getByLabel("Expected delivery date",{exact:true}).fill("2026-11-03");
+  await orderCard.getByLabel("Order evidence reference",{exact:true}).fill("Synthetic order confirmation");
+  await orderCard.getByRole("checkbox").check();
+  for (const width of [390,768,1440]) {
+    await page.setViewportSize({width,height:900});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"Materials order fits at "+width);
+  }
+  await orderCard.getByRole("button",{name:"Record placed order",exact:true}).click();
+  await page.getByText("Order recorded.",{exact:true}).waitFor();
+  await page.getByRole("button",{name:"Sign out",exact:true}).click();await login("supervisor");
+  const receiptCard = page.getByRole("article",{name:"Materials: Next shift boards",exact:true}).filter({hasText:"PO-BROWSER-1"});
+  assert.equal(await receiptCard.getByRole("button",{name:"Record placed order",exact:true}).count(),0);
+  const receive = async (reference, accepted, damaged) => {
+    await receiptCard.getByLabel("Delivery date",{exact:true}).fill(new Date().toISOString().slice(0,10));
+    await receiptCard.getByLabel("Delivery note reference",{exact:true}).fill(reference);
+    await receiptCard.getByLabel("Accepted quantity (packs)",{exact:true}).fill(accepted);
+    await receiptCard.getByLabel("Damaged or rejected quantity (packs)",{exact:true}).fill(damaged);
+    await receiptCard.getByLabel("Receipt and condition notes",{exact:true}).fill("Synthetic receipt; damaged packs need replacement.");
+    await receiptCard.getByRole("checkbox").check();
+    await receiptCard.getByRole("button",{name:"Record delivery receipt",exact:true}).click();
+    await receiptCard.getByText("Delivery receipt recorded.",{exact:true}).waitFor();
+  };
+  await receive("DN-BROWSER-1","1","1");
+  await receiptCard.getByText("Part delivered — balance outstanding",{exact:true}).waitFor();
+  await page.reload();await receiptCard.getByText("Part delivered — balance outstanding",{exact:true}).waitFor();
+  await receive("DN-BROWSER-2","1","0");
+  await receiptCard.getByText("Received in full",{exact:true}).waitFor();
+  assert.equal(await receiptCard.getByRole("button",{name:"Record delivery receipt",exact:true}).count(),0);
+  await page.getByRole("button",{name:"Sign out",exact:true}).click();await login("worker");
+  await receiptCard.getByText("Received in full",{exact:true}).waitFor();
+  assert.equal(await page.getByRole("button",{name:"Record placed order",exact:true}).count(),0);
+  assert.equal(await page.getByRole("button",{name:"Record delivery receipt",exact:true}).count(),0);
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(
