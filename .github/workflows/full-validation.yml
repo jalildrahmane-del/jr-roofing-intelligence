@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - fix/offline-sync-project-confirmation-20261106
+      - fix/offline-sync-project-confirmation-20261106
       - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
   workflow_dispatch:
