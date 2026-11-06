@@ -109,6 +109,55 @@ try {
     .inputValue();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("worker");
+  await page.evaluate(() => {
+    window.cameraStopped = 0;
+    window.cameraMode = "success";
+    window.BarcodeDetector = class { async detect() {
+      if (window.cameraMode === "waiting") return [];
+      return [{rawValue:"synthetic-scanned-token"}];
+    }};
+    navigator.mediaDevices.getUserMedia = async () => {
+      if (window.cameraMode === "denied") throw Error("denied");
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 32;
+      const stream = canvas.captureStream(5);
+      canvas.getContext("2d").fillRect(0,0,32,32);
+      for (const track of stream.getTracks()) {
+        const stop = track.stop.bind(track);
+        track.stop = () => { window.cameraStopped++; stop(); };
+      }
+      if (window.cameraMode === "pending") return new Promise(resolve => { window.releaseCamera = () => resolve(stream); });
+      return stream;
+    };
+  });
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("Token captured. Confirm the project", {exact:false}).waitFor();
+  assert.equal(await page.getByLabel("Supervisor QR token",{exact:true}).inputValue(),"synthetic-scanned-token");
+  assert.equal(await page.evaluate(() => window.cameraStopped),1);
+  await page.evaluate(() => { window.cameraMode = "waiting"; });
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("Point the camera at",{exact:false}).waitFor();
+  await page.getByRole("button", {name:"Cancel camera scan"}).click();
+  assert.equal(await page.evaluate(() => window.cameraStopped),2);
+  await page.evaluate(() => { window.cameraMode = "pending"; });
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.waitForFunction(() => !!window.releaseCamera);
+  await page.getByRole("button", {name:"Cancel camera scan"}).click();
+  await page.evaluate(() => window.releaseCamera());
+  await page.waitForFunction(() => window.cameraStopped === 3);
+  await page.evaluate(() => {
+    window.cameraMode = "pending";
+    window.originalCameraTimer = window.setTimeout;
+    window.setTimeout = (fn, ms, ...args) => window.originalCameraTimer(fn, ms === 60000 ? 100 : ms, ...args);
+  });
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("Camera scan timed out.",{exact:false}).waitFor();
+  await page.evaluate(() => { window.setTimeout = window.originalCameraTimer; window.releaseCamera(); });
+  await page.waitForFunction(() => window.cameraStopped === 4);
+  await page.evaluate(() => { window.cameraMode = "denied"; });
+  await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
+  await page.getByText("Camera could not start.",{exact:false}).waitFor();
+
   await page.getByRole("checkbox", { name: /I confirm I am recording attendance/ }).check();
   await page.getByLabel("Supervisor QR token", { exact: true }).fill(token);
   await page

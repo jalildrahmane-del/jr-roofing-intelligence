@@ -18,7 +18,8 @@ This is the agreed finish sequence. A passing test suite validates implemented b
 
 ## 2. Complete workforce reporting and mobile operation
 
-- Remaining: date filters and daily/weekly attendance summaries/exports; live camera QR scanning with lifecycle/error handling; real iPhone/Safari GPS, photos and QR checks; resolve Issue #18's reviewable exception requirement for outside-site/denied GPS against the current outside-site rejection behaviour.
+- Implemented for review (2 November): opt-in live supervisor QR camera scanning, token-only capture, cancellation, hidden-page/unmount cleanup, independent 60-second timeout and late-permission cleanup. Image/token fallbacks remain available. See CAMERA-SCANNING-REVIEW.md.
+- Remaining: date filters and daily/weekly attendance summaries/exports; real iPhone/Safari GPS, photos and QR checks; resolve Issue #18's reviewable exception requirement for outside-site/denied GPS against the current outside-site rejection behaviour.
 - Preserve explicit project confirmation, point-in-time GPS, independent verification and missing-sign-out/sequence checks. No continuous tracking.
 
 ## 3. Complete AI document generation

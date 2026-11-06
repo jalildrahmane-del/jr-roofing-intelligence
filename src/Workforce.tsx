@@ -1,3 +1,4 @@
+import { AttendanceScanner } from "./AttendanceScanner";
 import { DailyReportForm } from "./DailyReportForm.tsx";
 import { MaterialFulfilment } from "./MaterialFulfilment.tsx";
 import { workforcePersonName as workerName } from "./workforce-people.ts";
@@ -488,6 +489,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             Supervisor QR token
             <input value={token} onChange={(e) => setToken(e.target.value)} />
           </label>
+          <AttendanceScanner onToken={setToken} />
           <label>
             Read QR image
             <input
