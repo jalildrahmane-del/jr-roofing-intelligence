@@ -64,3 +64,4 @@
 .workforce-comparison .match-attestation input{flex:0 0 20px;width:20px;height:20px;margin-top:2px;accent-color:#303e5b}
 .workforce-comparison li{overflow-wrap:anywhere}
 @media(max-width:550px){.workforce-comparison article{padding:12px}.workforce-comparison .comparison-totals{grid-template-columns:1fr}}
+.workforce-daily fieldset{min-width:0;border:1px solid #d7dee8;border-radius:8px;padding:12px;margin:12px 0}

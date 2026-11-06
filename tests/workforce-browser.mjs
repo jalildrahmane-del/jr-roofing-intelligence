@@ -174,6 +174,11 @@ try {
   assert.throws(() => workforceCommand(s, worker, pid, "daily-report", {
     ...reportData, day: "2026-02-30",
   }, key), /Invalid work date/);
+  for (const patch of [{operatives:0},{operatives:1.5},{operatives:10001},{operatives:"2"},{workAreas:""},{conditions:""}]) {
+    const before = s.db.prepare("SELECT COUNT(*) AS n FROM evidence").get().n;
+    assert.throws(()=>workforceCommand(s,worker,pid,"daily-report",{...reportData,operatives:2,workAreas:"West roof",conditions:"Dry",...patch},key));
+    assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM evidence").get().n,before);
+  }
   const report = workforceCommand(s, worker, pid, "daily-report", reportData, key);
   assert.equal(report.kind, "workforce.daily-report");
   assert.equal(report.data.evidence.length, 1);
@@ -297,6 +302,71 @@ try {
   await receiptCard.getByText("Received in full",{exact:true}).waitFor();
   assert.equal(await page.getByRole("button",{name:"Record placed order",exact:true}).count(),0);
   assert.equal(await page.getByRole("button",{name:"Record delivery receipt",exact:true}).count(),0);
+  const dailyForm=page.getByRole("form",{name:"Daily site report",exact:true});
+  await dailyForm.getByLabel("Works completed",{exact:true}).fill("Draft overlay works");
+  await dailyForm.getByRole("button",{name:"Save draft on this device",exact:true}).click();
+  await dailyForm.getByText("Draft saved on this device, including photographs. Not submitted.",{exact:true}).waitFor();
+  await page.reload();
+  await dailyForm.getByText("Saved draft restored on this device. Not submitted.",{exact:true}).waitFor();
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"Draft overlay works");
+  await dailyForm.getByLabel("Number of operatives",{exact:true}).fill("3");
+  await dailyForm.getByLabel("Work areas",{exact:true}).fill("West roof, bays 1–3");
+  await dailyForm.getByLabel("Site conditions (weather and access)",{exact:true}).fill("Dry; access clear");
+  await dailyForm.getByLabel("Delays or restrictions (write 'None' if applicable)",{exact:true}).fill("None");
+  await dailyForm.getByLabel("Plan for next shift",{exact:true}).fill("Continue overlay");
+  await dailyForm.getByLabel("Site photographs (1–4)",{exact:true}).setInputFiles({name:"roof.png",mimeType:"image/png",buffer:Buffer.from(await page.evaluate(()=>{const c=document.createElement("canvas");c.width=16;c.height=16;c.getContext("2d").fillRect(0,0,16,16);return c.toDataURL("image/png").split(",")[1];}),"base64")});
+  await dailyForm.getByLabel("Photo 1 caption",{exact:true}).fill("West roof evidence");
+  await context.setOffline(true);
+  await dailyForm.getByRole("button",{name:"Save draft on this device",exact:true}).click();
+  await dailyForm.getByText("Draft saved on this device, including photographs. Not submitted.",{exact:true}).waitFor();
+  await context.setOffline(false);
+  await page.reload();
+  assert.equal(await dailyForm.getByLabel("Photo 1 caption",{exact:true}).inputValue(),"West roof evidence");
+  assert.equal(await dailyForm.getByLabel("Number of operatives",{exact:true}).inputValue(),"3");
+  for(const width of [390,768,1440]) {
+    await page.setViewportSize({width,height:900});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"Daily report fits at "+width);
+  }
+  // A different account does not restore the worker's draft.
+  await page.getByRole("button",{name:"Sign out",exact:true}).click();await login("manager");
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"");
+  await page.getByRole("button",{name:"Sign out",exact:true}).click();await login("worker");
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"Draft overlay works");
+  // Simulated storage failure preserves both editor and previously saved draft.
+  await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('full','QuotaExceededError');};});
+  await dailyForm.getByRole("button",{name:"Save draft on this device",exact:true}).click();
+  await dailyForm.getByRole("alert").filter({hasText:"Draft could not be saved"}).waitFor();
+  await page.evaluate(()=>{Storage.prototype.setItem=window.originalSetItem;});
+  await page.route("**/api/workforce",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Temporary test interruption"})}),{times:1});
+  await dailyForm.getByRole("button",{name:"Submit daily report",exact:true}).click();
+  await dailyForm.getByRole("alert").waitFor();
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"Draft overlay works");
+  assert.equal(await dailyForm.getByLabel("Photo 1 caption",{exact:true}).inputValue(),"West roof evidence");
+  await page.route("**/api/workforce?pid=*",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Refresh interrupted"})}),{times:1});
+  await dailyForm.getByRole("button",{name:"Submit daily report",exact:true}).click();
+  await dailyForm.getByText("Daily report and photographs submitted for supervisor review.",{exact:true}).waitFor();
+  await dailyForm.getByRole("alert").filter({hasText:"Report submitted successfully"}).waitFor();
+  const submitted=workforceState(s,manager,pid).records.filter(r=>r.kind==='workforce.daily-report').at(-1);
+  assert.equal(submitted.data.operatives,3);assert.equal(submitted.data.workAreas,"West roof, bays 1–3");assert.equal(submitted.data.conditions,"Dry; access clear");
+  await page.reload();
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"");
+  assert.equal(await dailyForm.getByLabel("Photo 1 caption",{exact:true}).count(),0);
+  await dailyForm.getByLabel("Works completed",{exact:true}).fill("Discard me");
+  await dailyForm.getByRole("button",{name:"Save draft on this device",exact:true}).click();
+  page.once('dialog',dialog=>dialog.accept());
+  await dailyForm.getByRole("button",{name:"Discard draft",exact:true}).click();
+  await dailyForm.getByText("Draft discarded.",{exact:true}).waitFor();
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).inputValue(),"");
+  const draftKey='jr-daily-draft:'+JSON.stringify([worker.id,pid]);
+  await page.evaluate(key=>localStorage.setItem(key,'{broken'),draftKey);
+  await page.reload();
+  await dailyForm.getByRole("alert").filter({hasText:"Saved draft could not be read"}).waitFor();
+  assert.equal(await dailyForm.getByRole("button",{name:"Save draft on this device",exact:true}).isDisabled(),true);
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),draftKey),'{broken');
+  page.once('dialog',dialog=>dialog.accept());
+  await dailyForm.getByRole("button",{name:"Discard draft",exact:true}).click();
+  await dailyForm.getByText("Draft discarded.",{exact:true}).waitFor();
+  assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).isEnabled(),true);
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(
