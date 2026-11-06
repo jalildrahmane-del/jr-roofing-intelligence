@@ -320,6 +320,9 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
       const select=root.querySelector<HTMLSelectElement>('select[name="'+field+'"]');
       if(select&&Array.from(select.options).some(option=>option.value===action.recordId)){
         select.value=action.recordId;select.dispatchEvent(new Event('change',{bubbles:true}));
+      } else if(action.target==='daily'){
+        const revision=root.querySelector<HTMLSelectElement>('select[name="replacesReportId"]');
+        if(revision&&Array.from(revision.options).some(option=>option.value===action.recordId)){revision.value=action.recordId;revision.dispatchEvent(new Event('change',{bubbles:true}));revision.scrollIntoView({block:'center'});revision.focus({preventScroll:true});}
       }
     }
   };
@@ -650,7 +653,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <section id="workforce-daily" tabIndex={-1} className="workforce-daily" aria-labelledby="workforce-daily-heading">
             <h2 id="workforce-daily-heading">Daily site report with photographs</h2>
             <p>Record work completed on this project. Photos are stored as project evidence; submitting does not constitute supervisor approval.</p>
-            <DailyReportForm pid={pid} user={user} users={state.users || []} refresh={refresh} />
+            <DailyReportForm pid={pid} user={user} users={state.users || []} records={state.records} refresh={refresh} />
             <h3>Submitted daily reports</h3>
             {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
               const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
@@ -659,6 +662,8 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 {r.data.operatives != null && <p>Operatives: {r.data.operatives}</p>}
                 {r.data.workAreas && <p>Work areas: {r.data.workAreas}</p>}
                 {r.data.conditions && <p>Site conditions: {r.data.conditions}</p>}
+                {r.data.replacesReportId&&<p>Resubmitted revision of a returned report for this work date.</p>}
+                {state.records.some((v:any)=>v.kind==='workforce.daily-report'&&v.data.replacesReportId===r.id)&&<p>Resubmitted as a later revision. This original and its review are retained.</p>}
                 <p>{r.data.completed}</p>
                 <p>Delays: {r.data.delays}</p>
                 <p>Next shift: {r.data.nextShift}</p>

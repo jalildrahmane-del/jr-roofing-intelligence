@@ -1,3 +1,4 @@
+import {retainedDailyPhotoIds} from "./daily-report-revisions.ts";
 export type DailyDraft = {
   version: 1;
   savedAt: string;
@@ -6,7 +7,7 @@ export type DailyDraft = {
 };
 export const dailyDraftKey = (userId: string, projectId: string) =>
   'jr-daily-draft:' + JSON.stringify([userId, projectId]);
-export const dailyFields = ['workerId', 'day', 'operatives', 'workAreas', 'conditions', 'completed', 'delays', 'nextShift'];
+export const dailyFields = ['workerId', 'day', 'operatives', 'workAreas', 'conditions', 'completed', 'delays', 'nextShift', 'replacesReportId', 'retainedPhotoIds'];
 export function readDailyDraft(raw: string | null): DailyDraft | null {
   if (raw === null) return null;
   const d = JSON.parse(raw);
@@ -17,5 +18,6 @@ export function readDailyDraft(raw: string | null): DailyDraft | null {
         !p || typeof p.caption !== 'string' || p.caption.length > 300 || typeof p.image !== 'string' ||
         p.image.length > 1400000 || !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(p.image)))
     throw Error('Invalid saved daily report');
+  retainedDailyPhotoIds(d.fields.retainedPhotoIds);
   return d;
 }
