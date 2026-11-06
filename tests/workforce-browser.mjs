@@ -66,6 +66,11 @@ try {
     await page.goto(base + "/#workforce");
   };
   await login("manager");
+  for (const title of ["Record independent review", "Review daily report", "Review materials request"]) {
+    const empty = page.locator("form").filter({has:page.getByRole("heading",{name:title,exact:true})});
+    assert.equal(await empty.getByRole("button").isDisabled(),true,"Empty review cannot be submitted");
+    await empty.getByText(/Nothing is available for you to review/).waitFor();
+  }
   const setup = page.locator("form").filter({ has: page.getByRole("heading", { name: "Site location", exact: true }) });
   assert.equal(await setup.getByRole("button", { name: "Save site location", exact: true }).isDisabled(), true);
   await setup.getByRole("button", { name: "Use my location", exact: true }).click();
@@ -226,6 +231,37 @@ try {
   await reviewForm.getByRole("button").click();
   await page.getByText(/1 pending/).first().waitFor();
   assert.ok(workforceState(s, manager, pid).records.some(r => r.kind === "workforce.review" && r.data.eventId === eventRecord.id && r.data.decision === "accepted"));
+  await reviewForm.getByText("Review saved. The record and review list have been updated.",{exact:true}).waitFor();
+  assert.equal(await reviewForm.getByLabel("Reason",{exact:true}).inputValue(),"");
+  const requestData = {workerId:worker.id,description:"Next shift boards",specification:"Synthetic boards",quantity:2,unit:"packs",neededBy:"2026-11-03",deliveryPoint:"Test compound",reason:"Test request"};
+  const ownRequest = workforceCommand(s,manager,pid,"material-request",requestData,key);
+  const pendingRequest = workforceCommand(s,worker,pid,"material-request",requestData,key);
+  const ownReport = workforceCommand(s,manager,pid,"daily-report",{...reportData,workerId:worker.id},key);
+  const pendingReport = workforceCommand(s,worker,pid,"daily-report",reportData,key);
+  await page.reload();
+  const materialsReview = page.locator("form").filter({has:page.getByRole("heading",{name:"Review materials request",exact:true})});
+  const dailyReview = page.locator("form").filter({has:page.getByRole("heading",{name:"Review daily report",exact:true})});
+  await materialsReview.getByLabel("Materials request",{exact:true}).selectOption(pendingRequest.id);
+  assert.equal(await materialsReview.locator(`option[value="${ownRequest.id}"]`).count(),0,"Cannot select own materials request");
+  assert.equal(await dailyReview.locator(`option[value="${ownReport.id}"]`).count(),0,"Cannot select own daily report");
+  await dailyReview.getByLabel("Daily report",{exact:true}).selectOption(pendingReport.id);
+  await dailyReview.getByLabel("Decision",{exact:true}).selectOption("accepted");
+  await dailyReview.getByLabel("Reason",{exact:true}).fill("Independent report review.");
+  await dailyReview.getByRole("button").click();
+  await dailyReview.getByText("Review saved. The record and review list have been updated.",{exact:true}).waitFor();
+  assert.equal(await dailyReview.getByRole("button").isDisabled(),true);
+  await materialsReview.getByLabel("Decision",{exact:true}).selectOption("approved");
+  await materialsReview.getByLabel("Reason",{exact:true}).fill("Evidence checked; notes must survive retry.");
+  await page.route("**/api/workforce",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Temporary test interruption"})}),{times:1});
+  await materialsReview.getByRole("button").click();
+  await materialsReview.getByRole("alert").waitFor();
+  assert.equal(await materialsReview.getByLabel("Reason",{exact:true}).inputValue(),"Evidence checked; notes must survive retry.");
+  assert.equal(await materialsReview.getByLabel("Materials request",{exact:true}).inputValue(),pendingRequest.id);
+  assert.equal(await materialsReview.getByText("Review saved. The record and review list have been updated.",{exact:true}).count(),0);
+  await materialsReview.getByRole("button").click();
+  await materialsReview.getByText("Review saved. The record and review list have been updated.",{exact:true}).waitFor();
+  assert.equal(await materialsReview.getByRole("button").isDisabled(),true);
+  assert.equal(await materialsReview.getByLabel("Reason",{exact:true}).inputValue(),"");
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(
