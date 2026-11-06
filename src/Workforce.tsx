@@ -1,3 +1,5 @@
+import {WorkforceActions} from "./WorkforceActions.tsx";
+import type {WorkforceAction} from "./workforce-actions.ts";
 import { AttendanceScanner } from "./AttendanceScanner";
 import { MaterialRequestForm } from "./MaterialRequestForm.tsx";
 import { DailyReportForm } from "./DailyReportForm.tsx";
@@ -308,6 +310,28 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
     await api("workforce", { pid, action, data });
     await refresh();
   };
+  const openAction = (action: Pick<WorkforceAction,'target'|'recordId'>) => {
+    const root=document.getElementById('workforce-'+action.target);
+    const record=document.getElementById('workforce-record-'+action.recordId);
+    const target=record || root;
+    if(target){target.scrollIntoView({block:'start'});target.focus({preventScroll:true});}
+    if(root){
+      const field=action.target==='attendance'?'eventId':action.target==='daily'?'reportId':'requestId';
+      const select=root.querySelector<HTMLSelectElement>('select[name="'+field+'"]');
+      if(select&&Array.from(select.options).some(option=>option.value===action.recordId)){
+        select.value=action.recordId;select.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    }
+  };
+  useEffect(()=>{
+    if(!state)return;
+    const query=new URLSearchParams(location.search),target=query.get('action'),recordId=query.get('record');
+    if(recordId&&['attendance','daily','materials'].includes(target || '')){
+      openAction({target:target as WorkforceAction['target'],recordId});
+      query.delete('action');query.delete('record');
+      history.replaceState(null,'',location.pathname+(query.size?'?'+query.toString():'')+location.hash);
+    }
+  },[state]);
   async function checkIn(offline = false) {
     setError("");
     setSuccess("");
@@ -370,6 +394,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
         Fictional test records only. GPS is captured only when submitting an
         event. All attendance needs independent review; no continuous tracking.
       </p>
+      {state && <WorkforceActions actions={state.actions || []} checkedAt={state.checkedAt} refresh={refresh} open={openAction}/> }
       <WorkforceWeather pid={pid} project={project} />
       {error && <p role="alert">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
@@ -572,7 +597,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
         <>
           <ShiftPlanner state={state} user={user} send={send} />
           <WorkforceComparison state={state} user={user} send={send}/>
-          <section>
+          <section id="workforce-attendance" tabIndex={-1}>
             <h2>Attendance review</h2>
             <ul>
               {state.records
@@ -622,14 +647,14 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 ))}
             </ul>
           </section>
-          <section className="workforce-daily" aria-labelledby="workforce-daily-heading">
+          <section id="workforce-daily" tabIndex={-1} className="workforce-daily" aria-labelledby="workforce-daily-heading">
             <h2 id="workforce-daily-heading">Daily site report with photographs</h2>
             <p>Record work completed on this project. Photos are stored as project evidence; submitting does not constitute supervisor approval.</p>
             <DailyReportForm pid={pid} user={user} users={state.users || []} refresh={refresh} />
             <h3>Submitted daily reports</h3>
             {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
               const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
-              return <article className="workforce-report-card" key={r.id}>
+              return <article className="workforce-report-card" id={"workforce-record-"+r.id} tabIndex={-1} key={r.id}>
                 <strong>{r.data.day} · {workerName(state, r.data.workerId)}</strong>
                 {r.data.operatives != null && <p>Operatives: {r.data.operatives}</p>}
                 {r.data.workAreas && <p>Work areas: {r.data.workAreas}</p>}
@@ -638,6 +663,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
                 <p>Delays: {r.data.delays}</p>
                 <p>Next shift: {r.data.nextShift}</p>
                 <p>{review ? `Supervisor: ${review.data.decision}` : "Awaiting supervisor review"}</p>
+                {review?.data.reason && <p>Review notes: {review.data.reason}</p>}
                 <div className="workforce-photo-grid">{r.data.evidence.map((photo: any) =>
                   <figure key={photo.assetId}><img loading="lazy" src={"/api/evidence/" + photo.assetId} alt={photo.caption} /><figcaption>{photo.caption}</figcaption></figure>
                 )}</div>
@@ -646,7 +672,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             })}
             {["manager", "supervisor"].includes(user.role) && <WorkforceReview kind="daily" state={state} user={user} send={send} />}
           </section>
-          <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
+          <section id="workforce-materials" tabIndex={-1} className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
             <p>Request materials for the selected project. Submitting a request does not place an order.</p>
             <MaterialRequestForm user={user} users={state.users || []} send={send} />

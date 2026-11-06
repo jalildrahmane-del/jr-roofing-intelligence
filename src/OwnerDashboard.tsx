@@ -1,3 +1,4 @@
+import {workforceActionLink,type WorkforceAction} from "./workforce-actions.ts";
 import React, { useEffect, useState } from "react";
 import { api } from "./api.ts";
 import type { Project, RecordItem, Snapshot } from "./model.ts";
@@ -26,7 +27,7 @@ const signalLabels: Record<SiteSignal, string> = {
   red: "Delayed (recorded)",
   unknown: "Status not reported",
 };
-type DirectorRow = { projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number; materialAwaitingOrder:number; materialAwaitingDelivery:number; materialReceived:number };
+type DirectorRow = { actions:WorkforceAction[]; projectId:string; projectName:string; allocatedWorkers:number; attendanceEvents:number; attendancePending:number; dailyReports:number; dailyPending:number; photos:number; materialRequests:number; materialPending:number; materialAwaitingOrder:number; materialAwaitingDelivery:number; materialReceived:number };
 function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
   const [rows,setRows] = useState<DirectorRow[]|null>(null);
   const [error,setError] = useState("");
@@ -56,6 +57,11 @@ function DirectorWorkforce({ select }: { select?: (id:string)=>void }) {
         <div><dt>Orders awaiting full receipt</dt><dd>{r.materialAwaitingDelivery}</dd></div>
         <div><dt>Requests received in full</dt><dd>{r.materialReceived}</dd></div>
       </dl>
+      {r.actions?.length>0 && <div aria-label="Outstanding project actions">
+        <p><strong>{r.actions.length} site actions · {r.actions.filter(a=>a.urgent||a.overdue).length} urgent or overdue</strong></p>
+        <ul>{r.actions.slice(0,5).map(action=><li key={action.id}><a href={workforceActionLink(r.projectId,action)}>{action.overdue?'Overdue · ':action.urgent?'Urgent · ':''}{action.title} — {action.detail}</a></li>)}</ul>
+        {r.actions.length>5&&<p>Open workforce records to see all actions.</p>}
+      </div>}
       <a href="#workforce" onClick={()=>select?.(r.projectId)}>Open workforce records →</a>
     </article>)}
     </div>

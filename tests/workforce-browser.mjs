@@ -278,6 +278,15 @@ try {
   const rows = await response.json();
   assert.equal(rows.find(r => r.projectId === pid).dailyReports, 1);
   assert.equal(rows.find(r => r.projectId === secondPid).materialRequests, 0);
+  const directorAction=firstSite.locator('[aria-label="Outstanding project actions"]').getByRole('link').first();
+  const actionUrl=new URL(await directorAction.getAttribute('href'),base);
+  assert.equal(actionUrl.searchParams.get('site'),pid);
+  await directorAction.click();
+  await page.getByRole('region',{name:'Site action centre',exact:true}).waitFor();
+  const focusSection='workforce-'+actionUrl.searchParams.get('action');
+  const focusRecord='workforce-record-'+actionUrl.searchParams.get('record');
+  await page.waitForFunction(({section,record})=>[section,record].includes(document.activeElement?.id),{section:focusSection,record:focusRecord});
+  await page.goto(base+'/#dashboard');
   await firstSite.getByRole("link", { name: "Open workforce records" }).click();
   await page.getByRole("heading", { name: "Subcontractors & Workforce", exact: true }).waitFor();
   assert.match(await page.locator("body").innerText(), /Fictional roof/);
@@ -297,6 +306,19 @@ try {
   const ownReport = workforceCommand(s,manager,pid,"daily-report",{...reportData,workerId:worker.id},key);
   const pendingReport = workforceCommand(s,worker,pid,"daily-report",reportData,key);
   await page.reload();
+  const actions=page.getByRole("region",{name:"Site action centre",exact:true});
+  await actions.getByLabel("Show actions",{exact:true}).selectOption('review');
+  const pendingAction=actions.locator('[data-record-id="'+pendingRequest.id+'"]');
+  await pendingAction.getByRole('button',{name:'Open item',exact:true}).click();
+  assert.equal(await page.locator('.workforce-review').getByLabel('Materials request',{exact:true}).inputValue(),pendingRequest.id);
+  assert.equal(await actions.locator('[data-record-id="'+ownRequest.id+'"]').count(),0,'Own submission must not appear in the eligible review filter');
+  await actions.getByLabel("Show actions",{exact:true}).selectOption('all');
+  await page.route('**/api/workforce?pid=*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Action refresh interrupted'})}),{times:1});
+  await actions.getByRole('button',{name:'Refresh site actions',exact:true}).click();
+  await actions.getByRole('alert').filter({hasText:'Could not refresh actions'}).waitFor();
+  await pendingAction.waitFor();
+  await actions.getByRole('button',{name:'Refresh site actions',exact:true}).click();
+  await actions.getByRole('alert').waitFor({state:'detached'});
   const materialsReview = page.locator("form").filter({has:page.getByRole("heading",{name:"Review materials request",exact:true})});
   const dailyReview = page.locator("form").filter({has:page.getByRole("heading",{name:"Review daily report",exact:true})});
   await materialsReview.getByLabel("Materials request",{exact:true}).selectOption(pendingRequest.id);
@@ -352,6 +374,7 @@ try {
   await page.reload();await receiptCard.getByText("Part delivered — balance outstanding",{exact:true}).waitFor();
   await receive("DN-BROWSER-2","1","0");
   await receiptCard.getByText("Received in full",{exact:true}).waitFor();
+  assert.equal(await actions.locator('[data-record-id="'+pendingRequest.id+'"]').count(),0,"Full receipt clears its action");
   await receiptCard.getByText("Order and receipt history",{exact:true}).click();
   for(const ref of ["DN-BROWSER-1","DN-BROWSER-2"]){
     const img=receiptCard.getByRole("img",{name:"Delivery evidence "+ref,exact:true});

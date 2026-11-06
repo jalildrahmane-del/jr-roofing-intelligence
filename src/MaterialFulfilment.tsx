@@ -19,7 +19,7 @@ function MaterialCard({request,state,user,send}:Props & {request:RecordItem}) {
     } catch(err){setError((err as Error).message);}finally{setBusy(false);}
   };
   const quantity=(value:number)=>value.toLocaleString('en-GB',{maximumSignificantDigits:12});
-  return <article aria-label={`Materials: ${request.data.description}`}>
+  return <article id={"workforce-record-"+request.id} tabIndex={-1} aria-label={`Materials: ${request.data.description}`}>
     <h3>{request.data.description}</h3>
     <p><strong>Priority: {request.data.priority || "normal"}</strong></p>
     <SitePhotoEvidence evidence={request.data.evidence}/>

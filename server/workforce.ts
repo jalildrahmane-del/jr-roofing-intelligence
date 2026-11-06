@@ -1,3 +1,4 @@
+import {workforceActions} from "../src/workforce-actions.ts";
 import { materialFulfilment, materialQuantityTolerance } from "../src/material-fulfilment.ts";
 import { latestShifts, shiftTime } from "./workforce-shifts.ts";
 import { plannedActualReport } from "./workforce-matching.ts";
@@ -130,6 +131,8 @@ export function workforceState(store: Store, user: User, pid: string) {
   }
   const report=attendanceReport(visible);
   return {
+    actions: workforceActions(visible,user),
+    checkedAt: new Date().toISOString(),
     records: visible,
     users,
     people,
@@ -714,6 +717,7 @@ export function workforceDirectorSummary(store: Store, user: User) {
     const events = kind("event");
     return {
       projectId: project.id, projectName: project.name, address: project.address,
+      actions: workforceActions(records,user),
       allocatedWorkers: [...latestAllocations.values()].filter(r => r.data.active).length,
       attendanceEvents: events.length,
       attendancePending: events.filter(r => !attendanceReviews.has(r.id)).length,
