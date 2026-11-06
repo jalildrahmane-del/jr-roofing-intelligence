@@ -77,6 +77,9 @@ test("attendance lifecycle: bound QR, independent review, privacy, replay and al
       decision: "accepted",
       reason: "Observed arrival",
     });
+    assert.throws(() => cmd(supervisor, "review", {
+      eventId: e.id, decision: "rejected", reason: "Contradictory second review",
+    }), /already reviewed/);
     assert.throws(
       () =>
         cmd(worker, "event", { ...d, event: "out", requestId: "request-2" }),
