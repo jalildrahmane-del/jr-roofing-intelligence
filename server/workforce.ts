@@ -78,6 +78,13 @@ export function workforceState(store: Store, user: User, pid: string) {
           .prepare("SELECT id,name,role,company FROM users ORDER BY name")
           .all().filter((u: any) => user.role === "manager" || (u.role === "worker" && records.filter(r => r.kind === "workforce.allocation" && r.data.workerId === u.id).at(-1)?.data.active))
       : [];
+  // Display names follow the already authorised record scope, not the staff directory.
+  const visibleWorkerIds = new Set(visible.map(r => r.data.workerId).filter((id): id is string => typeof id === "string"));
+  const people = (store.db.prepare("SELECT id,name,company FROM users WHERE role='worker' ORDER BY name").all() as {id:string;name:string;company:string}[])
+    .filter(person => visibleWorkerIds.has(person.id) &&
+      (user.role !== "worker" || person.id === user.id) &&
+      (user.role !== "subcontractor-owner" || person.company === user.company))
+    .map(({id,name,company}) => ({id,name,company}));
   const weekly: Record<string, any> = {};
   for (const r of visible.filter((r) => r.kind === "workforce.progress")) {
     const day = new Date(r.data.day + "T00:00:00Z");
@@ -97,6 +104,7 @@ export function workforceState(store: Store, user: User, pid: string) {
   return {
     records: visible,
     users,
+    people,
     config: user.role === "subcontractor-owner" ? { syntheticOnly: true, notice: "Company-scoped fictional workforce data; no GPS coordinates" } : config?.data,
     schedules: latestShifts(visible).map(r => ({ ...r, plannedHours: r.data.cancelled ? 0 : (Date.parse(r.data.end) - Date.parse(r.data.start)) / 3600000 - r.data.breakMinutes / 60 })),
     report,

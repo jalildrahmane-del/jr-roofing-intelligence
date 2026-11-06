@@ -72,6 +72,10 @@ test("subcontractor owner requires manager grant and only sees own company witho
     assert.ok(state.records.every((r) => !r.data.fix && !r.data.gps));
     assert.equal(state.config?.latitude, undefined);
     assert.equal(state.users.length, 0);
+    assert.deepEqual(state.people, [{id:worker.id,name:worker.name,company:worker.company}]);
+    assert.deepEqual(workforceState(store, worker, pid).people, [{id:worker.id,name:worker.name,company:worker.company}]);
+    const unassigned = store.addUser("unassigned-company-worker", "fictional-password", "worker", "Alpha");
+    assert.ok(!JSON.stringify(workforceState(store, owner, pid)).includes(unassigned));
     assert.equal(store.snapshot(owner).records.length, 0);
     for (const action of [
       "owner",
@@ -87,6 +91,8 @@ test("subcontractor owner requires manager grant and only sees own company witho
         () => cmd(owner, action, { workerId: worker.id }),
         /Forbidden/,
       );
+    cmd(manager, "allocation", {workerId:worker.id,active:false,shift:"Day",rate:20});
+    assert.deepEqual(workforceState(store, owner, pid).people, state.people, "Names remain available for authorised historical records");
     cmd(manager, "owner", { ownerId: owner.id, active: false });
     assert.throws(() => workforceState(store, owner, pid), /Forbidden/);
     assert.equal(store.snapshot(owner).projects.length, 0);

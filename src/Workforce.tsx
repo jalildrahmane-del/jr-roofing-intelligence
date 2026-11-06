@@ -1,3 +1,4 @@
+import { workforcePersonName as workerName } from "./workforce-people.ts";
 import { readOfflineQueue } from "./workforce-queue.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
@@ -98,10 +99,6 @@ function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) 
       <p><small>Source: {forecast.source}. This is a forecast, not a live weather measurement or a permit to work.</small></p>
     </>}
   </section>;
-}
-function workerName(state: any, id: string) {
-  const person = state?.users?.find((u: any) => u.id === id);
-  return person ? `${person.name} — ${person.company}` : "Worker";
 }
 
 function SiteSetup({ state, send }: { state: any; send: (action: string, data: any) => Promise<void> }) {
@@ -536,7 +533,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <WorkforceComparison state={state} user={user} send={send}/>
           <h3>Verified attendance summary</h3>
           {!state.report?.length && <p>No reviewed attendance records for your company.</p>}
-          {(state.report || []).map((r: any) => <p key={workerName(state, r.workerId)}>{workerName(state, r.workerId)}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
+          {(state.report || []).map((r: any) => <p key={r.workerId}>{workerName(state, r.workerId)}: {r.verifiedHours.toFixed(2)} verified hours · {r.pending} pending. Reconciliation only, not payment approval.</p>)}
         </section>
       )}
       {state && user.role !== "subcontractor-owner" && (
@@ -748,7 +745,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
               approval.
             </p>
             {state.report.map((r: any) => (
-              <article key={workerName(state, r.workerId)}>
+              <article key={r.workerId}>
                 <h3>{workerName(state, r.workerId)}</h3>
                 <p>
                   £{r.amount.toFixed(2)} at recorded rates ·{" "}

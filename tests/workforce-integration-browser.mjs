@@ -79,6 +79,10 @@ try {
     assert.equal(await page.getByRole("button", { name: "Save shift plan" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Update owner access" }).count(), 0);
     assert.equal(await page.getByText("7.50 planned hours").count(), 1);
+    assert.ok((await page.locator(".workforce-shifts").innerText()).includes(worker.name), "Owner sees named workers on saved shifts");
+    const scoped = await (await page.request.get(base + "/api/workforce?pid=" + pid)).json();
+    assert.deepEqual(scoped.people, [{id:worker.id,name:worker.name,company:worker.company}]);
+    assert.equal(scoped.users.length, 0, "Display names do not grant access to staff directory");
     assert.equal(await page.getByRole("heading", { name: "Today's site weather forecast" }).count(), 1);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "No horizontal overflow at " + width);
     const blocked = await page.request.get(base + "/api/workforce?pid=" + otherPid);

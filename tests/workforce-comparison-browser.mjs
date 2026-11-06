@@ -10,7 +10,7 @@ try{
   const page=await browser.newPage(),errors=[];page.on("pageerror",e=>errors.push(e.message));
   const login=async name=>{await page.goto(base+"/#workforce");await page.getByLabel("Username",{exact:true}).fill(name);await page.getByLabel("Password",{exact:true}).fill("synthetic-password");await page.getByRole("button",{name:"Sign in",exact:true}).click();await page.getByRole("heading",{name:"Subcontractors & Workforce",exact:true}).waitFor();await page.getByRole("heading",{name:"Planned versus verified attendance",exact:true}).waitFor();};
   await login(f.supervisor.name);
-  const report=page.getByRole("region",{name:"Planned versus actual workforce report"}),row=report.getByRole("article",{name:"Shift comparison"}).filter({has:page.getByRole("heading",{name:f.worker.name,exact:true})});
+  const report=page.getByRole("region",{name:"Planned versus actual workforce report"}),row=report.getByRole("article",{name:"Shift comparison"}).filter({has:page.getByRole("heading",{name:`${f.worker.name} — ${f.worker.company}`,exact:true})});
   await row.getByText("Awaiting supervisor confirmation",{exact:true}).waitFor();
   assert.ok((await row.innerText()).includes("-0.50 hours"));
   const submit=row.getByRole("button",{name:"Record shift match",exact:true});assert.ok(await submit.isDisabled());

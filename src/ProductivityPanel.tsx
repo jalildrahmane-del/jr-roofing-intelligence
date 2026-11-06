@@ -1,3 +1,4 @@
+import { workforcePersonName } from "./workforce-people.ts";
 import React from "react";
 import { productivityReport } from "./productivity.ts";
 import "./productivity.css";
@@ -12,7 +13,7 @@ export function ProductivityPanel({state}:{state:any}) {
         <div className="table-wrap"><table>
           <thead><tr><th>Week commencing</th><th>Worker</th><th>Reported installation</th><th>Verified shift hours</th><th>Indicative quantity/hour</th><th>Evidence</th></tr></thead>
           <tbody>{rows.map(row=><tr key={JSON.stringify([row.workerId,row.week,row.unit])}>
-            <td>{row.week}</td><td>{state.users?.find((u:any)=>u.id===row.workerId)?.name || "Worker"}</td>
+            <td>{row.week}</td><td>{workforcePersonName(state,row.workerId)}</td>
             <td>{row.reportedQuantity.toLocaleString("en-GB")} {row.unit}</td>
             <td>{row.verifiedHours.toFixed(2)} h</td>
             <td>{row.quantityPerHour === null ? "Unavailable" : row.quantityPerHour.toFixed(2)+" "+row.unit+"/h"}</td>
