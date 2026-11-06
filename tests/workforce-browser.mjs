@@ -174,6 +174,8 @@ try {
     .click();
   await page.reload();
   await page.getByText("1 unverified events held on this device.").waitFor();
+  assert.equal(await page.getByRole("button", { name: "Sync pending offline events" }).isDisabled(), true);
+  await page.getByRole("checkbox", { name: /I confirm I am recording attendance/ }).check();
   await page
     .getByRole("button", { name: "Sync pending offline events" })
     .click();

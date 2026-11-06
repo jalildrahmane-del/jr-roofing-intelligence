@@ -558,8 +558,12 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           {initialQueue.error && <p role="alert">{initialQueue.error}</p>}
           <p>{queue.length} unverified events held on this device.</p>
           <button
-            disabled={busy || !!initialQueue.error || !queue.length}
+            disabled={busy || !confirmedProject || !!initialQueue.error || !queue.length}
             onClick={async () => {
+              if (!confirmedProject) {
+                setError("Confirm the selected project before synchronising attendance.");
+                return;
+              }
               setBusy(true);
               setError("");
               let remaining = [...queue];
