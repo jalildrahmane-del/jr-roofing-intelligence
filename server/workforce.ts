@@ -504,6 +504,8 @@ export function workforceCommand(
         (r) => r.id === d.eventId && r.kind === "workforce.event",
       );
       if (!event) throw Error("Attendance event not found");
+      if (records.some((r) => r.kind === "workforce.review" && r.data.eventId === event.id))
+        throw Error("Attendance event already reviewed; a second decision is not permitted");
       if (event.author === user.id || event.data.workerId === user.id)
         throw Error("Forbidden: independent reviewer required");
       if (!["accepted", "rejected"].includes(d.decision))
