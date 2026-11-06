@@ -1,4 +1,5 @@
 import { AttendanceScanner } from "./AttendanceScanner";
+import { MaterialRequestForm } from "./MaterialRequestForm.tsx";
 import { DailyReportForm } from "./DailyReportForm.tsx";
 import { MaterialFulfilment } from "./MaterialFulfilment.tsx";
 import { workforcePersonName as workerName } from "./workforce-people.ts";
@@ -648,16 +649,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <section className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
             <p>Request materials for the selected project. Submitting a request does not place an order.</p>
-            <Entry
-            users={state?.users || []}
-              title="Submit materials request"
-              fields={[
-                ...(user.role === "worker" ? [] : ["workerId"]),
-                "description", "specification", "quantity", "unit",
-                "neededBy", "deliveryPoint", "reason",
-              ]}
-              submit={(d) => send("material-request", d)}
-            />
+            <MaterialRequestForm user={user} users={state.users || []} send={send} />
             <MaterialFulfilment state={state} user={user} send={send} />
             {["manager", "supervisor"].includes(user.role) && (
               <WorkforceReview kind="materials" state={state} user={user} send={send} />
