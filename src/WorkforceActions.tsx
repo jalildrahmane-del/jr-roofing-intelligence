@@ -8,7 +8,7 @@ export function WorkforceActions({actions,checkedAt,refresh,open}:{actions:Workf
   <p>{actions.length} outstanding items in your authorised project records. Items update when the page refreshes or you save a change.</p>
   <p><small>Last checked {new Date(checkedAt).toLocaleString('en-GB')}. Due dates are compared with today's UK date.</small></p>
   <label>Show actions<select aria-label="Show actions" value={filter} onChange={e=>setFilter(e.target.value)}>
-   <option value="all">All outstanding items</option><option value="urgent">Urgent or overdue</option><option value="review">Reviews I can perform</option><option value="order">Orders to record</option><option value="delivery">Deliveries to check</option><option value="waiting">Awaiting someone else</option>
+   <option value="all">All outstanding items</option><option value="urgent">Urgent or overdue</option><option value="review">Reviews I can perform</option><option value="order">Orders to record</option><option value="delivery">Deliveries to check</option><option value="returned">Returned reports to revise</option><option value="waiting">Awaiting someone else</option>
   </select></label>
   <button type="button" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await refresh();}catch(e){setError('Could not refresh actions. The list still shows the last successful check. '+(e as Error).message);}finally{setBusy(false);}}}>{busy?'Refreshing actions…':'Refresh site actions'}</button>
   {error&&<p role="alert">{error}</p>}

@@ -1,9 +1,11 @@
+import {returnedDailyReports} from "./daily-report-revisions.ts";
 import type {RecordItem,User} from './model.ts';
 import {materialFulfilment} from './material-fulfilment.ts';
-export type WorkforceAction = {id:string;recordId:string;kind:'review'|'order'|'delivery'|'waiting';title:string;detail:string;target:'attendance'|'daily'|'materials';urgent:boolean;overdue:boolean};
+export type WorkforceAction = {id:string;recordId:string;kind:'review'|'order'|'delivery'|'waiting'|'returned';title:string;detail:string;target:'attendance'|'daily'|'materials';urgent:boolean;overdue:boolean};
 // Input must already be authorised using workforceState; never call with an unrestricted snapshot.
 export function workforceActions(records:RecordItem[],user:User,today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/London'})):WorkforceAction[]{
  const result:WorkforceAction[]=[];
+ const returned=new Set(returnedDailyReports(records,user.id).map(r=>r.id));
  const reviewer=['manager','supervisor'].includes(user.role);
  const latest=(kind:string,field:string,id:string)=>records.filter(r=>r.kind===kind&&r.data[field]===id).at(-1);
  const add=(r:RecordItem,kind:WorkforceAction['kind'],title:string,detail:string,target:WorkforceAction['target'],urgent=false,overdue=false)=>result.push({id:kind+':'+r.id,recordId:r.id,kind,title,detail,target,urgent,overdue});
@@ -12,6 +14,7 @@ export function workforceActions(records:RecordItem[],user:User,today=new Date()
    add(r,'review','Review attendance event',`${r.data.event} · ${r.createdAt}`,'attendance');
   if(r.kind==='workforce.daily-report'){
    const review=latest('workforce.daily-review','reportId',r.id);
+   if(returned.has(r.id))add(r,'returned','Revise returned daily report',`${r.data.day} · ${review?.data.reason}`,'daily',true);
    if(!review&&reviewer&&r.author!==user.id)add(r,'review','Review daily report',`${r.data.day} · ${r.data.completed.slice(0,100)}`,'daily');
   }
   if(r.kind!=='workforce.material-request')continue;

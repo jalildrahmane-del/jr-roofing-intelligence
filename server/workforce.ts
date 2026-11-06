@@ -579,9 +579,30 @@ export function workforceCommand(
         siteDetails.workAreas = text(d.workAreas, "Work areas", 1000);
         siteDetails.conditions = text(d.conditions, "Site conditions", 2000);
       }
-      const evidence = saveWorkforcePhotos(store, pid, d.photos, 1);
+      let original: RecordItem | undefined;
+      if (d.replacesReportId !== undefined && d.replacesReportId !== "") {
+        const id = text(d.replacesReportId,"Original report",100);
+        original = records.find(r=>r.id===id&&r.kind==='workforce.daily-report');
+        if(!original || original.author!==user.id) throw Error("Only the original author may revise their returned report");
+        if(original.data.workerId!==workerId || original.data.day!==day) throw Error("A revision must keep the same worker and work date");
+        const review=records.filter(r=>r.kind==='workforce.daily-review'&&r.data.reportId===id).at(-1);
+        if(review?.data.decision!=="returned") throw Error("Only returned reports can be revised");
+        if(records.some(r=>r.kind==='workforce.daily-report'&&r.data.replacesReportId===id)) throw Error("This report has already been resubmitted. Refresh the report list");
+      }
+      const ids=d.retainedPhotoIds===undefined?[]:d.retainedPhotoIds;
+      if(!Array.isArray(ids)||ids.length>4||ids.some(id=>typeof id!=="string")||new Set(ids).size!==ids.length) throw Error("Invalid retained photographs");
+      if(ids.length && !original) throw Error("Retained photographs require a returned original report");
+      const retained=ids.map(id=>{
+        const photo=original!.data.evidence.find((p:any)=>p.assetId===id);
+        if(!photo || !store.db.prepare("SELECT id FROM evidence WHERE id=? AND pid=?").get(id,pid)) throw Error("Retained photograph not found on original report");
+        return photo;
+      });
+      const photos=d.photos===undefined&&original?[]:d.photos;
+      if(!Array.isArray(photos)||photos.length+retained.length>4) throw Error("Attach 1 to 4 site photographs in total");
+      const evidence = [...retained,...saveWorkforcePhotos(store,pid,photos,retained.length?0:1)];
       return append("daily-report", {
         workerId, day, ...siteDetails,
+        ...(original?{replacesReportId:original.id}:{}),
         completed: text(d.completed, "Works completed", 3000),
         delays: text(d.delays, "Delays / restrictions", 2000),
         nextShift: text(d.nextShift, "Next shift plan", 2000),
