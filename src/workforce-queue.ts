@@ -17,5 +17,10 @@ export function readOfflineQueue(raw: string | null): any[] {
     throw Error(
       "Saved offline queue is unreadable. Stored data has been preserved; do not clear browser storage.",
     );
+  // A duplicate retry ID can silently collapse two separate attendance events on sync.
+  // Reject the queue rather than silently dropping evidence or rewriting saved IDs.
+  const ids = value.map((e) => e.requestId);
+  if (new Set(ids).size !== ids.length)
+    throw Error("Saved offline queue contains duplicate event IDs. Stored data has been preserved; do not clear browser storage.");
   return value;
 }
