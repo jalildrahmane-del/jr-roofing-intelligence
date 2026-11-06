@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - fix/ios-photo-processing-fallback-20261106
       - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
   workflow_dispatch:
