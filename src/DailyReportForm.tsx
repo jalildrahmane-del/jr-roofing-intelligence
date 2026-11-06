@@ -1,26 +1,8 @@
+import { prepareSitePhoto } from "./site-photo.ts";
 import React, { useEffect, useState } from 'react';
 import { api } from './api.ts';
 import type { User } from './model.ts';
 import { dailyDraftKey, readDailyDraft } from './daily-report-draft.ts';
-async function prepareDailyPhoto(file: File): Promise<string> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 20 * 1024 * 1024)
-    throw Error("Choose a JPEG, PNG or WebP photograph under 20 MiB");
-  const bitmap = await createImageBitmap(file);
-  try {
-    const scale = Math.min(1, 1600 / bitmap.width, 1600 / bitmap.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw Error("Image processing unavailable");
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const result = canvas.toDataURL("image/jpeg", 0.7);
-    if (result.length > 1400000) throw Error("Compressed photograph too large. Choose a smaller photograph.");
-    return result;
-  } finally {
-    bitmap.close();
-  }
-}
 export function DailyReportForm({pid, user, users, refresh}: {
   pid: string; user: User; users: User[]; refresh: () => Promise<void>;
 }) {
@@ -101,7 +83,7 @@ export function DailyReportForm({pid, user, users, refresh}: {
         setPhotoBusy(true); setError('');
         try {
           if (files.length+photos.length>4) throw Error('Maximum four photographs per report');
-          const added=await Promise.all(files.map(async file=>({image:await prepareDailyPhoto(file),caption:file.name.slice(0,300)||'Site photograph'})));
+          const added=await Promise.all(files.map(async file=>({image:await prepareSitePhoto(file),caption:file.name.slice(0,300)||'Site photograph'})));
           setPhotos(v=>[...v,...added]);changed();
         } catch(e) {setError((e as Error).message);}
         finally {setPhotoBusy(false);element.value='';}

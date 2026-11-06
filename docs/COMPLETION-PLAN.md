@@ -13,7 +13,8 @@ This is the agreed finish sequence. A passing test suite validates implemented b
 
 - Implemented for review: manager-only placed-order records after independent approval; manager/supervisor delivery receipts; partial deliveries; damaged quantities remaining outstanding; reference-based order/receipt evidence; server timestamps, immutable history and stale/duplicate guards.
 - Implemented for review after #28: explicit device-local daily-report drafts with photographs, reload restoration, discard, storage-failure feedback, and account/project separation. New reports capture operative count, work areas and site conditions; existing reports remain readable. Drafts can be saved while offline on an already loaded page, then submitted manually when online. This is not cross-device sync or offline app startup.
-- Remaining: material priority and photo evidence; delivery photos; notification workflow; cross-device draft/sync behaviour if required.
+- Implemented for review after #29: Normal/Urgent/Planned material priorities, urgent-first request lists, optional captioned request and delivery photographs, transactional validation, and workforce/company-scoped photo retrieval. Existing requests and receipts without photos remain supported.
+- Remaining: notification workflow; cross-device draft/sync behaviour if required.
 - Acceptance: worker submission through independent review, recorded order and checked receipt works on one authorised project, persists through restart and cannot be altered by unauthorised roles. Do not call this entire milestone complete until the remaining fields/evidence/draft requirements pass.
 
 ## 2. Complete workforce reporting and mobile operation

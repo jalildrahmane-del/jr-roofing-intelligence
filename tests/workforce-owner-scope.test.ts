@@ -116,7 +116,6 @@ test("owner HTTP access cannot leak dossiers, photos, documents, other projects 
   try {
     for (const path of [
       "dossiers/" + pid,
-      "evidence/anything",
       "document-intelligence?pid=" + pid,
       "document-pdf?pid=" + pid,
       "reports/anything",
@@ -126,6 +125,7 @@ test("owner HTTP access cannot leak dossiers, photos, documents, other projects 
         403,
         path,
       );
+    assert.equal((await fetch(base + "/api/evidence/anything", { headers })).status,404);
     assert.equal(
       (await fetch(base + "/api/workforce?pid=" + otherPid, { headers }))
         .status,

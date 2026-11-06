@@ -66,6 +66,10 @@ try {
     await page.goto(base + "/#workforce");
   };
   await login("manager");
+  const policyResponse = await page.request.get(base + "/");
+  assert.equal(policyResponse.headers()["permissions-policy"],"camera=(self), microphone=(), geolocation=(self)");
+  assert.equal(await page.evaluate(()=>document.featurePolicy.allowsFeature("camera")),true,"Camera must be permitted by the actual document policy");
+  assert.equal(await page.evaluate(()=>document.featurePolicy.allowsFeature("microphone")),false,"Audio remains blocked");
   for (const title of ["Record independent review", "Review daily report", "Review materials request"]) {
     const empty = page.locator("form").filter({has:page.getByRole("heading",{name:title,exact:true})});
     assert.equal(await empty.getByRole("button").isDisabled(),true,"Empty review cannot be submitted");
@@ -337,6 +341,8 @@ try {
     await receiptCard.getByLabel("Accepted quantity (packs)",{exact:true}).fill(accepted);
     await receiptCard.getByLabel("Damaged or rejected quantity (packs)",{exact:true}).fill(damaged);
     await receiptCard.getByLabel("Receipt and condition notes",{exact:true}).fill("Synthetic receipt; damaged packs need replacement.");
+    await receiptCard.getByLabel("Evidence photographs (optional, maximum 4)",{exact:true}).setInputFiles({name:"delivery.png",mimeType:"image/png",buffer:Buffer.from(await page.evaluate(()=>{const c=document.createElement("canvas");c.width=16;c.height=16;c.getContext("2d").fillRect(0,0,16,16);return c.toDataURL("image/png").split(",")[1];}),"base64")});
+    await receiptCard.getByLabel("Evidence photo 1 caption",{exact:true}).fill("Delivery evidence "+reference);
     await receiptCard.getByRole("checkbox").check();
     await receiptCard.getByRole("button",{name:"Record delivery receipt",exact:true}).click();
     await receiptCard.getByText("Delivery receipt recorded.",{exact:true}).waitFor();
@@ -346,6 +352,11 @@ try {
   await page.reload();await receiptCard.getByText("Part delivered — balance outstanding",{exact:true}).waitFor();
   await receive("DN-BROWSER-2","1","0");
   await receiptCard.getByText("Received in full",{exact:true}).waitFor();
+  await receiptCard.getByText("Order and receipt history",{exact:true}).click();
+  for(const ref of ["DN-BROWSER-1","DN-BROWSER-2"]){
+    const img=receiptCard.getByRole("img",{name:"Delivery evidence "+ref,exact:true});
+    await img.waitFor();await img.scrollIntoViewIfNeeded();await img.evaluate(image=>image.decode());
+  }
   assert.equal(await receiptCard.getByRole("button",{name:"Record delivery receipt",exact:true}).count(),0);
   await page.getByRole("button",{name:"Sign out",exact:true}).click();await login("worker");
   await receiptCard.getByText("Received in full",{exact:true}).waitFor();
@@ -416,6 +427,31 @@ try {
   await dailyForm.getByRole("button",{name:"Discard draft",exact:true}).click();
   await dailyForm.getByText("Draft discarded.",{exact:true}).waitFor();
   assert.equal(await dailyForm.getByLabel("Works completed",{exact:true}).isEnabled(),true);
+  const requestForm=page.getByRole("form",{name:"Materials request",exact:true});
+  await requestForm.getByLabel("Priority",{exact:true}).selectOption("urgent");
+  await requestForm.getByLabel("Description",{exact:true}).fill("Urgent photographed insulation");
+  await requestForm.getByLabel("Specification",{exact:true}).fill("Synthetic board specification");
+  await requestForm.getByLabel("Quantity",{exact:true}).fill("5");
+  await requestForm.getByLabel("Unit",{exact:true}).fill("packs");
+  await requestForm.getByLabel("Needed by",{exact:true}).fill("2026-11-03");
+  await requestForm.getByLabel("Delivery point",{exact:true}).fill("Site compound");
+  await requestForm.getByLabel("Reason for request",{exact:true}).fill("Needed for next shift");
+  await requestForm.getByLabel("Evidence photographs (optional, maximum 4)",{exact:true}).setInputFiles({name:"request.png",mimeType:"image/png",buffer:Buffer.from(await page.evaluate(()=>{const c=document.createElement("canvas");c.width=16;c.height=16;c.getContext("2d").fillRect(0,0,16,16);return c.toDataURL("image/png").split(",")[1];}),"base64")});
+  await requestForm.getByLabel("Evidence photo 1 caption",{exact:true}).fill("Insulation identification");
+  await page.route("**/api/workforce",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Request interrupted"})}),{times:1});
+  await requestForm.getByRole("button",{name:"Submit materials request",exact:true}).click();
+  await requestForm.getByRole("alert").waitFor();
+  assert.equal(await requestForm.getByLabel("Evidence photo 1 caption",{exact:true}).inputValue(),"Insulation identification");
+  assert.equal(await requestForm.getByLabel("Priority",{exact:true}).inputValue(),"urgent");
+  for(const width of [390,768,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+  await requestForm.getByRole("button",{name:"Submit materials request",exact:true}).click();
+  await requestForm.getByText("Materials request submitted for independent review.",{exact:true}).waitFor();
+  await page.reload();
+  const urgentCard=page.getByRole("article",{name:"Materials: Urgent photographed insulation",exact:true});
+  await urgentCard.getByText("Priority: urgent",{exact:true}).waitFor();
+  await urgentCard.getByRole("img",{name:"Insulation identification",exact:true}).scrollIntoViewIfNeeded();
+  await urgentCard.getByRole("img",{name:"Insulation identification",exact:true}).evaluate(image=>image.decode());
+  assert.equal(await page.getByRole("region",{name:"Materials orders and receipts",exact:true}).getByRole("article").first().getAttribute("aria-label"),"Materials: Urgent photographed insulation");
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(

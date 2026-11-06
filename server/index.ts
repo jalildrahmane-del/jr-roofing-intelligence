@@ -23,7 +23,7 @@ export function createApp(store: Store, root = resolve("dist")) {
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=(self)",
+      "camera=(self), microphone=(), geolocation=(self)",
     );
     const reply = (code: number, data: unknown) => {
       res.writeHead(code, {
@@ -153,7 +153,7 @@ export function createApp(store: Store, root = resolve("dist")) {
       }
       // Owner accounts are intentionally restricted to their scoped workforce view.
       if (user.role === "subcontractor-owner" && !(
-        (url.pathname === "/api/state" || url.pathname === "/api/workforce" || url.pathname === "/api/workforce-weather") && req.method === "GET"
+        (url.pathname === "/api/state" || url.pathname === "/api/workforce" || url.pathname === "/api/workforce-weather" || url.pathname.startsWith("/api/evidence/")) && req.method === "GET"
       )) return reply(403, { error: "Forbidden: subcontractor-owner workforce-only access" });
       if (url.pathname.startsWith("/api/evidence/") && req.method === "GET") {
         const asset = store.db
@@ -161,15 +161,15 @@ export function createApp(store: Store, root = resolve("dist")) {
           .get(url.pathname.slice("/api/evidence/".length)) as any;
         if (!asset)
           return reply(404, { error: "Evidence not found" });
-        // Workers may only retrieve photographs attached to their own submitted
-        // workforce daily reports, not other workers' private site evidence.
-        const workforcePhoto = store.db.prepare("SELECT data FROM records WHERE pid=? AND kind='workforce.daily-report'").all(asset.pid).some((r:any)=>JSON.parse(r.data).evidence?.some((p:any)=>p.assetId===asset.id));
+        // Workforce photographs always use workforce allocation/company scope,
+        // even when a broader project read grant exists.
+        const workforcePhoto = store.db.prepare("SELECT data FROM records WHERE pid=? AND kind IN ('workforce.daily-report','workforce.material-request','workforce.material-delivery')").all(asset.pid).some((r:any)=>JSON.parse(r.data).evidence?.some((p:any)=>p.assetId===asset.id));
         if (workforcePhoto || !store.projectPermission(user,asset.pid)) {
           let visible;
           try { visible = workforceState(store, user, asset.pid).records; }
           catch { return reply(404, {error:"Evidence not found"}); }
           const ownPhoto = visible.some(r =>
-            r.kind === "workforce.daily-report" &&
+            ["workforce.daily-report", "workforce.material-request", "workforce.material-delivery"].includes(r.kind) &&
             (user.role !== "worker" || r.data.workerId === user.id) &&
             Array.isArray(r.data.evidence) &&
             r.data.evidence.some((photo: any) => photo.assetId === asset.id));

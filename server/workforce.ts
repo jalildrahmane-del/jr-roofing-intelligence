@@ -22,6 +22,33 @@ function validWorkforceDate(value: unknown, label: string): string {
   return day;
 }
 
+// Call only within the workforce transaction so invalid records roll back assets too.
+function saveWorkforcePhotos(store: Store, pid: string, photos: unknown, minimum: number) {
+  if (!Array.isArray(photos) || photos.length < minimum || photos.length > 4)
+    throw Error("Attach the required site photographs (maximum four)");
+  return photos.map((photo: any) => {
+    if (!photo || typeof photo !== "object" || Array.isArray(photo))
+      throw Error("Invalid photograph");
+    const caption = text(photo.caption, "Photo caption", 300);
+    if (typeof photo.image !== "string" || photo.image.length > 1500000)
+      throw Error("Photograph exceeds the supported upload size");
+    const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo.image);
+    if (!match) throw Error("JPEG or PNG image required");
+    const bytes = Buffer.from(match[2], "base64");
+    if (bytes.length > 1024 * 1024 || bytes.toString("base64") !== match[2])
+      throw Error("Invalid photograph size or encoding");
+    const dimensions = imageSize(bytes);
+    if (dimensions.type !== match[1].replace("jpeg", "jpg") ||
+        !dimensions.width || !dimensions.height ||
+        dimensions.width > 2000 || dimensions.height > 2000)
+      throw Error("Image must be JPEG/PNG, maximum 2000 pixels per side");
+    const assetId = randomUUID();
+    store.db.prepare("INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)")
+      .run(assetId, pid, "image/" + match[1], bytes, createHash("sha256").update(bytes).digest("hex"));
+    return { assetId, caption, width: dimensions.width, height: dimensions.height };
+  });
+}
+
 export function workforceRecords(store: Store, pid: string): RecordItem[] {
   return store.db
     .prepare(
@@ -549,30 +576,7 @@ export function workforceCommand(
         siteDetails.workAreas = text(d.workAreas, "Work areas", 1000);
         siteDetails.conditions = text(d.conditions, "Site conditions", 2000);
       }
-      const photos = d.photos;
-      if (!Array.isArray(photos) || photos.length < 1 || photos.length > 4)
-        throw Error("Attach 1 to 4 site photographs");
-      const evidence = photos.map((photo: any) => {
-        if (!photo || typeof photo !== "object" || Array.isArray(photo))
-          throw Error("Invalid photograph");
-        const caption = text(photo.caption, "Photo caption", 300);
-        if (typeof photo.image !== "string" || photo.image.length > 1500000)
-          throw Error("Photograph exceeds the supported upload size");
-        const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo.image);
-        if (!match) throw Error("JPEG or PNG image required");
-        const bytes = Buffer.from(match[2], "base64");
-        if (bytes.length > 1024 * 1024 || bytes.toString("base64") !== match[2])
-          throw Error("Invalid photograph size or encoding");
-        const dimensions = imageSize(bytes);
-        if (dimensions.type !== match[1].replace("jpeg", "jpg") ||
-            !dimensions.width || !dimensions.height ||
-            dimensions.width > 2000 || dimensions.height > 2000)
-          throw Error("Image must be JPEG/PNG, maximum 2000 pixels per side");
-        const assetId = randomUUID();
-        store.db.prepare("INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)")
-          .run(assetId, pid, "image/" + match[1], bytes, createHash("sha256").update(bytes).digest("hex"));
-        return { assetId, caption, width: dimensions.width, height: dimensions.height };
-      });
+      const evidence = saveWorkforcePhotos(store, pid, d.photos, 1);
       return append("daily-report", {
         workerId, day, ...siteDetails,
         completed: text(d.completed, "Works completed", 3000),
@@ -602,7 +606,11 @@ export function workforceCommand(
       const workerId = user.role === "worker" ? user.id : d.workerId;
       allocated(workerId);
       const neededBy = validWorkforceDate(d.neededBy, "Required date");
+      const priority = d.priority === undefined ? "normal" : d.priority;
+      if (!["normal", "urgent", "planned"].includes(priority)) throw Error("Choose a valid material priority");
+      const evidence = saveWorkforcePhotos(store, pid, d.photos === undefined ? [] : d.photos, 0);
       return append("material-request", {
+        priority, evidence,
         workerId,
         description: text(d.description, "Material description", 500),
         specification: text(d.specification, "Specification", 500),
@@ -658,7 +666,9 @@ export function workforceCommand(
       if (!Number.isFinite(fulfilment.damaged + damagedQuantity) || !Number.isFinite(fulfilment.received + acceptedQuantity)) throw Error("Quantity exceeds the supported numeric range");
       const deliveredOn = validWorkforceDate(d.deliveredOn,"Delivery date");
       if (deliveredOn > new Date().toISOString().slice(0,10)) throw Error("Delivery date cannot be in the future");
+      const evidence = saveWorkforcePhotos(store, pid, d.photos === undefined ? [] : d.photos, 0);
       return append("material-delivery", {
+        evidence,
         requestId:request.id,workerId:request.data.workerId,orderId:fulfilment.order.id,previousId:fulfilment.latestId,
         acceptedQuantity,damagedQuantity,unit:request.data.unit,deliveredOn,
         deliveryReference:text(d.deliveryReference,"Delivery note reference",200),
