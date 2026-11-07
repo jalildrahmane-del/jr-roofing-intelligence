@@ -1,3 +1,27 @@
+test("roof feature schedules persist across revisions without altering measured area", () => {
+  const f = fixture();
+  try {
+    const first = f.save("roof", {
+      ...roofData,
+      outlets: "4 outlets at east gutter",
+      upstands: "2 boiler flue upstands, dimensions to verify",
+      penetrations: "3 service penetrations",
+      previousId: f.roof.id,
+    });
+    assert.equal(first.data.outlets, "4 outlets at east gutter");
+    assert.equal(first.data.upstands, "2 boiler flue upstands, dimensions to verify");
+    assert.equal(first.data.penetrations, "3 service penetrations");
+    assert.equal(first.data.area, f.roof.data.area);
+    const next = f.save("roof", { ...roofData, ...first.data, previousId: first.id, outlets: "5 outlets verified" });
+    assert.equal(next.data.version, first.data.version + 1);
+    assert.equal(next.data.outlets, "5 outlets verified");
+    assert.equal(first.data.outlets, "4 outlets at east gutter");
+    assert.throws(() => f.save("roof", { ...roofData, previousId: next.id, outlets: "x".repeat(5001) }), /Invalid text field/);
+  } finally {
+    f.store.close();
+  }
+});
+
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
