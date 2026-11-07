@@ -1,6 +1,6 @@
 {
   "name": "JR Roofing Private Owner Preview",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "forwardPorts": [
     3000
   ],
@@ -13,5 +13,10 @@
   },
   "remoteEnv": {
     "PORT": "3000"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
   }
 }
