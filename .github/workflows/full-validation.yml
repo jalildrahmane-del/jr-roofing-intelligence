@@ -46,3 +46,5 @@ jobs:
           path: JR-Roofing-Intelligence-Windows-Owner-Preview.zip
           retention-days: 14
           if-no-files-found: error
+
+# Re-run validation after async document state test fix.
