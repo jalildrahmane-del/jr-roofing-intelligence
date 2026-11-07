@@ -9,9 +9,11 @@ export function ProjectAccess({ pid, refresh }: {pid:string;refresh:()=>Promise<
   return <section aria-label="Project access management">
     <h2>Project team access</h2>
     <p>Assign registered engineers, supervisors and viewers to this project. Managers administer all projects. Workforce allocations are managed separately.</p>
+    <p className="project-access-help">Team members must have an individual account before you can assign them. This preview does not yet create accounts in the browser; an administrator must provision an account using the documented secure setup process. Do not share login credentials.</p>
     {error&&<p role="alert">{error}</p>}{message&&<p role="status">{message}</p>}
     {state&&<>
-      <form onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");setMessage("");try {
+      {state.users.length===0&&<div role="status" className="warning"><strong>No eligible team members yet.</strong> There is nobody to assign to this project. Ask the application administrator to provision an engineer, supervisor or viewer account, then select Refresh assignments. Workforce operative allocations are managed separately.</div>}
+      {state.users.length>0&&<form onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");setMessage("");try {
         await api("project-access",{pid,data:{userId,permission,reason,previousId:latest?.id??null}});
         await load();await refresh();setReason("");setMessage("Project permission updated.");
       }catch(err){setError((err as Error).message);}finally{setBusy(false);}}}>
@@ -20,7 +22,7 @@ export function ProjectAccess({ pid, refresh }: {pid:string;refresh:()=>Promise<
         <label>Project permission<select aria-label="Project permission" value={permission} onChange={e=>setPermission(e.target.value)}><option value="read">Read only</option>{target?.role!=="viewer"&&<option value="edit">Read and edit</option>}<option value="none">Revoke access</option></select></label>
         <label>Reason for access change<textarea aria-label="Reason for access change" value={reason} onChange={e=>setReason(e.target.value)} maxLength={2000} required/></label>
         <button disabled={busy||!userId}>{busy?"Saving…":"Update project permission"}</button>
-      </form>
+      </form>}
       <h3>Assignment history</h3>
       {state.history.length===0?<p>No staff assignments recorded. Staff have no document access until assigned.</p>:<ul>{state.history.map((r:any)=><li key={r.id}>{state.users.find((u:any)=>u.id===r.userId)?.name||"Former team member"} · {r.permission} · revision {r.version} · {r.createdAt}<p>{r.reason}</p></li>)}</ul>}
       <button type="button" className="quiet" disabled={busy} onClick={()=>{setError("");load().catch(e=>setError(e.message));}}>Refresh assignments</button>
