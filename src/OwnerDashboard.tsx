@@ -99,7 +99,7 @@ export function OwnerDashboard({ snapshot, project, pid, onSelectProject, isDire
           <span>Stages with recorded activity</span>
         </div>
       </div>
-      <div className="owner-metrics" aria-label="Project metrics">
+      <section className="owner-guided-start" aria-label="Recommended next step">\n        <h2>Recommended next step</h2>\n        {!project ? (\n          <p>No project is selected. <a href="#projects">Open the Project Register to create or select a project</a> before starting a survey or estimate.</p>\n        ) : roofRecords.length === 0 ? (\n          <p>Your project is ready for its first roof survey. <a href="#survey">Open Roof Survey</a> to record roof zones, measurements and evidence before estimating.</p>\n        ) : (\n          <p>{roofRecords.length} current roof survey record{roofRecords.length === 1 ? "" : "s"} available. <a href="#estimating">Continue to Estimating</a> or <a href="#survey">review the survey</a>. This is a suggested workflow, not an approval or completion status.</p>\n        )}\n      </section>\n      <div className="owner-metrics" aria-label="Project metrics">
         <div><small>Projects</small><strong>{snapshot.projects.length}</strong></div>
         <div><small>Evidence records</small><strong>{records.length}</strong></div>
         <div><small>{roofRecords.length ? "Surveyed roof area" : "Estimated roof area"}</small><strong>{area.toLocaleString("en-GB")} m²</strong></div>
