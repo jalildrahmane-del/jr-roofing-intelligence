@@ -23,6 +23,8 @@ try{
   async function login(p,name){await p.goto(base);await p.getByLabel("Username",{exact:true}).fill(name);await p.getByLabel("Password",{exact:true}).fill("synthetic-password");await p.getByRole("button",{name:"Sign in",exact:true}).click();await p.getByRole("heading",{name:"Project Command Centre",exact:true}).waitFor();}
   await login(ownerPage,manager.name);await ownerPage.goto(base+"/#projects");await ownerPage.getByLabel("Active project",{exact:true}).selectOption(pid);
   const access=ownerPage.getByRole("region",{name:"Project access management"});
+  await access.getByText("Team members must have an individual account before you can assign them.",{exact:false}).waitFor();
+  assert.equal(await access.getByRole("combobox",{name:"Registered team member"}).count(),1,"Registered staff retain the assignment form");
   await access.getByLabel("Registered team member",{exact:true}).selectOption(staff.id);
   async function permission(value,reason){await access.getByLabel("Project permission",{exact:true}).selectOption(value);await access.getByLabel("Reason for access change",{exact:true}).fill(reason);await access.getByRole("button",{name:"Update project permission",exact:true}).click();await access.getByRole("status").waitFor();}
   await permission("read","Synthetic read-only assignment");
