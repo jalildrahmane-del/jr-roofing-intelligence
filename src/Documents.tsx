@@ -49,7 +49,8 @@ export function Documents({ pid }: { pid: string }) {
                 })
               }
             />}
-            <h3>Source register</h3>
+            <h3>Source register ({state.sources.filter((r:any)=>r.current).length} current)</h3>
+            {state.sources.length===0&&<p role="status">No sources registered yet. Register a source before preparing a traceable draft. This prototype does not generate AI content.</p>}
             <ul>
               {state.sources.map((r: any) => (
                 <li key={r.id}>
@@ -111,7 +112,8 @@ export function Documents({ pid }: { pid: string }) {
           </section>}
           {state.canWrite&&editing&&<DocumentRevisionEditor key={editing.id} document={editing} sources={state.sources.filter((s:any)=>s.current)} send={send} close={()=>setEditing(null)}/>}
           <section>
-            <h2>Document revisions</h2>
+            <h2>Document revisions ({state.documents.length})</h2>
+            {state.documents.length===0&&<p role="status">No documents drafted yet. Add a current source, then create a source-linked draft for independent review.</p>}
             {state.documents.map((r: any) => (
               <article key={r.id}>
                 <h3>
