@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {dailyDraftKey, readDailyDraft} from '../src/daily-report-draft.ts';
+import {dailyDraftKey, readDailyDraft, localWorkDate} from '../src/daily-report-draft.ts';
 const image='data:image/png;base64,YQ==';
 test('unfinished reports and photos restore without requiring submission fields',()=>{
   const draft={version:1,savedAt:'2026-11-01T12:00:00Z',fields:{day:'2026-11-01',completed:'Part finished',operatives:''},photos:[{image,caption:''}]};
@@ -15,4 +15,10 @@ test('malformed drafts reject unsupported versions, fields and unsafe photo URLs
   for(const patch of [{version:2},{savedAt:'invalid'},{fields:{workerId:5}},{fields:{completed:'a'.repeat(3001)}},{photos:[{image:'https://example.com/photo',caption:'x'}]},{photos:Array(5).fill({image,caption:'x'})}])
     assert.throws(()=>readDailyDraft(JSON.stringify({...valid,...patch})));
   assert.throws(()=>readDailyDraft('{broken'));
+});
+
+test("local work date is ISO formatted regardless of browser locale",()=>{
+  const date = new Date(2026, 0, 9, 23, 30);
+  assert.equal(localWorkDate(date),"2026-01-09");
+  assert.match(localWorkDate(new Date(2026, 10, 7)), /^\d{4}-\d{2}-\d{2}$/);
 });
