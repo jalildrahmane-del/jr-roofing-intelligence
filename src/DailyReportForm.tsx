@@ -3,7 +3,7 @@ import { prepareSitePhoto } from "./site-photo.ts";
 import React, { useEffect, useState } from 'react';
 import { api } from './api.ts';
 import type { User,RecordItem } from './model.ts';
-import { dailyDraftKey, readDailyDraft } from './daily-report-draft.ts';
+import { dailyDraftKey, readDailyDraft, localWorkDate } from './daily-report-draft.ts';
 export function DailyReportForm({pid, user, users, refresh, records}: {
   pid: string; user: User; users: User[]; records:RecordItem[]; refresh: () => Promise<void>;
 }) {
@@ -12,7 +12,7 @@ export function DailyReportForm({pid, user, users, refresh, records}: {
     try { return {draft: readDailyDraft(localStorage.getItem(key)), error: ''}; }
     catch { return {draft: null, error: 'Saved draft could not be read. It has been preserved. Discard it explicitly to start again.'}; }
   });
-  const blank = () => ({day: new Date().toLocaleDateString('en-CA')});
+  const blank = () => ({day: localWorkDate(new Date())});
   const [fields, setFields] = useState<Record<string,string>>(initial.draft?.fields || blank());
   const eligible=returnedDailyReports(records,user.id);
   const original=records.find(r=>r.id===fields.replacesReportId&&r.kind==='workforce.daily-report');
