@@ -657,7 +657,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <section id="workforce-daily" tabIndex={-1} className="workforce-daily" aria-labelledby="workforce-daily-heading">
             <h2 id="workforce-daily-heading">Daily site report with photographs</h2>
             <p>Record work completed on this project. Photos are stored as project evidence; submitting does not constitute supervisor approval.</p>
-            <DailyReportForm pid={pid} user={user} users={state.users || []} records={state.records} refresh={refresh} />
+            <DailyReportForm key={`${user.id}:${pid}`} pid={pid} user={user} users={state.users || []} records={state.records} refresh={refresh} />
             <h3>Submitted daily reports</h3>
             {state.records.filter((r: any) => r.kind === "workforce.daily-report").map((r: any) => {
               const review = state.records.find((v: any) => v.kind === "workforce.daily-review" && v.data.reportId === r.id);
@@ -684,7 +684,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
           <section id="workforce-materials" tabIndex={-1} className="workforce-materials" aria-labelledby="workforce-materials-heading">
             <h2 id="workforce-materials-heading">Materials needed on this job</h2>
             <p>Request materials for the selected project. Submitting a request does not place an order.</p>
-            <MaterialRequestForm user={user} users={state.users || []} send={send} />
+            <MaterialRequestForm key={`${user.id}:${pid}`} user={user} users={state.users || []} send={send} />
             <MaterialFulfilment state={state} user={user} send={send} />
             {["manager", "supervisor"].includes(user.role) && (
               <WorkforceReview kind="materials" state={state} user={user} send={send} />
