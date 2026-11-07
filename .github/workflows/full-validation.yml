@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - feature/p0-project-access-onboarding-20261107
       - fix/offline-sync-project-confirmation-20261106
       - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
