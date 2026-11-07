@@ -20,5 +20,5 @@ test('malformed drafts reject unsupported versions, fields and unsafe photo URLs
 test("local work date is ISO formatted regardless of browser locale",()=>{
   const date = new Date(2026, 0, 9, 23, 30);
   assert.equal(localWorkDate(date),"2026-01-09");
-  assert.match(localWorkDate(new Date(2026, 10, 7)), /^\\d{4}-\\d{2}-\\d{2}$/);
+  assert.match(localWorkDate(new Date(2026, 10, 7)), /^\d{4}-\d{2}-\d{2}$/);
 });
