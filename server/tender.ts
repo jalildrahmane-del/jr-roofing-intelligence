@@ -105,6 +105,9 @@ export function saveTender(
       leaks: choice(d.leaks, ["Unknown", "Yes", "No"], "leaks"),
       insulation: optional(d.insulation, 1000),
       drainage: text(d.drainage, "Drainage observations", 1000),
+      outlets: optional(d.outlets, 5000),
+      upstands: optional(d.upstands, 5000),
+      penetrations: optional(d.penetrations, 5000),
       observations: text(d.observations, "Observations", 10000),
       limitations: text(
         d.limitations,
