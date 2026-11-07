@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - fix/workforce-project-form-isolation-20261107
       - fix/offline-sync-project-confirmation-20261106
       - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
