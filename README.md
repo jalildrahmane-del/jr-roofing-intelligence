@@ -8,6 +8,10 @@ Step 8 adds structured independent review checklists and PDF review evidence on 
 
 Step 9 adds planned-versus-verified workforce comparisons, supervisor-confirmed matching and company-scoped CSV exports. Plans and match decisions never create verified attendance or approve payment. See [comparison workflow, limitations and tests](docs/STEP-9-WORKFORCE-COMPARISON.md).
 
+## Prototype completion and owner acceptance
+
+Use [the prototype acceptance matrix](docs/PROTOTYPE-ACCEPTANCE.md) to distinguish automated validation from manual iPhone and owner checks. A green CI run is not proof of a live preview or final acceptance. No production deployment or paid AI is enabled.
+
 ## Start locally
 
 Use Node **24 or newer** and npm:
