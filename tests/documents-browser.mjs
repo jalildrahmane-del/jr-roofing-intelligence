@@ -20,6 +20,9 @@ try{
     await page.goto(base);await page.getByLabel('Username',{exact:true}).fill(name);await page.getByLabel('Password',{exact:true}).fill('browser-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();await page.goto(base+'/#documents');
   };
   await login('author');
+  assert.equal(await page.getByRole('heading',{name:'Source register (1 current)'}).count(),1);
+  assert.equal(await page.getByRole('heading',{name:'Document revisions (0)'}).count(),1);
+  assert.equal(await page.getByText('No documents drafted yet.',{exact:false}).count(),1);
   const form=page.locator('form').filter({has:page.getByRole('heading',{name:'Create source-linked draft',exact:true})});
   await form.getByLabel('Type',{exact:true}).selectOption('CPP');
   await form.getByLabel('Registered source',{exact:true}).selectOption(source.id);
