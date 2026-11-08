@@ -209,6 +209,9 @@ const roofFields: Field[] = [
     optional: true,
   },
   { name: "drainage", label: "Drainage observations", type: "textarea" },
+  { name: "outlets", label: "Roof outlets / gutters / downpipes (locations and quantities)", type: "textarea", optional: true },
+  { name: "upstands", label: "Upstands / parapets / flues (locations and dimensions)", type: "textarea", optional: true },
+  { name: "penetrations", label: "Roof penetrations / rooflights / services (locations and dimensions)", type: "textarea", optional: true },
   { name: "observations", label: "Survey observations", type: "textarea" },
   {
     name: "limitations",
