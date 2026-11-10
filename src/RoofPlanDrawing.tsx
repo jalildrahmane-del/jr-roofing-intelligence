@@ -4,7 +4,7 @@ import "./roof-plan-drawing.css";
 import type { SavedRoofPlan } from "./roof-plan-record.ts";
 
 /** Standalone preliminary plan sketch; deliberately does not modify approved survey measurements. */
-export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | null; onSave?: (plan: SavedRoofPlan) => Promise<void> }) {
+export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | null; onSave?: (plan: SavedRoofPlan, image?: string) => Promise<void> }) {
   const [vertices, setVertices] = useState<PlanPoint[]>(saved?.vertices ?? []);
   const [calibrationPoints, setCalibrationPoints] = useState<PlanPoint[]>(saved?.calibrationPoints ?? []);
   const [mode, setMode] = useState<"boundary" | "calibration">("boundary");
@@ -13,7 +13,7 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [imageData, setImageData] = useState<string | null>(null);
-  const [imageName, setImageName] = useState("");
+  const [imageName, setImageName] = useState(saved?.imageAssetId ? "Saved roof image" : "");
   const [result, setResult] = useState<ReturnType<typeof measureRoofPlan> | null>(null);
   const points = vertices.map(p => `${p.x},${p.y}`).join(" ");
   function addPoint(event: React.MouseEvent<SVGSVGElement>) {
@@ -30,8 +30,8 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
   }
   async function loadImage(file?: File) {
     if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 8 * 1024 * 1024) {
-      setError("Select a PNG, JPEG or WebP image no larger than 8 MB."); return;
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 1024 * 1024) {
+      setError("Select a PNG or JPEG image no larger than 1 MiB."); return;
     }
     try {
       const data = await new Promise<string>((resolve, reject) => {
@@ -63,11 +63,11 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
   }
   return <section className="roof-plan-drawing">
     <h2>Roof plan sketch — preliminary measurement</h2>
-    <p>Upload a roof plan or aerial image (PNG, JPEG or WebP), then click or tap to trace the roof boundary. Mark two calibration points against an independently verified dimension. This is a local preview, not a georeferenced map.</p>
+    <p>Upload a roof plan or aerial image (PNG or JPEG, maximum 1 MiB), then click or tap to trace the roof boundary. Mark two calibration points against an independently verified dimension. This is a local preview, not a georeferenced map.</p>
     <label>Background roof image (local preview only)
-      <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => void loadImage(e.target.files?.[0])} />
+      <input type="file" accept="image/png,image/jpeg" onChange={e => void loadImage(e.target.files?.[0])} />
     </label>
-    {imageData && <p role="status">Previewing: {imageName}. Image is not uploaded or saved with the drawing; reselect the same image when reopening the plan.</p>}
+    {(imageData || saved?.imageAssetId) && <p role="status">Image: {imageName || "Saved roof image"}. The image is stored with the roof plan when you save the revision.</p>}
     {imageData && <button type="button" className="quiet" onClick={() => {setImageData(null);setImageName("");setVertices([]);setCalibrationPoints([]);setResult(null);}}>Remove background and clear tracing</button>}
     <div className="roof-plan-actions">
       <button type="button" aria-pressed={mode === "boundary"} onClick={() => setMode("boundary")}>1. Draw boundary</button>
@@ -79,9 +79,9 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
     <svg role="img" aria-label="Interactive roof plan sketch: click or tap to add points" viewBox="0 0 1000 600" onClick={addPoint}>
       <title>Preliminary roof plan sketch</title>
       <rect width="1000" height="600" fill="#f5f7fa" />
-      {imageData && <image href={imageData} x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet" /> }
-      {!imageData && Array.from({length:19},(_,i)=><line key={`v${i}`} x1={(i+1)*50} x2={(i+1)*50} y1="0" y2="600" stroke="#dce2e9"/>)}
-      {!imageData && Array.from({length:11},(_,i)=><line key={`h${i}`} x1="0" x2="1000" y1={(i+1)*50} y2={(i+1)*50} stroke="#dce2e9"/>)}
+      {(imageData || saved?.imageAssetId) && <image href={imageData || `/api/evidence/${saved?.imageAssetId}`} x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet" /> }
+      {!imageData && !saved?.imageAssetId && Array.from({length:19},(_,i)=><line key={`v${i}`} x1={(i+1)*50} x2={(i+1)*50} y1="0" y2="600" stroke="#dce2e9"/>)}
+      {!imageData && !saved?.imageAssetId && Array.from({length:11},(_,i)=><line key={`h${i}`} x1="0" x2="1000" y1={(i+1)*50} y2={(i+1)*50} stroke="#dce2e9"/>)}
       {vertices.length >= 3 && <polygon points={points} fill="#d6e6f2" fillOpacity=".65" stroke="#304b6b" strokeWidth="3"/>}
       {vertices.length === 2 && <polyline points={points} fill="none" stroke="#304b6b" strokeWidth="3"/>}
       {vertices.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="7" fill="#304b6b"/>)}
@@ -98,7 +98,7 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
       setSaving(true); setError("");
       try { await onSave({ vertices, calibrationPoints: [calibrationPoints[0], calibrationPoints[1]],
         actualDistanceMetres: Number(distance), pitchDegrees: pitch.trim() ? Number(pitch) : null,
-        status: "preliminary-unverified" }); }
+        status: "preliminary-unverified", ...(saved?.imageAssetId && !imageData ? {imageAssetId: saved.imageAssetId} : {}) }, imageData ?? undefined); }
       catch (err) { setError((err as Error).message); }
       finally { setSaving(false); }
     }}>{saving ? "Saving…" : "Save preliminary roof plan revision"}</button>}
