@@ -5,6 +5,7 @@ export type SavedRoofPlan = {
   actualDistanceMetres: number;
   pitchDegrees: number | null;
   status: "preliminary-unverified";
+  imageAssetId?: string;
 };
 /** Revalidate all client-provided geometry before persisting a roof revision. */
 export function parseRoofPlan(value: unknown): SavedRoofPlan | null {
@@ -24,5 +25,6 @@ export function parseRoofPlan(value: unknown): SavedRoofPlan | null {
   if (measurement.planAreaM2 > 10000000) throw Error("Roof plan area exceeds supported range");
   return { vertices: raw.vertices, calibrationPoints: raw.calibrationPoints,
     actualDistanceMetres: raw.actualDistanceMetres, pitchDegrees: raw.pitchDegrees,
-    status: "preliminary-unverified" };
+    status: "preliminary-unverified",
+    ...(raw.imageAssetId === undefined ? {} : {imageAssetId: typeof raw.imageAssetId === "string" && /^[a-f0-9-]{36}$/.test(raw.imageAssetId) ? raw.imageAssetId : (()=>{throw Error("Invalid image asset reference")})()}) };
 }
