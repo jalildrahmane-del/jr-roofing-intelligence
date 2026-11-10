@@ -14,6 +14,7 @@ import { compareTenderOptions } from "./commercial.ts";
 import "./commercial.css";
 import { roofEvidenceSummary } from "./survey-intelligence.ts";
 import "./survey-intelligence.css";
+import { RoofPlanDrawing } from "./RoofPlanDrawing.tsx";
 type Field = {
   name: string;
   label: string;
@@ -1062,6 +1063,7 @@ export function Workflow({
                 )}
               </section>
             ))}
+          {canEdit && <RoofPlanDrawing />}
           {canEdit && (
             <Editor
               key={editRoof?.id || "new-roof"}
