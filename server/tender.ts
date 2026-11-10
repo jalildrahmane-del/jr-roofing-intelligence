@@ -1,3 +1,4 @@
+import { parseRoofPlan } from "../src/roof-plan-record.ts";
 import { randomUUID, createHash } from "node:crypto";
 import { imageSize } from "image-size";
 import {
@@ -108,6 +109,9 @@ export function saveTender(
       outlets: optional(d.outlets, 5000),
       upstands: optional(d.upstands, 5000),
       penetrations: optional(d.penetrations, 5000),
+      roofPlan: d.roofPlan === undefined
+        ? (roofs.find(r => r.id === d.previousId)?.data.roofPlan ?? null)
+        : parseRoofPlan(d.roofPlan),
       observations: text(d.observations, "Observations", 10000),
       limitations: text(
         d.limitations,

@@ -1063,7 +1063,12 @@ export function Workflow({
                 )}
               </section>
             ))}
-          {canEdit && <RoofPlanDrawing />}
+          {canEdit && roofs.filter(r => r.data.entityId === roofId).map(r => (
+            <RoofPlanDrawing key={r.id} saved={r.data.roofPlan} onSave={async plan => {
+              await save("roof", { ...r.data, roofPlan: JSON.stringify(plan), previousId: r.id });
+            }} />
+          ))}
+          {canEdit && !roofs.length && <p>Create a roof survey first to attach a revisioned roof plan.</p>}
           {canEdit && (
             <Editor
               key={editRoof?.id || "new-roof"}
