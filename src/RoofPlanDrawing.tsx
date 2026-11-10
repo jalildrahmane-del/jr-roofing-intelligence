@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import { measureRoofPlan, type PlanPoint } from "./roof-plan-geometry.ts";
 import "./roof-plan-drawing.css";
+import type { SavedRoofPlan } from "./roof-plan-record.ts";
 
 /** Standalone preliminary plan sketch; deliberately does not modify approved survey measurements. */
-export function RoofPlanDrawing() {
-  const [vertices, setVertices] = useState<PlanPoint[]>([]);
-  const [calibrationPoints, setCalibrationPoints] = useState<PlanPoint[]>([]);
+export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | null; onSave?: (plan: SavedRoofPlan) => Promise<void> }) {
+  const [vertices, setVertices] = useState<PlanPoint[]>(saved?.vertices ?? []);
+  const [calibrationPoints, setCalibrationPoints] = useState<PlanPoint[]>(saved?.calibrationPoints ?? []);
   const [mode, setMode] = useState<"boundary" | "calibration">("boundary");
-  const [distance, setDistance] = useState("");
-  const [pitch, setPitch] = useState("");
+  const [distance, setDistance] = useState(saved ? String(saved.actualDistanceMetres) : "");
+  const [pitch, setPitch] = useState(saved?.pitchDegrees == null ? "" : String(saved.pitchDegrees));
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<ReturnType<typeof measureRoofPlan> | null>(null);
   const points = vertices.map(p => `${p.x},${p.y}`).join(" ");
   function addPoint(event: React.MouseEvent<SVGSVGElement>) {
@@ -67,12 +69,21 @@ export function RoofPlanDrawing() {
       <label>Roof pitch (degrees, optional)<input type="number" min="0" max="89.99" step="any" value={pitch} onChange={e=>{setPitch(e.target.value);setResult(null);}} placeholder="e.g. 5" /></label>
     </div>
     <button type="button" onClick={calculate}>Calculate preliminary measurements</button>
+    {onSave && <button type="button" disabled={!result || saving} onClick={async () => {
+      if (!result || calibrationPoints.length !== 2) return;
+      setSaving(true); setError("");
+      try { await onSave({ vertices, calibrationPoints: [calibrationPoints[0], calibrationPoints[1]],
+        actualDistanceMetres: Number(distance), pitchDegrees: pitch.trim() ? Number(pitch) : null,
+        status: "preliminary-unverified" }); }
+      catch (err) { setError((err as Error).message); }
+      finally { setSaving(false); }
+    }}>{saving ? "Saving…" : "Save preliminary roof plan revision"}</button>}
     {error && <p role="alert" className="error">{error}</p>}
     {result && <div role="status" className="roof-plan-results">
       <strong>Preliminary / unverified — not an approved survey</strong>
       <p>Plan area: {result.planAreaM2.toFixed(2)} m² · Perimeter: {result.perimeterM.toFixed(2)} m</p>
       <p>Pitch-adjusted surface area: {result.surfaceAreaM2 === null ? "Pitch not provided" : result.surfaceAreaM2.toFixed(2) + " m²"}</p>
-      <p>Results are not saved to roof records or used in estimating. Verify dimensions and roof geometry independently before entering any measured survey area.</p>
+      <p>The plan can be saved as preliminary evidence but is not used in estimating or as the approved survey area. Verify dimensions and roof geometry independently.</p>
     </div>}
   </section>;
 }
