@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - feature/roof-plan-records-20261110
       - feature/roof-plan-geometry-20261109
       - fix/offline-sync-project-confirmation-20261106
       - integration/workforce-owner-shifts-reconciliation
