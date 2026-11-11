@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fixture, roofData } from "./tender-fixture.ts";
-import { readFileSync } from "node:fs";
 const plan = {vertices:[{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}],
  calibrationPoints:[{x:0,y:0},{x:100,y:0}],actualDistanceMetres:10,pitchDegrees:5,status:"preliminary-unverified"};
 test("roof drawing and image survive revision and cannot be reassigned to another roof",()=>{
