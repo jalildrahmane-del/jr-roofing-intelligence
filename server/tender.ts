@@ -119,6 +119,35 @@ export function saveTender(
         10000,
       ),
     };
+    if (data.roofPlan) {
+      const priorPlan = roofs.find(r => r.id === d.previousId)?.data.roofPlan;
+      const image = d.roofPlanImage;
+      if (image !== undefined) {
+        if (typeof image !== "string" || image.length > 1500000)
+          throw Error("Roof plan image must be JPEG/PNG, maximum 1 MiB");
+        const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(image);
+        if (!match) throw Error("Invalid roof plan image");
+        const bytes = Buffer.from(match[2], "base64");
+        if (bytes.length > 1024 * 1024 || bytes.toString("base64") !== match[2])
+          throw Error("Invalid roof plan image encoding or size");
+        const size = imageSize(bytes);
+        if (size.type !== match[1].replace("jpeg","jpg") || !size.width || !size.height ||
+            size.width > 2000 || size.height > 2000)
+          throw Error("Roof plan image must be JPEG/PNG up to 2000 pixels per side");
+        const assetId = randomUUID();
+        store.db.prepare("INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)")
+          .run(assetId, pid, "image/" + match[1], bytes, createHash("sha256").update(bytes).digest("hex"));
+        data.roofPlan.imageAssetId = assetId;
+      } else if (data.roofPlan.imageAssetId) {
+        if (data.roofPlan.imageAssetId !== priorPlan?.imageAssetId)
+          throw Error("Roof plan image reference cannot be reassigned");
+        const asset = store.db.prepare("SELECT id FROM evidence WHERE id=? AND pid=?")
+          .get(data.roofPlan.imageAssetId, pid);
+        if (!asset) throw Error("Roof plan image evidence not found");
+      } else if (priorPlan?.imageAssetId && d.roofPlan === undefined) {
+        data.roofPlan.imageAssetId = priorPlan.imageAssetId;
+      }
+    } else if (d.roofPlanImage !== undefined) throw Error("Roof plan required for image");
     if (data.area > 10000000) throw Error("Roof area exceeds supported range");
     return store.append(user, pid, kind, data);
   }
