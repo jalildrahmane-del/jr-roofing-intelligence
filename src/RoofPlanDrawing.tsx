@@ -18,10 +18,16 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
   const points = vertices.map(p => `${p.x},${p.y}`).join(" ");
   function addPoint(event: React.MouseEvent<SVGSVGElement>) {
     const svg = event.currentTarget;
-    const bounds = svg.getBoundingClientRect();
-    if (!bounds.width || !bounds.height) return;
-    const x = Math.max(0, Math.min(1000, (event.clientX - bounds.left) * 1000 / bounds.width));
-    const y = Math.max(0, Math.min(600, (event.clientY - bounds.top) * 600 / bounds.height));
+    // Convert screen coordinates through the SVG transform so taps remain aligned
+    // with the actual image even when responsive layout adds letterboxing.
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const pointInSvg = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+    if (!Number.isFinite(pointInSvg.x) || !Number.isFinite(pointInSvg.y) ||
+        pointInSvg.x < 0 || pointInSvg.x > 1000 ||
+        pointInSvg.y < 0 || pointInSvg.y > 600) return;
+    const x = pointInSvg.x;
+    const y = pointInSvg.y;
     const point = { x, y };
     if (mode === "boundary") setVertices(previous => previous.length < 500 ? [...previous, point] : previous);
     else setCalibrationPoints(previous => previous.length === 2 ? [point] : [...previous, point]);
