@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - integration/roof-image-state-after-touch-fix-20261112
       - feature/roof-plan-image-persistence-20261110
       - feature/roof-plan-geometry-20261109
       - fix/offline-sync-project-confirmation-20261106
