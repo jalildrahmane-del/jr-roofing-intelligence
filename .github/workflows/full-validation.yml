@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - fix/workforce-shift-rounding-20261113
       - feature/roof-plan-image-persistence-20261110
       - feature/roof-plan-geometry-20261109
       - fix/offline-sync-project-confirmation-20261106
