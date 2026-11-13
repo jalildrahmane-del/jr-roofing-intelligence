@@ -34,6 +34,6 @@ test('Windows preview browser readiness follows the configured local server port
   assert.match(ready,/\$env:PORT/);
   assert.match(ready,/TryParse/);
   assert.match(ready,/65535/);
-  assert.match(ready,/127\\.0\\.0\\.1:\\$port/);
-  assert.doesNotMatch(ready,/https?:\\/\\/(?!127\\.0\\.0\\.1)/);
+  assert.ok(ready.includes('127.0.0.1:$port'));
+  assert.ok(!ready.includes('http://0.0.0.0'));
 });
