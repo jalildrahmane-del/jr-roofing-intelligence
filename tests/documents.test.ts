@@ -151,3 +151,29 @@ test("integrity detects modified records and broken audit chain", () => {
     s.close();
   }
 });
+
+test("PR #11 reconciliation: project access revocation immediately blocks document reads, writes and PDFs", async () => {
+  const { s, a, m, pid } = setup();
+  try {
+    const source = documentCommand(s, a, pid, "source", {
+      title: "Synthetic source", reference: "SYN-01", content: "Synthetic roof procedure.",
+    });
+    const doc = documentCommand(s, a, pid, "draft", {
+      type: "RAMS", title: "Synthetic RAMS",
+      sources: [{ recordId: source.id, excerpt: "roof procedure" }],
+      proposals: "Review required", limitations: "Unverified",
+    });
+    assert.ok(documentState(s, a, pid).documents.some(d => d.id === doc.id));
+    const latest = s.projectAccessState(m, pid).history.filter((h: any) => h.userId === a.id).at(-1);
+    s.setProjectAccess(m, pid, {
+      userId: a.id, permission: "none", previousId: latest?.id ?? null,
+      reason: "Synthetic immediate access revocation test",
+    });
+    assert.throws(() => documentState(s, a, pid), /Forbidden/);
+    assert.throws(() => documentCommand(s, a, pid, "source", {
+      title: "Unauthorised", reference: "SYN-02", content: "Not permitted",
+    }), /Forbidden/);
+    await assert.rejects(documentPdf(s, a, pid, doc.id), /Forbidden/);
+    assert.ok(documentState(s, m, pid).documents.some(d => d.id === doc.id));
+  } finally { s.close(); }
+});
