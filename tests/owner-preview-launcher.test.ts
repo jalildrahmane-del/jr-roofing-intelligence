@@ -29,3 +29,11 @@ test('browser opens only after local HTTP readiness',()=>{
   assert.match(ready,/StatusCode -eq 200/);
   assert.match(ready,/Start-Process \$url/);
 });
+
+test('Windows preview browser readiness follows the configured local server port safely',()=>{
+  assert.match(ready,/\$env:PORT/);
+  assert.match(ready,/TryParse/);
+  assert.match(ready,/65535/);
+  assert.match(ready,/127\\.0\\.0\\.1:\\$port/);
+  assert.doesNotMatch(ready,/https?:\\/\\/(?!127\\.0\\.0\\.1)/);
+});
