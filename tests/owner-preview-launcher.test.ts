@@ -10,7 +10,7 @@ test('Windows preview checks Node 24, builds and uses the local-only server',()=
   assert.match(launcher,/process\.versions\.node/);
   assert.match(launcher,/npm run build/);
   assert.match(launcher,/npm start/);
-  assert.match(ready,/127\.0\.0\.1:3000/);
+  assert.ok(ready.includes('127.0.0.1:$port'));
   assert.doesNotMatch(launcher,/npm run dev/);
 });
 test('first launch provisions private credentials without hardcoded password or reset',()=>{
@@ -28,4 +28,12 @@ test('browser opens only after local HTTP readiness',()=>{
   assert.match(ready,/Invoke-WebRequest/);
   assert.match(ready,/StatusCode -eq 200/);
   assert.match(ready,/Start-Process \$url/);
+});
+
+test('Windows preview browser readiness follows the configured local server port safely',()=>{
+  assert.match(ready,/\$env:PORT/);
+  assert.match(ready,/TryParse/);
+  assert.match(ready,/65535/);
+  assert.ok(ready.includes('127.0.0.1:$port'));
+  assert.ok(!ready.includes('http://0.0.0.0'));
 });

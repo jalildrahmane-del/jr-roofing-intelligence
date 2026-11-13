@@ -1,6 +1,16 @@
 # Wait for the private loopback server before opening the browser.
 $ErrorActionPreference = "SilentlyContinue"
-$url = "http://127.0.0.1:3000"
+# Keep browser readiness aligned with the local server's PORT override.
+$port = 3000
+if ($env:PORT) {
+  $parsedPort = 0
+  if (-not [int]::TryParse($env:PORT, [ref]$parsedPort) -or $parsedPort -lt 1 -or $parsedPort -gt 65535) {
+    Write-Host "Invalid PORT: choose a number between 1 and 65535."
+    exit 1
+  }
+  $port = $parsedPort
+}
+$url = "http://127.0.0.1:$port"
 for ($attempt = 0; $attempt -lt 60; $attempt++) {
   try {
     $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2
