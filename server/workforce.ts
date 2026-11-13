@@ -209,7 +209,8 @@ export function attendanceReport(records: RecordItem[]) {
         stamp - start >= breakMs
       ) {
         const hours = (stamp - start - breakMs) / 3600000;
-        amount += hours * rate;
+        const shiftAmount = Math.round(hours * rate * 100) / 100;
+        amount += shiftAmount;
         shifts.push({
           attendanceId: `${shiftEvents[0]}:${e.id}`,
           start:new Date(start).toISOString(),end:new Date(stamp).toISOString(),
@@ -218,7 +219,7 @@ export function attendanceReport(records: RecordItem[]) {
           day: new Date(start).toISOString().slice(0, 10),
           hours,
           rate,
-          amount: Math.round(hours * rate * 100) / 100,
+          amount: shiftAmount,
         });
         verifiedMs += stamp - start - breakMs;
         start = null;
