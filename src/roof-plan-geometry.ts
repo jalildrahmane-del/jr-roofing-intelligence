@@ -12,7 +12,7 @@ export type PlanMeasurement = Readonly<{
 }>;
 
 function validPoint(point: PlanPoint): boolean {
-  return Number.isFinite(point.x) && Number.isFinite(point.y);
+  return !!point && typeof point === "object" && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 function segmentIntersection(a: PlanPoint, b: PlanPoint, c: PlanPoint, d: PlanPoint): boolean {
@@ -63,7 +63,9 @@ export function measureRoofPlan(
   let twiceArea = 0, perimeterPixels = 0;
   for (let i = 0; i < vertices.length; i++) {
     const a = vertices[i], b = vertices[(i + 1) % vertices.length];
-    twiceArea += a.x * b.y - b.x * a.y;
+    // Translate to the first vertex to avoid cancellation for offset image coordinates.
+    twiceArea += (a.x - vertices[0].x) * (b.y - vertices[0].y) -
+      (b.x - vertices[0].x) * (a.y - vertices[0].y);
     perimeterPixels += Math.hypot(b.x - a.x, b.y - a.y);
   }
   if (!Number.isFinite(twiceArea) || Math.abs(twiceArea) <= 1e-9) {
