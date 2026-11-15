@@ -45,3 +45,12 @@ test("invalid vertices and zero-area polygons are rejected", () => {
   assert.throws(()=>measureRoofPlan([{x:0,y:0},{x:1,y:1},{x:2,y:2}],calibration),/non-zero/);
   assert.throws(()=>measureRoofPlan([{x:0,y:0},{x:1,y:0},{x:1,y:0}],calibration),/distinct/);
 });
+
+ test("area remains accurate for large coordinate offsets", () => {
+  const shifted = square.map(p => ({x:p.x+1e12,y:p.y+1e12}));
+  assert.equal(measureRoofPlan(shifted,calibration).planAreaM2,measureRoofPlan(square,calibration).planAreaM2);
+});
+test("null vertices produce a validation error rather than a property access crash", () => {
+  assert.throws(()=>measureRoofPlan([null, ...square.slice(1)] as any,calibration),/vertices/);
+  assert.throws(()=>measureRoofPlan(square,{...calibration,pointA:null} as any),/Calibration/);
+});
