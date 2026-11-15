@@ -85,3 +85,23 @@ test('verified restore rejects corrupt source without creating destination',()=>
   assert.equal(existsSync(destination),false);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('restore rejects tampered evidence bytes even when SQLite tables remain structurally valid',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'jr-evidence-tamper-'));
+ const live=join(dir,'live.sqlite'),backup=join(dir,'backup.sqlite'),destination=join(dir,'restored.sqlite');
+ const store=new Store(live);
+ try {
+  store.addUser('owner','evidence-restore-password','manager');
+  const user=store.user(store.login('owner','evidence-restore-password')!)!;
+  const project=store.project(user,{name:'Evidence test',area:12});
+  const bytes=Buffer.from('original photographic evidence');
+  const {createHash}=await import('node:crypto');
+  store.db.prepare('INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)').run('photo-1',project.id,'image/jpeg',bytes,createHash('sha256').update(bytes).digest('hex'));
+  backupDatabase(live,backup);
+  const {DatabaseSync}=await import('node:sqlite');
+  const altered=new DatabaseSync(backup);
+  try {altered.prepare('UPDATE evidence SET bytes=? WHERE id=?').run(Buffer.from('tampered evidence'),'photo-1');}finally{altered.close();}
+  assert.throws(()=>restoreDatabase(backup,destination),/evidence integrity/);
+  assert.equal(existsSync(destination),false);
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
