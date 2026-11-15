@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import vm from 'node:vm';
 import {Store} from '../server/store.ts';
 import {backupDatabase} from '../scripts/backup.ts';
+import {restoreDatabase} from '../scripts/restore.ts';
 import {positive,preliminaryLoad} from '../src/model.ts';
 
 const source=readFileSync('public/legacy/app.js','utf8');
@@ -52,4 +53,35 @@ test('backup refuses corrupt SQLite source without leaving a misleading destinat
   assert.throws(()=>backupDatabase(source,destination));
   assert.equal(existsSync(destination),false);
  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+test('verified offline restore preserves records but revokes all copied login sessions',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'jr-safe-restore-'));
+ const live=join(dir,'live.sqlite'),backup=join(dir,'backup.sqlite'),restored=join(dir,'restored.sqlite');
+ const store=new Store(live);
+ try {
+  store.addUser('owner','safe-restore-password','manager');
+  const token=store.login('owner','safe-restore-password')!;
+  const user=store.user(token)!;
+  store.project(user,{name:'Recovery acceptance roof',area:42});
+  backupDatabase(live,backup);
+  restoreDatabase(backup,restored);
+  assert.throws(()=>restoreDatabase(backup,restored),/new file/);
+  const recovered=new Store(restored);
+  try {
+   assert.equal(recovered.user(token),null,'session from backup must be revoked');
+   const newToken=recovered.login('owner','safe-restore-password');
+   assert.ok(newToken,'owner must be able to sign in again');
+   assert.equal(recovered.snapshot(recovered.user(newToken!)!).projects[0].name,'Recovery acceptance roof');
+  }finally{recovered.close();}
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('verified restore rejects corrupt source without creating destination',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'jr-invalid-restore-'));
+ const backup=join(dir,'invalid.sqlite'),destination=join(dir,'restored.sqlite');
+ try {
+  writeFileSync(backup,'invalid backup');
+  assert.throws(()=>restoreDatabase(backup,destination));
+  assert.equal(existsSync(destination),false);
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });
