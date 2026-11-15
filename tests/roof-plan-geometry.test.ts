@@ -54,3 +54,9 @@ test("null vertices produce a validation error rather than a property access cra
   assert.throws(()=>measureRoofPlan([null, ...square.slice(1)] as any,calibration),/vertices/);
   assert.throws(()=>measureRoofPlan(square,{...calibration,pointA:null} as any),/Calibration/);
 });
+
+test("calibrated edge lengths include closing edge and reconcile with perimeter", () => {
+ const result=measureRoofPlan([{x:0,y:0},{x:30,y:0},{x:30,y:40}],{pointA:{x:0,y:0},pointB:{x:10,y:0},actualDistanceMetres:1});
+ assert.deepEqual(result.edgeLengthsM,[3,4,5]);
+ assert.equal(result.edgeLengthsM.reduce((a,b)=>a+b,0),result.perimeterM);
+});
