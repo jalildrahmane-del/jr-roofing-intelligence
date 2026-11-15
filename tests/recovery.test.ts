@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,mkdtempSync,rmSync,statSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync,mkdtempSync,rmSync,statSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import vm from 'node:vm';
@@ -42,4 +42,14 @@ test('original V3.6 recovery archive remains byte-for-byte intact',async()=>{
  for(const line of readFileSync('docs/v36-sha256.txt','utf8').trim().split('\n')){
   const [hash,name]=line.split('  ');assert.equal(createHash('sha256').update(readFileSync('docs/original-v36/'+name)).digest('hex'),hash,name);
  }
+});
+
+test('backup refuses corrupt SQLite source without leaving a misleading destination',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'jr-backup-corrupt-'));
+ const source=join(dir,'corrupt.sqlite'),destination=join(dir,'backup.sqlite');
+ try {
+  writeFileSync(source,'not a sqlite database');
+  assert.throws(()=>backupDatabase(source,destination));
+  assert.equal(existsSync(destination),false);
+ } finally {rmSync(dir,{recursive:true,force:true});}
 });
