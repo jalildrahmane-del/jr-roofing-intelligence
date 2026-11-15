@@ -6,6 +6,7 @@ export type PlanMeasurement = Readonly<{
   planAreaM2: number;
   surfaceAreaM2: number | null;
   perimeterM: number;
+  edgeLengthsM: number[];
   calibrationMetresPerPixel: number;
   pitchDegrees: number | null;
   status: "preliminary-unverified";
@@ -81,6 +82,10 @@ export function measureRoofPlan(
   return {
     planAreaM2, surfaceAreaM2,
     perimeterM: perimeterPixels * metresPerPixel,
+    edgeLengthsM: vertices.map((a, i) => {
+      const b = vertices[(i + 1) % vertices.length];
+      return Math.hypot(b.x - a.x, b.y - a.y) * metresPerPixel;
+    }),
     calibrationMetresPerPixel: metresPerPixel,
     pitchDegrees: pitchDegrees ?? null,
     status: "preliminary-unverified",

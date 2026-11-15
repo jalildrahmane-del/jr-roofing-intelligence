@@ -115,6 +115,10 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
     {result && <div role="status" className="roof-plan-results">
       <strong>Preliminary / unverified — not an approved survey</strong>
       <p>Plan area: {result.planAreaM2.toFixed(2)} m² · Perimeter: {result.perimeterM.toFixed(2)} m</p>
+      <details><summary>Calibrated boundary lengths</summary>
+        <p>Lengths are in the plan plane. Edge numbers follow the order of the boundary points; the final edge closes the polygon.</p>
+        <ol>{result.edgeLengthsM.map((length, i) => <li key={i}>Edge {i + 1}: {length.toFixed(2)} m</li>)}</ol>
+      </details>
       <p>Pitch-adjusted surface area: {result.surfaceAreaM2 === null ? "Pitch not provided" : result.surfaceAreaM2.toFixed(2) + " m²"}</p>
       <p>The plan can be saved as preliminary evidence but is not used in estimating or as the approved survey area. Verify dimensions and roof geometry independently.</p>
     </div>}
