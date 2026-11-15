@@ -177,6 +177,8 @@ export function createApp(store: Store, root = resolve("dist")) {
         }
         res.writeHead(200, {
           "Content-Type": asset.mime,
+          "X-Content-Type-Options": "nosniff",
+          "Content-Disposition": "attachment",
           "Cache-Control": "no-store",
         });
         res.end(Buffer.from(asset.bytes));
