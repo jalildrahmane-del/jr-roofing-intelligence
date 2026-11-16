@@ -102,7 +102,7 @@ test("HTTP document PDF requires session and denies cross-project or workforce a
     assert.notEqual(crossProject.status,200);
     const allowed=await fetch(path(f.pid,f.draft.id),{headers:{Cookie:"jr_session="+reviewerToken}});
     assert.equal(allowed.status,200);
-    assert.match(allowed.headers.get("content-type")||"",/application\\/pdf/);
+    assert.ok((allowed.headers.get("content-type")||"").includes("application/pdf"));
     assert.match(allowed.headers.get("cache-control")||"",/no-store/);
     assert.equal(Buffer.from(await allowed.arrayBuffer()).subarray(0,5).toString(),"%PDF-");
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));f.store.close();}
