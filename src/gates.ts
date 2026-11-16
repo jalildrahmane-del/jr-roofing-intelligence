@@ -413,6 +413,21 @@ export function recordedStageRelease(records: RecordItem[], stage: string) {
     )
     .at(-1);
 }
+export function pendingFireWatchPermits(records: RecordItem[]) {
+  const used = new Set(
+    records.filter((r) => r.kind === "workRelease").flatMap((r) => r.data.dependencies),
+  );
+  const closed = new Set(
+    records.filter((r) => r.kind === "permitClose").map((r) => r.data.targetId),
+  );
+  return records.filter(
+    (r) =>
+      r.kind === "control" &&
+      r.data.category === "hot-work" &&
+      used.has(r.id) &&
+      !closed.has(r.id),
+  );
+}
 export function closeoutBlockers(records: RecordItem[]) {
   // Expired temporary permits do not invalidate historical work; releases retain exact evidence.
   const errors = engineeringBlockers(records);
@@ -481,19 +496,10 @@ export function closeoutBlockers(records: RecordItem[]) {
     )
       errors.push("Programme references a superseded predecessor revision");
   if (!current(records, "diary").length) errors.push("Site diary missing");
-  for (const permit of current(records, "control").filter(
-    (r) => r.data.category === "hot-work",
-  ))
-    if (
-      records.some(
-        (r) =>
-          r.kind === "workRelease" && r.data.dependencies.includes(permit.id),
-      ) &&
-      !records.some(
-        (r) => r.kind === "permitClose" && r.data.targetId === permit.id,
-      )
-    )
-      errors.push("Used hot work permit needs fire watch closeout");
+  for (const permit of pendingFireWatchPermits(records))
+    errors.push(
+      `Used hot work permit needs fire watch closeout (${permit.data.title} · v${permit.data.version})`,
+    );
   return errors;
 }
 export function handoverKey(records: RecordItem[]) {

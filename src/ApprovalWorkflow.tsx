@@ -14,6 +14,7 @@ import {
   reviewFor,
   releaseKey,
   handoverKey,
+  pendingFireWatchPermits,
 } from "./gates.ts";
 export function ApprovalWorkflow({
   route,
@@ -149,13 +150,14 @@ export function ApprovalWorkflow({
       </section>
     );
   const engineering = engineeringApproval(records),
-    accepted = records
-      .filter(
-        (r) =>
-          r.kind === "handoverAcceptance" &&
-          r.data.packageKey === handoverKey(records),
-      )
-      .at(-1);
+    handoverBlockers = route === "handover" ? closeoutBlockers(records) : [],
+    fireWatchPermits = route === "construction" ? pendingFireWatchPermits(records) : [],
+    accepted =
+      route === "handover" &&
+      handoverBlockers.length === 0 &&
+      records.some(
+        (r) => r.kind === "handoverAcceptance" && r.data.packageKey === handoverKey(records),
+      );
   return (
     <div className="gate-workflow">
       <p className="warning">
@@ -303,27 +305,6 @@ export function ApprovalWorkflow({
                         )}
                     </>
                   )}
-                  {kind === "control" &&
-                    r.data.category === "hot-work" &&
-                    ["manager", "supervisor"].includes(user.role) &&
-                    r.author !== user.id && (
-                      <details>
-                        <summary>Fire watch closeout</summary>
-                        <form
-                          onSubmit={submit("permitClose", { targetId: r.id })}
-                        >
-                          {field(
-                            "completedAt",
-                            "Fire watch completion (UTC)",
-                            "datetime-local",
-                          )}
-                          {field("note", "Fire watch findings", "textarea")}
-                          {field("source", "Fire watch evidence reference")}
-                          {attestation}
-                          <button disabled={busy}>Close hot work permit</button>
-                        </form>
-                      </details>
-                    )}
                 </article>
               ))}
               {mayEdit && (
@@ -472,10 +453,37 @@ export function ApprovalWorkflow({
           )}
         </section>
       )}
+      {fireWatchPermits.length > 0 && (
+        <section>
+          <h2>Fire watch closeout</h2>
+          {fireWatchPermits.map((permit) => (
+            <article key={permit.id} className="gate-record">
+              <h3>{permit.data.title} · v{permit.data.version}</h3>
+              <p>Permit source {permit.data.source}</p>
+              {["manager", "supervisor"].includes(user.role) &&
+              permit.author !== user.id ? (
+                <form onSubmit={submit("permitClose", { targetId: permit.id })}>
+                  {field(
+                    "completedAt",
+                    "Fire watch completion (UTC)",
+                    "datetime-local",
+                  )}
+                  {field("note", "Fire watch findings", "textarea")}
+                  {field("source", "Fire watch evidence reference")}
+                  {attestation}
+                  <button disabled={busy}>Close hot work permit</button>
+                </form>
+              ) : (
+                <p>An independent manager or supervisor must record closeout.</p>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
       {route === "handover" && (
         <section>
           <h2>Handover approval gate</h2>
-          {checklist(closeoutBlockers(records))}
+          {checklist(handoverBlockers)}
           <p>
             {accepted
               ? "Handover acceptance recorded for this exact dossier."
@@ -492,7 +500,7 @@ export function ApprovalWorkflow({
               {field("clientEvidence", "Signed client acceptance reference")}
               {field("clientAcceptedAt", "Client acceptance date", "date")}
               {attestation}
-              <button disabled={busy || closeoutBlockers(records).length > 0}>
+              <button disabled={busy || handoverBlockers.length > 0}>
                 Record handover acceptance
               </button>
             </form>
