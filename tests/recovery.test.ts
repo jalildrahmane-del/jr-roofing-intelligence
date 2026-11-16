@@ -105,3 +105,20 @@ test('restore rejects tampered evidence bytes even when SQLite tables remain str
   assert.equal(existsSync(destination),false);
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('backup rejects tampered evidence without leaving a destination file',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'jr-backup-evidence-'));
+ const live=join(dir,'live.sqlite'),destination=join(dir,'backup.sqlite');
+ const store=new Store(live);
+ try{
+  store.addUser('owner','backup-evidence-password','manager');
+  const user=store.user(store.login('owner','backup-evidence-password')!)!;
+  const project=store.project(user,{name:'Synthetic evidence backup',area:12});
+  const {createHash}=await import('node:crypto');
+  const original=Buffer.from('untampered photograph bytes');
+  store.db.prepare('INSERT INTO evidence(id,pid,mime,bytes,sha256) VALUES(?,?,?,?,?)').run('synthetic-photo',project.id,'image/jpeg',original,createHash('sha256').update(original).digest('hex'));
+  store.db.prepare('UPDATE evidence SET bytes=? WHERE id=?').run(Buffer.from('altered photograph bytes'),'synthetic-photo');
+  assert.throws(()=>backupDatabase(live,destination),/evidence integrity/);
+  assert.equal(existsSync(destination),false);
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
