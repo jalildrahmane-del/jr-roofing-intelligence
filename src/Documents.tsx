@@ -4,6 +4,7 @@ import { Entry } from "./Workforce.tsx";
 import { SafetyDocumentComposer } from "./SafetyDocumentComposer.tsx";
 import { DocumentRevisionEditor } from "./DocumentRevisionEditor.tsx";
 import { DocumentReview } from "./DocumentReview.tsx";
+import { documentSourceText } from "./document-source.ts";
 import "./safety-composer.css";
 export function Documents({ pid }: { pid: string }) {
   const [state, setState] = useState<any>(null),
@@ -32,7 +33,7 @@ export function Documents({ pid }: { pid: string }) {
             {state.canWrite&&<Entry
               title="Register source revision"
               labels={{"replaces (record ID or none)":"Source to replace"}}
-              choices={{"replaces (record ID or none)":[{value:"none",label:"New source"},...state.sources.filter((r:any)=>r.current).map((r:any)=>({value:r.id,label:`${r.data.title} · ${r.data.reference}`}))]}}
+              choices={{"replaces (record ID or none)":[{value:"none",label:"New source"},...state.sources.filter((r:any)=>r.current && r.kind === "intelligence.source").map((r:any)=>({value:r.id,label:`${r.data.title} · ${r.data.reference}`}))]}}
               fields={[
                 "title",
                 "reference",
@@ -65,7 +66,7 @@ export function Documents({ pid }: { pid: string }) {
                         overflowWrap: "anywhere",
                       }}
                     >
-                      {r.data.content || "No source text recorded."}
+                      {documentSourceText(r)}
                     </pre>
                   </details>
                 </li>

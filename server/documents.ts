@@ -5,6 +5,7 @@ import { text } from "../src/model.ts";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
 import { SAFETY_DRAFT_LIMIT } from "../src/risk-authoring.ts";
+import { documentSourceText } from "../src/document-source.ts";
 import { DOCUMENT_CHECKLIST_VERSION, documentReviewItems, reviewChecklistComplete, validateDocumentChecklist } from "../src/document-review.ts";
 const digest = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -143,11 +144,7 @@ export function documentCommand(
         if (!source || !currentSource(records, source))
           throw Error("Current project source required");
         const excerpt = text(s.excerpt, "Exact source excerpt", 10000);
-        const sourceText =
-          source.kind === "intelligence.source"
-            ? source.data.content
-            : JSON.stringify(source.data);
-        if (!sourceText.includes(excerpt))
+        if (!documentSourceText(source).includes(excerpt))
           throw Error("Excerpt must occur in the source");
         return {
           recordId: source.id,
