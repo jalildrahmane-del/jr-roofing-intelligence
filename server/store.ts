@@ -220,23 +220,26 @@ export class Store {
     kind: string,
     data: Record<string, any>,
   ): RecordItem {
-    if (kind === "project.access" && user.role !== "manager") throw Error("Forbidden: manager required");
-    if (!kind.startsWith("workforce.")) this.requireProject(user,pid,true);
-    const r = {
-      id: randomUUID(),
-      pid,
-      kind,
-      author: user.id,
-      createdAt: new Date().toISOString(),
-      data,
+    const write = () => {
+      if (kind === "project.access" && user.role !== "manager") throw Error("Forbidden: manager required");
+      if (!kind.startsWith("workforce.")) this.requireProject(user,pid,true);
+      const r = {
+        id: randomUUID(),
+        pid,
+        kind,
+        author: user.id,
+        createdAt: new Date().toISOString(),
+        data,
+      };
+      this.db
+        .prepare(
+          "INSERT INTO records(id,pid,kind,author,created_at,data) VALUES(?,?,?,?,?,?)",
+        )
+        .run(r.id, pid, kind, user.id, r.createdAt, JSON.stringify(data));
+      this.audit(user.id, kind, r);
+      return r;
     };
-    this.db
-      .prepare(
-        "INSERT INTO records(id,pid,kind,author,created_at,data) VALUES(?,?,?,?,?,?)",
-      )
-      .run(r.id, pid, kind, user.id, r.createdAt, JSON.stringify(data));
-    this.audit(user.id, kind, r);
-    return r;
+    return this.db.isTransaction ? write() : this.transaction(write);
   }
   close() {
     this.db.close();
