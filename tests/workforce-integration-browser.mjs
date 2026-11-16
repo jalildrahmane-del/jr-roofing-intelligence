@@ -86,6 +86,11 @@ try {
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await login(owner.name);
     await page.getByRole("heading", { name: "My company workforce — read only" }).waitFor();
+    await page.goto(base + "/#does-not-exist");
+    await page.getByRole("heading", { name: "My company workforce — read only" }).waitFor();
+    const workspace = page.getByRole("navigation", { name: "Workspace" });
+    assert.equal(await workspace.getByRole("link", { name: "Subcontractors & Workforce" }).getAttribute("aria-current"), "page");
+    assert.equal(await page.getByRole("link", { name: "Return to dashboard" }).count(), 0);
     assert.equal(await page.getByRole("link", { name: "Project Register" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Save shift plan" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Update owner access" }).count(), 0);

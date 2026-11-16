@@ -1,6 +1,6 @@
 import { Documents } from "./Documents.tsx";
 import { Workforce } from "./Workforce.tsx";
-import React, { useEffect, useState, Component } from "react";
+import React, { useEffect, useRef, useState, Component } from "react";
 import { createRoot } from "react-dom/client";
 import { routes, titles } from "./model.ts";
 import type { Snapshot, User } from "./model.ts";
@@ -87,6 +87,8 @@ class Boundary extends Component<
   }
 }
 function App() {
+  const workspaceNav = useRef<HTMLElement>(null);
+  const workspaceMain = useRef<HTMLElement>(null);
   const [user, setUser] = useState<User | null>(null),
     [state, setState] = useState<Snapshot>({
       projects: [],
@@ -132,6 +134,22 @@ function App() {
   const project = state.projects.find((p) => p.id === pid);
   const workforceOnly = user?.role === "subcontractor-owner" || state.permissions?.[pid] === "workforce";
   const visibleRoute = workforceOnly ? "workforce" : route;
+  const routeFound = routes.some((item) => item === visibleRoute);
+  useEffect(() => {
+    const nav = workspaceNav.current;
+    const activeLink = nav?.querySelector('[aria-current="page"]');
+    if (!nav || !activeLink) return;
+    const revealActiveLink = () => {
+      const strip = nav.getBoundingClientRect();
+      const link = activeLink.getBoundingClientRect();
+      if (link.left < strip.left) nav.scrollLeft += link.left - strip.left;
+      else if (link.right > strip.right) nav.scrollLeft += link.right - strip.right;
+    };
+    revealActiveLink();
+    const observer = new ResizeObserver(revealActiveLink);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [ready, user, visibleRoute]);
   const readOnly = state.permissions?.[pid] === "read";
   const projectUser = user && readOnly ? {...user,role:"viewer" as const} : user;
   async function add(kind: string, data: any) {
@@ -167,8 +185,14 @@ function App() {
     );
   return (
     <>
+      <a className="workspace-skip" href="#workspace-main" onClick={(event) => {
+        event.preventDefault();
+        workspaceMain.current?.focus();
+      }}>
+        Skip to workspace content
+      </a>
       <header>
-        <a href="#dashboard" className="brand">
+        <a href={workforceOnly ? "#workforce" : "#dashboard"} className="brand">
           JR<span> / </span>ROOFING INTELLIGENCE
         </a>
         <span>
@@ -192,10 +216,10 @@ function App() {
       </header>
       <div className="shell">
         <aside>
-          <nav aria-label="Workspace">
+          <nav aria-label="Workspace" ref={workspaceNav}>
             {(workforceOnly ? ["workforce"] : routes).map((r) => (
               <a
-                aria-current={r === route ? "page" : undefined}
+                aria-current={r === visibleRoute ? "page" : undefined}
                 href={"#" + r}
                 key={r}
               >
@@ -204,7 +228,7 @@ function App() {
             ))}
           </nav>
         </aside>
-        <main>
+        <main id="workspace-main" ref={workspaceMain} tabIndex={-1}>
           <div className="toolbar">
             <label>
               Active project
@@ -224,7 +248,7 @@ function App() {
             <span className="tag">LOCAL · REVIEW BUILD</span>
           </div>
           <p className="eyebrow">From survey to handover</p>
-          <h1>{titles[visibleRoute] || "Page not found"}</h1>
+          <h1>{routeFound ? titles[visibleRoute] : "Page not found"}</h1>
           {!pid && visibleRoute === "workforce" && new URLSearchParams(location.search).has("site") && (
             <p className="error" role="alert">
               This site link is unavailable for your account. Check the QR with your supervisor or select your site from the project list.
@@ -342,9 +366,9 @@ function App() {
               })()}
             </section>
           )}
-          {!routes.includes(route as (typeof routes)[number]) && (
+          {!routeFound && (
             <p>
-              <a href="#dashboard">Return to dashboard</a>
+              Choose a section from the workspace navigation. <a href="#dashboard">Return to dashboard</a>
             </p>
           )}
           {["survey", "materials", "estimating"].includes(visibleRoute) && (
@@ -373,29 +397,6 @@ function App() {
           )}
           {visibleRoute === "documents" && <Documents key={pid} pid={pid} />}
           {visibleRoute === "workforce" && <Workforce key={pid} pid={pid} user={user} project={project} />}
-          {![
-            "dashboard",
-            "projects",
-            "legacy",
-            "structure",
-            "commercial",
-            "survey",
-            "materials",
-            "estimating",
-            "design",
-            "construction",
-            "quality",
-            "handover",
-            "workforce",
-            "documents",
-          ].includes(route) && (
-            <section>
-              <p>
-                This module is awaiting its issue implementation. The existing
-                functionality is available in the V3.6 Original Workspace.
-              </p>
-            </section>
-          )}
         </main>
       </div>
     </>
