@@ -9,9 +9,12 @@ on:
       - fix/offline-sync-project-confirmation-20261106
       - integration/workforce-owner-shifts-reconciliation
       - feature/project-register-details-review
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   validate:
+    if: ${{ github.event_name != 'pull_request' || (!github.event.repository.private && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:

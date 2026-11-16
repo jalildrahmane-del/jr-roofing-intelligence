@@ -107,12 +107,26 @@ try {
   await form.getByLabel("Worker", { exact: true }).selectOption(worker.id);
   await form.getByLabel("Event", { exact: true }).selectOption("in");
   await form.getByRole("button").click();
-  await page.getByAltText("Single-use supervisor attendance QR").waitFor();
+  const supervisorQr = page.getByAltText("Single-use supervisor attendance QR")
+    .and(page.locator('img[src^="data:image/png;base64,"]'));
+  await supervisorQr.waitFor();
   const token = await page
     .getByLabel("Supervisor token", { exact: true })
     .inputValue();
+  const qrImage = await supervisorQr.getAttribute("src");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  const secondPid = s.project(manager, { name: "Fictional second site" }).id;
   await login("worker");
+  await page.goto(`${base}/?site=${encodeURIComponent(secondPid)}#workforce`);
+  await page.getByRole("alert").filter({ hasText: "This site link is unavailable for your account." }).waitFor();
+  const activeProject = page.getByRole("combobox", { name: "Active project" });
+  assert.equal(await activeProject.inputValue(), "");
+  assert.equal(await page.getByRole("button", { name: "Submit GPS event for review" }).count(), 0);
+  await activeProject.selectOption(pid);
+  await page.getByRole("heading", { name: "My attendance — selected job" }).waitFor();
+  await page.goto(`${base}/?site=${encodeURIComponent(pid)}#workforce`);
+  await page.getByRole("heading", { name: "My attendance — selected job" }).waitFor();
+  assert.equal(await activeProject.inputValue(), pid);
   await page.evaluate(() => {
     window.cameraStopped = 0;
     window.cameraMode = "success";
@@ -162,8 +176,43 @@ try {
   await page.getByRole("button", {name:"Scan supervisor QR with camera"}).click();
   await page.getByText("Camera could not start.",{exact:false}).waitFor();
 
+  const tokenField = page.getByLabel("Supervisor QR token", { exact: true });
+  await tokenField.clear();
+  await page.evaluate(() => { window.BarcodeDetector = undefined; });
+  await page.getByLabel("Read QR image").setInputFiles({
+    name: "synthetic-supervisor-qr.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(qrImage.split(",")[1], "base64"),
+  });
+  await tokenField.and(page.locator(`input[value="${token}"]`)).waitFor();
+  assert.equal(await tokenField.inputValue(), token);
+  await tokenField.clear();
+
+  await page.evaluate(async (src) => {
+    const image = new Image();
+    image.src = src;
+    await image.decode();
+    navigator.mediaDevices.getUserMedia = async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      const stream = canvas.captureStream(5);
+      const draw = () => context.drawImage(image, 0, 0);
+      draw();
+      const timer = setInterval(draw, 200);
+      const track = stream.getVideoTracks()[0];
+      const stop = track.stop.bind(track);
+      track.stop = () => { clearInterval(timer); window.cameraStopped++; stop(); };
+      return stream;
+    };
+  }, qrImage);
+  await page.getByRole("button", { name: "Scan supervisor QR with camera" }).click();
+  await page.getByText("Token captured. Confirm the project", { exact: false }).waitFor();
+  assert.equal(await tokenField.inputValue(), token);
+  assert.equal(await page.evaluate(() => window.cameraStopped), 5);
+
   await page.getByRole("checkbox", { name: /I confirm I am recording attendance/ }).check();
-  await page.getByLabel("Supervisor QR token", { exact: true }).fill(token);
   await page
     .getByRole("button", { name: "Submit GPS event for review" })
     .click();
@@ -259,7 +308,6 @@ try {
   // dashboard, with pending counts matching the workforce backend.
   const forbiddenDirector = await page.request.get(base + "/api/workforce-director");
   assert.equal(forbiddenDirector.status(), 403, "Workers must not access the director API");
-  const secondPid = s.project(manager, { name: "Fictional second site" }).id;
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("manager");
   await page.goto(base + "/#dashboard");

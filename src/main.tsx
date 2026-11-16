@@ -100,10 +100,10 @@ function App() {
   async function refresh() {
     const s = await api("state");
     setState(s);
+    const site = new URLSearchParams(location.search).get("site");
     setPid((p) => {
-      const site = new URLSearchParams(location.search).get("site");
       if (p && s.projects.some((x: any) => x.id === p)) return p;
-      if (site && s.projects.some((x: any) => x.id === site)) return site;
+      if (site !== null) return s.projects.some((x: any) => x.id === site) ? site : "";
       return s.projects[0]?.id || "";
     });
   }
@@ -225,6 +225,11 @@ function App() {
           </div>
           <p className="eyebrow">From survey to handover</p>
           <h1>{titles[visibleRoute] || "Page not found"}</h1>
+          {!pid && visibleRoute === "workforce" && new URLSearchParams(location.search).has("site") && (
+            <p className="error" role="alert">
+              This site link is unavailable for your account. Check the QR with your supervisor or select your site from the project list.
+            </p>
+          )}
           {readOnly&&<p className="warning">Read-only project assignment. Editing requires a manager to change your permission.</p>}
           {error && (
             <p className="error" role="alert">
