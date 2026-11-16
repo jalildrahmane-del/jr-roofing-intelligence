@@ -1,7 +1,7 @@
 import { reviewPayload } from "./document-review-fixture.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store } from "../server/store.ts";
@@ -61,6 +61,64 @@ test("access changes preserve history, reject stale writers, revoke immediately 
       }finally{restored.close();}
     }
   }finally{try{f.store.close();}catch{}rmSync(dir,{recursive:true,force:true});}
+});
+test("database reopen and backup reject a removed or reordered access revocation", () => {
+  for (const mutation of ["removed", "reordered"] as const) {
+    const dir = mkdtempSync(join(tmpdir(), "jr-revocation-integrity-"));
+    const path = join(dir, "live.sqlite");
+    const backup = join(dir, "backup.sqlite");
+    const f = fixture(path);
+    try {
+      const first = f.grant(f.engineer, "edit");
+      const revoked = f.grant(f.engineer, "none", f.a.id, first.id);
+      verifyIntegrity(f.store.db);
+      assert.equal(f.store.projectPermission(f.engineer, f.a.id), null);
+      if (mutation === "removed") {
+        f.store.db.prepare("DELETE FROM records WHERE id=?").run(revoked.id);
+      } else {
+        f.store.db.prepare("UPDATE records SET seq=seq+100 WHERE id=?").run(first.id);
+      }
+      assert.equal(f.store.projectPermission(f.engineer, f.a.id), "edit");
+      assert.throws(() => backupDatabase(path, backup), /Record audit integrity/);
+      assert.equal(existsSync(backup), false);
+      f.store.close();
+      assert.throws(() => new Store(path), /Record audit integrity/);
+    } finally {
+      try { f.store.close(); } catch {}
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("integrity rejects changed and missing audited projects", () => {
+  const f = fixture();
+  try {
+    verifyIntegrity(f.store.db);
+    f.store.db.prepare("UPDATE projects SET data=? WHERE id=?").run(JSON.stringify({ ...f.a, name: "Changed roof" }), f.a.id);
+    assert.throws(() => verifyIntegrity(f.store.db), /Project audit integrity/);
+    f.store.db.prepare("UPDATE projects SET data=? WHERE id=?").run(JSON.stringify(f.a), f.a.id);
+    f.store.db.prepare("DELETE FROM projects WHERE id=?").run(f.a.id);
+    assert.throws(() => verifyIntegrity(f.store.db), /Project audit integrity/);
+  } finally {
+    f.store.close();
+  }
+});
+
+test("standalone record writes roll back if their audit entry cannot be written", () => {
+  const f = fixture();
+  try {
+    f.store.db.exec(`CREATE TRIGGER fail_load_audit BEFORE INSERT ON audit
+      WHEN NEW.action = 'load' BEGIN SELECT RAISE(ABORT, 'Synthetic audit failure'); END;`);
+    const load = { thickness: 18, density: 650, area: 100, other: 0 };
+    assert.throws(() => saveRecord(f.store, f.manager, f.a.id, "load", load), /Synthetic audit failure/);
+    assert.equal(f.store.snapshot(f.manager).records.length, 0);
+    verifyIntegrity(f.store.db);
+    f.store.db.exec("DROP TRIGGER fail_load_audit");
+    assert.ok(saveRecord(f.store, f.manager, f.a.id, "load", load));
+    verifyIntegrity(f.store.db);
+  } finally {
+    f.store.close();
+  }
 });
 test("read-only document access rejects revisions and direct image writes without leaving evidence",()=>{
   const f=fixture();try{
