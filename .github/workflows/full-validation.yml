@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - test/document-pdf-boundaries-20261116
       - fix/roof-measurement-validation-20261114
       - feature/roof-plan-image-persistence-20261110
       - feature/roof-plan-geometry-20261109
