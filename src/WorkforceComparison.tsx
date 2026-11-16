@@ -2,6 +2,7 @@ import { workforcePersonName } from "./workforce-people.ts";
 import React, { useState } from "react";
 import type { User } from "./model.ts";
 import { plannedActualCsv } from "./workforce-csv.ts";
+import { workforcePeriodSummary } from "./workforce-periods.ts";
 function MatchReview({row,send}:{row:any;send:(action:string,data:any)=>Promise<void>}){
   const [decision,setDecision]=useState("confirmed"),[reason,setReason]=useState(""),[attest,setAttest]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
   return <form onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");try{
@@ -17,6 +18,8 @@ function MatchReview({row,send}:{row:any;send:(action:string,data:any)=>Promise<
 export function WorkforceComparison({state,user,send}:{state:any;user:User;send:(action:string,data:any)=>Promise<void>}) {
   const comparison=state.comparison;if(!comparison)return null;
   const editable=["manager","supervisor"].includes(user.role);
+  const [period,setPeriod]=useState<"day"|"week">("week");
+  const periodRows=workforcePeriodSummary(comparison,period);
   const time=(value:string)=>value?value.replace("T"," ").slice(0,16)+" UTC":"Not available";
   const hours=(value:any)=>typeof value==="number"?value.toFixed(2):"Not matched";
   const reviewer=(id:string)=>id===user.id?user.name:state.users.find((u:any)=>u.id===id)?.name||"Reviewer";
@@ -31,6 +34,11 @@ export function WorkforceComparison({state,user,send}:{state:any;user:User;send:
       <div><dt>Verified hours in confirmed matches</dt><dd>{hours(comparison.totals.confirmedVerifiedHours)}</dd></div>
       <div><dt>Variance for confirmed matches</dt><dd>{hours(comparison.totals.confirmedVarianceHours)}</dd></div>
     </dl>
+    <h3>Daily and weekly UTC summaries</h3>
+    <label>Summary period <select aria-label="Workforce summary period" value={period} onChange={e=>setPeriod(e.target.value as "day"|"week")}><option value="week">Weekly (Monday start)</option><option value="day">Daily</option></select></label>
+    <p>Each shift is assigned to its UTC start date. These figures are diagnostic, not payment approval.</p>
+    <table><thead><tr><th scope="col">Period start UTC</th><th scope="col">Planned hours</th><th scope="col">Verified hours</th><th scope="col">Confirmed matches</th></tr></thead><tbody>{periodRows.map(row=><tr key={row.period}><th scope="row">{row.period}</th><td>{hours(row.plannedHours)}</td><td>{hours(row.verifiedHours)}</td><td>{row.confirmedMatches}</td></tr>)}</tbody></table>
+    {!periodRows.length&&<p>No verified attendance or active plans to summarise.</p>}
     {!comparison.rows.length&&<p>No active shift plans to compare.</p>}
     {comparison.rows.map((row:any)=><article key={row.revisionId} aria-label="Shift comparison">
       <h3>{workforcePersonName(state,row.workerId)}</h3>
