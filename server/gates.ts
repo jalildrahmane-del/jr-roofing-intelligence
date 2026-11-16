@@ -331,27 +331,19 @@ export function saveGate(
   if (kind === "permitClose") {
     requireRole(u, ["manager", "supervisor"]);
     attest(d);
-    const target = ref(d.targetId, ["control"]);
+    const target = ref(d.targetId, ["control"], false);
     if (target.data.category !== "hot-work")
       throw Error("Hot work permit required");
     if (target.author === u.id)
       throw Error("Forbidden: independent fire watch closeout required");
-    if (
-      !records.some(
-        (r) =>
-          r.kind === "workRelease" && r.data.dependencies.includes(target.id),
-      )
-    )
+    const lastRelease = records.findLast(
+      (r) => r.kind === "workRelease" && r.data.dependencies.includes(target.id),
+    );
+    if (!lastRelease)
       throw Error("Permit has not been used in a work release");
     const completedAt = time(d.completedAt, "Fire watch completion");
     if (Date.parse(completedAt) > Date.now())
       throw Error("Fire watch completion cannot be in the future");
-    const lastRelease = records
-      .filter(
-        (r) =>
-          r.kind === "workRelease" && r.data.dependencies.includes(target.id),
-      )
-      .at(-1)!;
     if (
       Date.parse(completedAt) <
       Math.floor(Date.parse(lastRelease.createdAt) / 60000) * 60000

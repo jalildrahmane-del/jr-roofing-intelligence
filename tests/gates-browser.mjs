@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
-import { gateFixture, future } from "./gates-fixture.ts";
+import { controlData, gateFixture, future } from "./gates-fixture.ts";
 import { createApp } from "../server/index.ts";
 import { current } from "../src/tender.ts";
 import { closeoutBlockers, engineeringApproval } from "../src/gates.ts";
@@ -265,6 +265,28 @@ try {
       exact: true,
     })
     .waitFor();
+
+  f.inspect(revised.id);
+  const workplan = current(f.records(), "workplan")[0];
+  f.save("workplan", { ...workplan.data, previousId: workplan.id, hotWork: "yes" });
+  const permit = f.save("control", { ...controlData("hot-work"), title: "Synthetic original permit" });
+  f.inspect(permit.id);
+  f.release("prestart");
+  f.save("control", { ...permit.data, previousId: permit.id, title: "Synthetic replacement permit" });
+
+  await route("construction");
+  await page.reload();
+  const fireWatch = section("Fire watch closeout");
+  await fireWatch.getByRole("heading", { name: "Synthetic original permit · v1", exact: true }).waitFor();
+  assert.equal(await fireWatch.getByText("Synthetic replacement permit · v2", { exact: true }).count(), 0);
+  await fireWatch.getByLabel("Fire watch completion (UTC)", { exact: true }).fill(new Date().toISOString().slice(0, 16));
+  await fireWatch.getByLabel("Fire watch findings", { exact: true }).fill("SYNTHETIC fire-watch findings");
+  await fireWatch.getByLabel("Fire watch evidence reference", { exact: true }).fill("SYNTHETIC signed watch log");
+  await fireWatch.locator("input[type=checkbox]").check();
+  await submit(fireWatch, "Close hot work permit");
+  await page.getByRole("heading", { name: "Fire watch closeout", exact: true }).waitFor({ state: "detached" });
+  assert.ok(f.records().some((r) => r.kind === "permitClose" && r.data.targetId === permit.id));
+
   assert.deepEqual(errors, []);
   console.log(
     "PASS: browser authorisation → qualified engineer responses → independent QA reinspection → three stage releases → diary → client-evidenced handover → audit download; changed evidence reopens gates; desktop/tablet/mobile fit and zero page errors",

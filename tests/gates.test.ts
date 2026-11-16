@@ -247,6 +247,41 @@ test("hot work requires a reviewed permit and independent fire-watch closeout be
     f.store.close();
   }
 });
+test("used superseded hot-work permits require independent fire-watch closeout", () => {
+  const f = gateFixture();
+  try {
+    f.authorise();
+    f.engineering();
+    const { controls } = f.prepareWork("yes");
+    const original = controls.at(-1)!;
+    f.release("prestart");
+    const replacement = f.save("control", {
+      ...original.data,
+      previousId: original.id,
+      title: "Synthetic replacement permit",
+    });
+    f.inspect(replacement.id);
+    for (const stage of ["prestart", "installation", "final"]) f.release(stage);
+    f.prepareHandover();
+
+    const close = (targetId: string, who = f.users.reviewer) =>
+      f.save("permitClose", {
+        targetId,
+        completedAt: new Date().toISOString(),
+        note: "Synthetic fire-watch findings",
+        source: "SYNTHETIC fire-watch record",
+        attest: true,
+      }, who);
+    close(replacement.id);
+    assert.throws(() => f.handover(), /fire watch/);
+    assert.throws(() => close(original.id, f.users.author), /independent/);
+    assert.equal(close(original.id).data.targetId, original.id);
+    assert.deepEqual(closeoutBlockers(f.records()), []);
+    f.handover();
+  } finally {
+    f.store.close();
+  }
+});
 test("mandatory QA, snag remedies, O&M, programme and external client evidence gate independent handover", () => {
   const f = gateFixture();
   try {
