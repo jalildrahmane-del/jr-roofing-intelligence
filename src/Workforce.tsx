@@ -7,6 +7,7 @@ import { DailyReportForm } from "./DailyReportForm.tsx";
 import { MaterialFulfilment } from "./MaterialFulfilment.tsx";
 import { workforcePersonName as workerName } from "./workforce-people.ts";
 import { readOfflineQueue } from "./workforce-queue.ts";
+import type { AttendanceFix, AttendanceLocationFailure } from "./workforce-geofence.ts";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.ts";
 import type { User, Project } from "./model.ts";
@@ -76,6 +77,31 @@ export function Entry({
     </form>
   );
 }
+function attendanceEvidenceLabel(data: { offline?: boolean; gps?: { status: string; reason: string } }): string {
+  if (data.offline) return "unverified device event";
+  if (data.gps && data.gps.status !== "within") return data.gps.reason;
+  return "";
+}
+
+function captureAttendanceLocation(): Promise<{ fix: AttendanceFix } | { locationFailure: AttendanceLocationFailure }> {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) {
+      resolve({ locationFailure: "unavailable" });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      position => resolve({ fix: {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracyMetres: position.coords.accuracy,
+        capturedAt: new Date(position.timestamp).toISOString(),
+      } }),
+      error => resolve({ locationFailure: error.code === 1 ? "permission-denied" : error.code === 3 ? "timeout" : "unavailable" }),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  });
+}
+
 function WorkforceReview({kind,state,user,send}:{kind:"attendance"|"daily"|"materials";state:any;user:User;send:(action:string,data:any)=>Promise<void>}) {
   const definitions = {
     attendance: {title:"Record independent review", record:"workforce.event", review:"workforce.review", field:"eventId", label:"Attendance event", action:"review", decisions:[{value:"accepted",label:"Accept"},{value:"rejected",label:"Reject"}]},
@@ -88,7 +114,7 @@ function WorkforceReview({kind,state,user,send}:{kind:"attendance"|"daily"|"mate
     (kind === "attendance" || !state.records.some((v:any) => v.kind === definition.review && v.data[definition.field] === r.id)));
   const options = entries.map((r:any) => {
     const latest = state.records.filter((v:any) => v.kind === definition.review && v.data[definition.field] === r.id).at(-1);
-    const detail = kind === "attendance" ? `${r.data.event} · ${r.createdAt} · ${latest?.data.decision || "awaiting review"}` :
+    const detail = kind === "attendance" ? [r.data.event, r.createdAt, latest?.data.decision || "awaiting review", attendanceEvidenceLabel(r.data)].filter(Boolean).join(" · ") :
       kind === "daily" ? `${r.data.day} · ${r.data.completed.slice(0,70)}` : `${r.data.description} · needed ${r.data.neededBy}`;
     return {value:r.id,label:`${workerName(state,r.data.workerId)} · ${detail}`};
   });
@@ -360,32 +386,19 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
         setSuccess("Unverified event queued on this device for later review. It is not a confirmed attendance record.");
         return;
       }
-      let fix: any = null;
-      if (!offline) {
-        const p = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          }),
-        );
-        fix = {
-          latitude: p.coords.latitude,
-          longitude: p.coords.longitude,
-          accuracyMetres: p.coords.accuracy,
-          capturedAt: new Date(p.timestamp).toISOString(),
-        };
-      }
+      const location = await captureAttendanceLocation();
       await send("event", {
         event,
         token,
-        fix,
-        offline,
+        ...location,
+        offline: false,
         capturedAt: new Date().toISOString(),
         requestId: crypto.randomUUID(),
       });
       setToken("");
-      setSuccess("Attendance event received for independent review. GPS and QR are not proof of attendance.");
+      setSuccess("locationFailure" in location
+        ? "Location was unavailable. Your QR event was sent for independent review."
+        : "Attendance event received for independent review. GPS and QR are not proof of attendance.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -604,20 +617,23 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             <ul>
               {state.records
                 .filter((r: any) => r.kind === "workforce.event")
-                .map((r: any) => (
-                  <li key={r.id}>
-                    {workerName(state, r.data.workerId)} · {r.data.event} ·{" "}
-                    {r.createdAt} ·{" "}
-                    {state.records
-                      .filter(
-                        (v: any) =>
-                          v.kind === "workforce.review" &&
-                          v.data.eventId === r.id,
-                      )
-                      .at(-1)?.data.decision || "pending"}{" "}
-                    {r.data.offline ? "· unverified device event" : ""}
-                  </li>
-                ))}
+                .map((r: any) => {
+                  const evidence = attendanceEvidenceLabel(r.data);
+                  return (
+                    <li key={r.id}>
+                      {workerName(state, r.data.workerId)} · {r.data.event} ·{" "}
+                      {r.createdAt} ·{" "}
+                      {state.records
+                        .filter(
+                          (v: any) =>
+                            v.kind === "workforce.review" &&
+                            v.data.eventId === r.id,
+                        )
+                        .at(-1)?.data.decision || "pending"}{" "}
+                      {evidence && `· ${evidence}`}
+                    </li>
+                  );
+                })}
             </ul>
             {["manager", "supervisor"].includes(user.role) && (
               <WorkforceReview kind="attendance" state={state} user={user} send={send} />
