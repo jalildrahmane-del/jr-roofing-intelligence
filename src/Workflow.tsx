@@ -652,6 +652,135 @@ async function photoData(file: File) {
     throw Error("Compressed photo is too large. Choose a smaller image.");
   return result;
 }
+type PhotoLocation = {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  observedAt: string;
+};
+
+function SurveyPhotoUpload({ defaultRoofId, roofs, defects, onSave }: {
+  defaultRoofId: string;
+  roofs: { value: string; label: string }[];
+  defects: RecordItem[];
+  onSave: (data: Record<string, unknown>) => Promise<unknown>;
+}) {
+  const [roofId, setRoofId] = useState(defaultRoofId);
+  const [gps, setGps] = useState<PhotoLocation | null>(null);
+  const [error, setError] = useState("");
+  const [capturingGps, setCapturingGps] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const busy = capturingGps || uploadBusy;
+  const defectOptions = defects
+    .filter((defect) => defect.data.roofId === roofId)
+    .map((defect) => ({
+      value: defect.data.entityId,
+      label: defect.data.location + " / " + defect.data.category,
+    }));
+
+  function captureGps() {
+    setGps(null);
+    setError("");
+    if (!navigator.geolocation) {
+      setError("Location capture is unavailable");
+      return;
+    }
+    setCapturingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGps({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          observedAt: new Date(position.timestamp).toISOString(),
+        });
+        setCapturingGps(false);
+      },
+      (failure) => {
+        setError("GPS not captured: " + failure.message);
+        setCapturingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }
+
+  return (
+    <section>
+      <h2>Upload photographic evidence</h2>
+      <p>Images are compressed in this browser and stored with the project. Optional browser GPS captures a single location for the selected photo roof.</p>
+      <button type="button" className="quiet" disabled={busy} onClick={captureGps}>
+        {capturingGps ? "Capturing GPS…" : "Capture current GPS for these photos"}
+      </button>
+      {gps && (
+        <p>
+          GPS: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)} ±{Math.round(gps.accuracy)}m{" "}
+          <button type="button" className="quiet" disabled={busy} onClick={() => setGps(null)}>
+            Clear GPS
+          </button>
+        </p>
+      )}
+      <form onSubmit={async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const files = (form.elements.namedItem("files") as HTMLInputElement).files!;
+        setError("");
+        setUploadBusy(true);
+        try {
+          if (!files.length || files.length > 10) throw Error("Choose 1 to 10 photographs");
+          for (const file of files) {
+            await onSave({
+              roofId,
+              defectId: data.get("defectId"),
+              takenAt: data.get("takenAt"),
+              caption: data.get("caption") + " · " + file.name,
+              image: await photoData(file),
+              annotations: [],
+              gps,
+            });
+          }
+          form.reset();
+          setGps(null);
+        } catch (error) {
+          setError((error as Error).message + " Check the gallery before retrying any missing files.");
+        } finally {
+          setUploadBusy(false);
+        }
+      }}>
+        <div className="fields">
+          <label>
+            Photo roof
+            <select aria-label="Photo roof" name="roofId" value={roofId} required disabled={busy} onChange={(event) => {
+              setRoofId(event.target.value);
+              setGps(null);
+              setError("");
+            }}>
+              {roofs.map((roof) => <option key={roof.value} value={roof.value}>{roof.label}</option>)}
+            </select>
+          </label>
+          <Input
+            key={roofId}
+            field={{ name: "defectId", label: "Link photograph to defect", optional: true, options: defectOptions }}
+            values={{}}
+          />
+          <Input
+            field={{ name: "takenAt", label: "Photograph date (user entered)", type: "date" }}
+            values={{ takenAt: today() }}
+          />
+          <Input field={{ name: "caption", label: "Photograph caption" }} values={{}} />
+          <label>
+            Photo files (up to 10)
+            <input name="files" type="file" accept="image/*" multiple required />
+          </label>
+        </div>
+        {error && <p role="alert" className="error">{error}</p>}
+        <button disabled={busy}>{uploadBusy ? "Uploading…" : "Save photo evidence"}</button>
+      </form>
+    </section>
+  );
+}
+
 function Annotator({
   photo,
   onSave,
@@ -956,10 +1085,7 @@ export function Workflow({
     [editEstimate, setEditEstimate] = useState<RecordItem>(),
     [editPhoto, setEditPhoto] = useState<RecordItem>(),
     [query, setQuery] = useState(""),
-    [gps, setGps] = useState<any>(null),
-    [message, setMessage] = useState(""),
-    [uploadError, setUploadError] = useState(""),
-    [uploadBusy, setUploadBusy] = useState(false);
+    [message, setMessage] = useState("");
   useEffect(() => {
     if (!roofs.some((r) => r.data.entityId === roofId))
       setRoofId(roofs[0]?.data.entityId || "");
@@ -1178,137 +1304,14 @@ export function Workflow({
               }}
             />
           )}
-          {canEdit && roofs.length > 0 && (
-            <section>
-              <h2>Upload photographic evidence</h2>
-              <p>
-                Images are compressed in this browser and stored with the
-                project. GPS is optional, browser-reported point evidence. No
-                continuous location tracking occurs.
-              </p>
-              <button
-                className="quiet"
-                onClick={() => {
-                  if (!navigator.geolocation)
-                    return setUploadError("Location capture is unavailable");
-                  navigator.geolocation.getCurrentPosition(
-                    (p) => {
-                      setGps({
-                        lat: p.coords.latitude,
-                        lng: p.coords.longitude,
-                        accuracy: p.coords.accuracy,
-                        observedAt: new Date(p.timestamp).toISOString(),
-                      });
-                      setUploadError("");
-                    },
-                    (e) => {
-                      setGps(null);
-                      setUploadError("GPS not captured: " + e.message);
-                    },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-                  );
-                }}
-              >
-                Capture current GPS for these photos
-              </button>
-              {gps && (
-                <p>
-                  GPS: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)} ±
-                  {Math.round(gps.accuracy)}m{" "}
-                  <button className="quiet" onClick={() => setGps(null)}>
-                    Clear GPS
-                  </button>
-                </p>
-              )}
-              <form
-                key={roofId}
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget,
-                    data = Object.fromEntries(new FormData(form)),
-                    files = (
-                      form.elements.namedItem("files") as HTMLInputElement
-                    ).files!;
-                  setUploadError("");
-                  setUploadBusy(true);
-                  try {
-                    if (!files.length || files.length > 10)
-                      throw Error("Choose 1 to 10 photographs");
-                    for (const file of files) {
-                      await save("photo", {
-                        roofId: data.roofId,
-                        defectId: data.defectId,
-                        takenAt: data.takenAt,
-                        caption: data.caption + " · " + file.name,
-                        image: await photoData(file),
-                        annotations: [],
-                        gps,
-                      });
-                    }
-                    form.reset();
-                    setGps(null);
-                  } catch (e) {
-                    setUploadError(
-                      (e as Error).message +
-                        " Any successfully uploaded photos are listed below; only retry missing files.",
-                    );
-                  } finally {
-                    setUploadBusy(false);
-                  }
-                }}
-              >
-                <div className="fields">
-                  <Input
-                    field={{ name: "roofId", label: "Photo roof", options }}
-                    values={{ roofId }}
-                  />
-                  <Input
-                    field={{
-                      name: "defectId",
-                      label: "Link photograph to defect",
-                      optional: true,
-                      options: defects
-                        .filter((d) => d.data.roofId === roofId)
-                        .map((d) => ({
-                          value: d.data.entityId,
-                          label: d.data.location + " / " + d.data.category,
-                        })),
-                    }}
-                    values={{}}
-                  />
-                  <Input
-                    field={{
-                      name: "takenAt",
-                      label: "Photograph date (user entered)",
-                      type: "date",
-                    }}
-                    values={{ takenAt: today() }}
-                  />
-                  <Input
-                    field={{ name: "caption", label: "Photograph caption" }}
-                    values={{}}
-                  />
-                  <label>
-                    Photo files (up to 10)
-                    <input
-                      name="files"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      required
-                    />
-                  </label>
-                </div>
-                {uploadError && (
-                  <p role="alert" className="error">
-                    {uploadError}
-                  </p>
-                )}
-                <button disabled={uploadBusy}>
-                  {uploadBusy ? "Uploading…" : "Save photo evidence"}
-                </button>
-              </form>
-            </section>
+          {canEdit && roofId && (
+            <SurveyPhotoUpload
+              key={roofId}
+              defaultRoofId={roofId}
+              roofs={options}
+              defects={defects}
+              onSave={(data) => save("photo", data)}
+            />
           )}
           <section>
             <h2>Evidence gallery</h2>
