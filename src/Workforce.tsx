@@ -13,6 +13,7 @@ import type { User, Project } from "./model.ts";
 import QRCode from "qrcode";
 import { ProductivityPanel } from "./ProductivityPanel.tsx";
 import { WorkforceComparison } from "./WorkforceComparison.tsx";
+import { ukPostcode } from "./workforce-weather.ts";
 
 export function Entry({
   title,
@@ -111,6 +112,7 @@ function WorkforceReview({kind,state,user,send}:{kind:"attendance"|"daily"|"mate
 }
 
 function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) {
+  const postcode = ukPostcode(project?.address || "");
   const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -125,16 +127,22 @@ function WorkforceWeather({ pid, project }: { pid: string; project?: Project }) 
     let active = true;
     setForecast(null);
     setError("");
+    if (!postcode) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     api("workforce-weather?pid=" + encodeURIComponent(pid)).then((value: any) => { if (active) setForecast(value); }).catch((e: Error) => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [pid]);
+  }, [pid, postcode]);
   const show = (value: number | null | undefined, unit: string) => value == null ? "Unavailable" : value.toFixed(1) + unit;
   return <section className="workforce-weather" aria-labelledby="workforce-weather-heading">
     <h2 id="workforce-weather-heading">🌦️ Today's site weather forecast</h2>
     <p><strong>{project?.name || "Selected project"}</strong> · {project?.address || "Site address not recorded"}</p>
     <p>Forecast is based on the project's saved UK postcode, not your phone location.</p>
-    <button type="button" disabled={loading} onClick={load}>{loading ? "Checking forecast…" : "Refresh forecast"}</button>
+    {postcode ? (
+      <button type="button" disabled={loading} onClick={load}>{loading ? "Checking forecast…" : "Refresh forecast"}</button>
+    ) : <p>Add a UK postcode to this project's address to show the site forecast.</p>}
     {error && <p role="alert">{error}</p>}
     {forecast && <>
       <p><strong>{forecast.date}</strong> · postcode {forecast.postcode} · checked {new Date(forecast.updatedAt).toLocaleString("en-GB")}</p>

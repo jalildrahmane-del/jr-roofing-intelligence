@@ -15,6 +15,7 @@ const outsider = add("integration-outsider", "subcontractor-owner", "Beta");
 const worker = add("integration-worker", "worker", "Alpha");
 const pid = store.project(manager, { name: "Synthetic weather roof", address: "President Way, Luton LU2 9NY" }).id;
 const otherPid = store.project(manager, { name: "Private second site", address: "Luton LU1 1AA" }).id;
+const noPostcodePid = store.project(manager, { name: "Synthetic roof without an address" }).id;
 const key = randomBytes(32);
 const cmd = (action, data) => workforceCommand(store, manager, pid, action, data, key);
 cmd("config", { latitude: 51, longitude: 0, radiusMetres: 100, supervisors: [], syntheticOnly: true });
@@ -38,8 +39,10 @@ try {
   });
   for (const width of [390, 768, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 850 } });
+    const weatherRequests = [];
     await context.route("**/api/workforce-weather?*", async route => {
       const target = new URL(route.request().url());
+      weatherRequests.push(target.searchParams.get("pid"));
       if (target.searchParams.get("pid") !== pid)
         return route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: "Forbidden" }) });
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(weather) });
@@ -60,6 +63,14 @@ try {
     await page.getByText("Check wind gusts and site-specific limits before roof work.").waitFor();
     await page.getByText("Hourly site forecast").click();
     await page.getByText("25.0 mph").waitFor();
+    const activeProject = page.getByRole("combobox", { name: "Active project" });
+    await activeProject.selectOption(noPostcodePid);
+    await page.getByText("Add a UK postcode to this project's address to show the site forecast.").waitFor();
+    assert.equal(await page.getByRole("button", { name: "Refresh forecast" }).count(), 0);
+    assert.equal(await page.getByText("32.0 mph").count(), 0);
+    await activeProject.selectOption(pid);
+    await page.getByText("32.0 mph").first().waitFor();
+    assert.equal(weatherRequests.includes(noPostcodePid), false, "An address without a postcode cannot request a forecast");
     const planner = page.locator(".workforce-shifts");
     await planner.getByRole("heading", { name: "Planned workforce shifts" }).waitFor();
     await planner.getByLabel("Worker", { exact: true }).selectOption(worker.id);
