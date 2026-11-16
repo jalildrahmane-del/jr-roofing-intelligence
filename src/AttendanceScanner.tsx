@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createAttendanceQrReader } from "./attendance-qr-reader.ts";
 
 // A scan only fills the token field. The server still validates and reviews attendance.
 export function AttendanceScanner({ onToken }: { onToken: (token: string) => void }) {
@@ -13,8 +14,7 @@ export function AttendanceScanner({ onToken }: { onToken: (token: string) => voi
   }, []);
   async function start() {
     cancel.current();
-    const Detector = (window as any).BarcodeDetector;
-    if (!Detector || !navigator.mediaDevices?.getUserMedia) {
+    if (!navigator.mediaDevices?.getUserMedia) {
       setMessage("Camera QR reading is unavailable. Use a QR image or copy the supervisor token instead.");
       return;
     }
@@ -36,7 +36,7 @@ export function AttendanceScanner({ onToken }: { onToken: (token: string) => voi
     cancel.current = stop;
     setActive(true); setMessage("Starting camera…");
     try {
-      const detector = new Detector({ formats: ["qr_code"] });
+      const readQr = createAttendanceQrReader();
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
       if (stopped) { stream.getTracks().forEach(track => track.stop()); return; }
       const target = video.current;
@@ -47,9 +47,8 @@ export function AttendanceScanner({ onToken }: { onToken: (token: string) => voi
       setMessage("Point the camera at the supervisor attendance QR.");
       const scan = async () => {
         try {
-          const results = await detector.detect(target);
+          const token = await readQr(target);
           if (stopped) return;
-          const token = results.find((result: { rawValue?: string }) => typeof result.rawValue === "string" && result.rawValue.length > 0)?.rawValue;
           if (token) {
             if (token.length > 4096) throw Error("QR content is too long. Use the supervisor attendance token.");
             stop(); onToken(token); setMessage("Token captured. Confirm the project and submit the event for review.");

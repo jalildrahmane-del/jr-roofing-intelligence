@@ -1,6 +1,7 @@
 import {WorkforceActions} from "./WorkforceActions.tsx";
 import type {WorkforceAction} from "./workforce-actions.ts";
 import { AttendanceScanner } from "./AttendanceScanner";
+import { readAttendanceQrImage } from "./attendance-qr-reader.ts";
 import { MaterialRequestForm } from "./MaterialRequestForm.tsx";
 import { DailyReportForm } from "./DailyReportForm.tsx";
 import { MaterialFulfilment } from "./MaterialFulfilment.tsx";
@@ -281,6 +282,7 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
     setQueue(q);
   };
   const [token, setToken] = useState(""),
+    [readingQr, setReadingQr] = useState(false),
     [event, setEvent] = useState("in"),
     [busy, setBusy] = useState(false);
   const refresh = async () => {
@@ -524,32 +526,25 @@ function WorkforceSession({ pid, user, project }: { pid: string; user: User; pro
             <input
               type="file"
               accept="image/*"
+              disabled={readingQr}
               onChange={async (e) => {
+                const input = e.currentTarget;
+                const file = input.files?.[0];
+                if (!file) return;
+                setReadingQr(true);
+                setError("");
                 try {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const Detector = (window as any).BarcodeDetector;
-                  if (!Detector)
-                    throw Error(
-                      "QR image reading is unavailable in this browser. Copy the supervisor token instead.",
-                    );
-                  const bitmap = await createImageBitmap(file);
-                  try {
-                    const results = await new Detector({
-                      formats: ["qr_code"],
-                    }).detect(bitmap);
-                    if (!results[0]) throw Error("No QR found");
-                    setToken(results[0].rawValue);
-                  } finally {
-                    bitmap.close();
-                  }
+                  setToken(await readAttendanceQrImage(file));
                 } catch (e) {
                   setError((e as Error).message);
+                } finally {
+                  input.value = "";
+                  setReadingQr(false);
                 }
               }}
             />
           </label>
-          <button disabled={busy || !confirmedProject} onClick={() => checkIn()}>
+          <button disabled={busy || readingQr || !confirmedProject} onClick={() => checkIn()}>
             Submit GPS event for review
           </button>
           <button disabled={busy || !confirmedProject} onClick={() => checkIn(true)}>
