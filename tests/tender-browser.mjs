@@ -144,6 +144,15 @@ try {
     .getByRole("button", { name: "Capture current GPS for these photos" })
     .click();
   await upload.getByText(/GPS: 51.880000/).waitFor();
+  const defectSelect = upload.getByLabel("Link photograph to defect", { exact: true });
+  await defectSelect.selectOption({ label: "Ridge A1 / Corrosion / perforation" });
+  await choose(upload, "Photo roof", "Annexe");
+  assert.equal(await upload.getByText(/GPS: 51.880000/).count(), 0);
+  assert.equal(await upload.getByRole("option", { name: "Ridge A1 / Corrosion / perforation" }).count(), 0);
+  await choose(upload, "Photo roof", "Main warehouse");
+  assert.equal(await defectSelect.inputValue(), "");
+  await upload.getByRole("button", { name: "Capture current GPS for these photos" }).click();
+  await upload.getByText(/GPS: 51.880000/).waitFor();
   await fill(upload, { "Photograph caption": "Synthetic roof evidence" });
   await choose(
     upload,
