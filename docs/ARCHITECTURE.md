@@ -17,7 +17,7 @@ Authentication controls server data; the preserved original workspace is separat
 
 `server/migrations.ts` defines versions 1 and 2. Version 2 adds project-linked immutable image evidence; original tables and records are retained. Creation and the version marker commit in one transaction. Existing version-1 data is preserved during the additive version-2 migration. Required schema columns are checked on startup; unknown schema versions fail closed. Future changes must add a new numbered migration, update the supported-version logic and include migration/restore tests; never change an applied migration silently. There is no automatic destructive down migration.
 
-Take a snapshot before each schema upgrade. `npm run backup -- /private/new-backup.sqlite` uses SQLite `VACUUM INTO`, which captures a consistent committed database including WAL data. It does not overwrite backups and verifies integrity. Protect backups as sensitive files; they contain project data and credential hashes. Export browser-local legacy data separately, as it is not in SQLite.
+Take a snapshot before each schema upgrade. `npm run backup -- /private/new-backup.sqlite` uses SQLite `VACUUM INTO`, which captures a consistent committed database including WAL data. Backup and restore verify the staged SQLite file before publishing to a new path. Use a private destination on a filesystem that supports hard links, such as NTFS on Windows. Protect backups as sensitive files; they contain project data and credential hashes. Export browser-local legacy data separately, as it is not in SQLite.
 
 ## Restore/rollback procedure
 

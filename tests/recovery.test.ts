@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,writeFileSync,existsSync,mkdtempSync,rmSync,statSync} from 'node:fs';
+import fs, {readFileSync,writeFileSync,existsSync,mkdtempSync,rmSync,statSync,readdirSync} from 'node:fs';
+import {syncBuiltinESMExports} from 'node:module';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import vm from 'node:vm';
@@ -122,3 +123,34 @@ test('backup rejects tampered evidence without leaving a destination file',async
   assert.equal(existsSync(destination),false);
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+for (const [name, snapshot] of [['backup', backupDatabase], ['restore', restoreDatabase]] as const) {
+ test(`${name} preserves a destination another writer creates during publication`, (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'jr-snapshot-race-'));
+  const source = join(dir, 'source.sqlite');
+  const destination = join(dir, 'destination.sqlite');
+  const competingData = Buffer.from('synthetic data created by another operator');
+  new Store(source).close();
+  const checkExists = fs.existsSync;
+  let competed = false;
+  const mocked = t.mock.method(fs, 'existsSync', (path: Parameters<typeof fs.existsSync>[0]) => {
+   const found = checkExists(path);
+   if (path === destination && !found && !competed) {
+    writeFileSync(destination, competingData, { flag: 'wx' });
+    competed = true;
+   }
+   return found;
+  });
+  syncBuiltinESMExports();
+  try {
+   assert.throws(() => snapshot(source, destination), /destination must be a new file/);
+   assert.ok(competed);
+   assert.deepEqual(readFileSync(destination), competingData);
+   assert.equal(readdirSync(dir).some(entry => entry.startsWith('.jr-snapshot-')), false);
+  } finally {
+   mocked.mock.restore();
+   syncBuiltinESMExports();
+   rmSync(dir, { recursive: true, force: true });
+  }
+ });
+}
