@@ -177,3 +177,22 @@ test("PR #11 reconciliation: project access revocation immediately blocks docume
     assert.ok(documentState(s, m, pid).documents.some(d => d.id === doc.id));
   } finally { s.close(); }
 });
+
+test("document PDF export enforces project boundary, worker denial and current stale status", async () => {
+  const {s,a,m,worker,pid}=setup();
+  try {
+    const source=documentCommand(s,a,pid,"source",{title:"Synthetic specification",reference:"SYN-REV-A",content:"Original safe procedure"});
+    const doc=documentCommand(s,a,pid,"draft",{type:"RAMS",title:"Synthetic export",sources:[{recordId:source.id,excerpt:"safe procedure"}],proposals:"Requires human verification",limitations:"Unverified conditions"});
+    const other=s.project(m,{name:"Separate client project"}).id;
+    await assert.rejects(documentPdf(s,worker,pid,doc.id),/Forbidden/);
+    await assert.rejects(documentPdf(s,a,other,doc.id),/Forbidden/);
+    await assert.rejects(documentPdf(s,m,other,doc.id),/Document not found/);
+    const original=await documentPdf(s,m,pid,doc.id);
+    assert.equal(original.subarray(0,5).toString(),"%PDF-");
+    documentCommand(s,a,pid,"source",{replaces:source.id,title:"Revised specification",reference:"SYN-REV-B",content:"Revised procedure"});
+    assert.match(documentState(s,m,pid).documents[0].status,/Stale/);
+    const stale=await documentPdf(s,m,pid,doc.id);
+    assert.equal(stale.subarray(0,5).toString(),"%PDF-");
+    assert.notDeepEqual(stale,original,"PDF export must reflect current source-revision status");
+  }finally{s.close();}
+});
