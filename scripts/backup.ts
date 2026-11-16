@@ -1,7 +1,14 @@
 import {verifyIntegrity} from '../server/integrity.ts';
+import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,chmodSync,unlinkSync} from 'node:fs';
 import {resolve} from 'node:path';
+
+function verifyEvidence(db:DatabaseSync){
+ for(const row of db.prepare('SELECT bytes,sha256 FROM evidence').all() as {bytes:Uint8Array,sha256:string}[]){
+  if(createHash('sha256').update(row.bytes).digest('hex')!==row.sha256)throw Error('Backup evidence integrity check failed');
+ }
+}
 
 // VACUUM INTO creates a consistent SQLite snapshot, including committed WAL data.
 export function backupDatabase(source:string,destination:string){
@@ -10,6 +17,7 @@ export function backupDatabase(source:string,destination:string){
  const db=new DatabaseSync(source,{readOnly:true});
  try {
   verifyIntegrity(db);
+  verifyEvidence(db);
   db.prepare('VACUUM INTO ?').run(destination);
   chmodSync(destination,0o600);
  } catch(error) {
@@ -19,7 +27,7 @@ export function backupDatabase(source:string,destination:string){
  } finally {db.close();}
  try {
   const check=new DatabaseSync(destination,{readOnly:true});
-  try {verifyIntegrity(check);if(check.prepare('PRAGMA integrity_check').get()?.integrity_check!=='ok')throw Error('Backup integrity check failed');}finally{check.close();}
+  try {verifyIntegrity(check);verifyEvidence(check);if(check.prepare('PRAGMA integrity_check').get()?.integrity_check!=='ok')throw Error('Backup integrity check failed');}finally{check.close();}
  } catch(error) {
   if(existsSync(destination))unlinkSync(destination);
   throw error;
