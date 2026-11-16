@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - feature/workforce-daily-weekly-summary-58
       - fix/roof-measurement-validation-20261114
       - feature/roof-plan-image-persistence-20261110
       - feature/roof-plan-geometry-20261109
