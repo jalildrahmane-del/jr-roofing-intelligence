@@ -111,6 +111,31 @@ export const pounds = (p: number | null | undefined) =>
         style: "currency",
         currency: "GBP",
       }).format(p / 100);
+
+const BASIS_POINTS = 10_000n;
+const MAX_NET_PENCE = 100_000_000_000;
+
+function toBasisPoints(percent: number): bigint {
+  return BigInt(Math.round(percent * 100));
+}
+
+function roundQuotient(numerator: bigint, denominator: bigint): number {
+  return Number((numerator + denominator / 2n) / denominator);
+}
+
+function quantityWithWaste(quantity: number, waste: number): number {
+  // Roof areas can have more than three decimal places. Apply waste before
+  // rounding to thousandths, using the stored decimal value for exact ties.
+  const [coefficient, exponent = "0"] = String(quantity).split("e");
+  const [whole, fraction = ""] = coefficient.split(".");
+  const numerator =
+    BigInt(whole + fraction) * (BASIS_POINTS + toBasisPoints(waste));
+  const scale = fraction.length - Number(exponent) + 1;
+  return scale < 0
+    ? Number(numerator * 10n ** BigInt(-scale))
+    : roundQuotient(numerator, 10n ** BigInt(scale));
+}
+
 export function price(
   lines: CostLine[],
   contingency: unknown,
@@ -129,17 +154,27 @@ export function price(
   };
   for (const l of lines)
     if (l.extendedPence !== null) subtotals[l.category] += l.extendedPence;
+  if (Object.values(subtotals).some((subtotal) => !Number.isSafeInteger(subtotal)))
+    throw Error("Estimate exceeds the supported monetary range");
   const complete = lines.length > 0 && lines.every((l) => l.ratePence !== null),
     direct = complete
       ? Object.values(subtotals).reduce((a, b) => a + b, 0)
       : null;
-  const contingencyPence =
-      direct === null ? null : Math.round((direct * c) / 100),
-    cost = direct === null ? null : direct + contingencyPence!,
-    net = cost === null ? null : Math.round(cost / (1 - m / 100)),
-    vatPence = net === null ? null : Math.round((net * v) / 100);
-  if (net !== null && (!Number.isSafeInteger(net) || net > 100000000000))
+  if (direct !== null && direct > MAX_NET_PENCE)
     throw Error("Estimate exceeds the supported monetary range");
+  const contingencyPence =
+      direct === null
+        ? null
+        : roundQuotient(BigInt(direct) * toBasisPoints(c), BASIS_POINTS),
+    cost = direct === null ? null : direct + contingencyPence!,
+    net = cost === null
+      ? null
+      : roundQuotient(BigInt(cost) * BASIS_POINTS, BASIS_POINTS - toBasisPoints(m));
+  if (net !== null && net > MAX_NET_PENCE)
+    throw Error("Estimate exceeds the supported monetary range");
+  const vatPence = net === null
+    ? null
+    : roundQuotient(BigInt(net) * toBasisPoints(v), BASIS_POINTS);
   return {
     lines,
     contingency: c,
@@ -194,20 +229,19 @@ export function calculate(
           : decimal(l.quantity, "Quantity", 10000000),
       waste = decimal(l.waste, "Waste", 100, 2);
     if (raw <= 0) throw Error("Quantity must be greater than zero");
-    const quantityMilli = Math.round(raw * (1 + waste / 100) * 1000),
+    const quantityMilli = quantityWithWaste(raw, waste),
       ratePence = money(l.rate, "Unit rate"),
       rateSource = optional(l.rateSource, 500),
       rateDate = observedDate(l.rateDate, "Rate date", true);
     if (ratePence !== null && (!rateSource || !rateDate))
       throw Error("Every entered rate needs its source/reference and date");
+    if (!Number.isSafeInteger(quantityMilli))
+      throw Error("Cost line exceeds supported numeric range");
     const extendedPence =
       ratePence === null
         ? null
-        : Math.round((quantityMilli * ratePence) / 1000);
-    if (
-      !Number.isSafeInteger(quantityMilli) ||
-      (extendedPence !== null && !Number.isSafeInteger(extendedPence))
-    )
+        : roundQuotient(BigInt(quantityMilli) * BigInt(ratePence), 1000n);
+    if (extendedPence !== null && !Number.isSafeInteger(extendedPence))
       throw Error("Cost line exceeds supported numeric range");
     return {
       description,

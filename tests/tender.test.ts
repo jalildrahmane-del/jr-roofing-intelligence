@@ -56,6 +56,32 @@ test("takeoff reconciles all cost categories, waste, contingency, sales margin a
   }
 });
 
+test("tender takeoffs and percentage calculations round exact decimal ties up", () => {
+  const measured = {
+    description: "Synthetic measured line",
+    category: "material",
+    unit: "m²",
+    basis: "measured",
+    quantity: "1",
+    waste: "0",
+    rate: "1000.11",
+    rateSource: "Synthetic rate schedule",
+    rateDate: today(),
+  };
+  const margin = calculate([measured], 0, "18.40", 20, [], []);
+  assert.equal(margin.netPence, 122563);
+  assert.equal(margin.profitPence, 22552);
+  assert.equal(margin.grossPence, 147076);
+
+  const percentage = calculate([{ ...measured, rate: "2.50" }], "64.60", 0, "50", [], []);
+  assert.equal(percentage.contingencyPence, 162);
+  assert.equal(percentage.vatPence, 206);
+
+  const waste = calculate([{ ...measured, quantity: "5", waste: "18.01", rate: "100" }], 0, 0, 0, [], []);
+  assert.equal(waste.lines[0].quantityMilli, 5901);
+  assert.equal(waste.netPence, 59010);
+});
+
 test("blank rates remain unpriced; explicit zero needs provenance; invalid units, references and rounding rejected", () => {
   const f = fixture();
   try {
