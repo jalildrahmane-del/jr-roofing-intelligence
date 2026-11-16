@@ -1,13 +1,11 @@
 // Project-address weather lookup. Never use the user's live GPS location.
 // Public, keyless services: postcodes.io for UK postcode coordinates; Open-Meteo for forecasts.
 // Forecasts are advisory only: they do not authorise work at height or lifting.
+import { ukPostcode } from "../src/workforce-weather.ts";
+
 type Fetcher = typeof fetch;
 const cache = new Map<string, { until: number; value: unknown }>();
 const TTL_MS = 15 * 60 * 1000;
-export function ukPostcode(address: string): string | null {
-  const match = address.toUpperCase().match(/\b(GIR\s?0AA|(?:[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}))\b/);
-  return match ? match[1].replace(/\s/g, "") : null;
-}
 export function forecastRisk(gustMph: number | null, rainMm: number | null) {
   // Planning prompts only; NOT engineering wind limits or site stop-work thresholds.
   const notes: string[] = [];

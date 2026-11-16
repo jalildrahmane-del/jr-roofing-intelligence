@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ukPostcode, projectWeather, forecastRisk } from "../server/weather.ts";
+import { projectWeather, forecastRisk } from "../server/weather.ts";
+import { ukPostcode } from "../src/workforce-weather.ts";
 
 test("UK project postcode extraction does not guess a location", () => {
   assert.equal(ukPostcode("Unit 5, President Way, Luton LU2 9NY"), "LU29NY");
