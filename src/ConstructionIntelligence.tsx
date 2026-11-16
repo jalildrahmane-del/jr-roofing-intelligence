@@ -1,10 +1,11 @@
 import React from "react";
 import type { RecordItem } from "./model.ts";
 import { constructionOverview } from "./construction-intelligence.ts";
+import { ukSiteDate } from "./site-calendar.ts";
 import "./construction-intelligence.css";
 
 export function ConstructionIntelligence({records}:{records:RecordItem[]}) {
-  const today = new Date().toISOString().slice(0,10);
+  const today = ukSiteDate();
   const report = constructionOverview(records,today);
   return (
     <section className="construction-intelligence" aria-labelledby="construction-overview-heading">

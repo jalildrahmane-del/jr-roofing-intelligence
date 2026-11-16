@@ -3,6 +3,7 @@ import type { User, RecordItem } from "../src/model.ts";
 import { Store } from "./store.ts";
 import { text } from "../src/model.ts";
 import { current, choice, date, decimal } from "../src/tender.ts";
+import { ukSiteDate } from "../src/site-calendar.ts";
 import {
   gateSchemas,
   engineeringKinds,
@@ -158,6 +159,7 @@ export function saveGate(
     )
       throw Error("Revise the existing drawing number");
     if (kind === "programme") {
+      const today = ukSiteDate();
       const progress = Number(out.progress);
       if (!Number.isFinite(progress) || progress < 0 || progress > 100)
         throw Error("Progress must be 0–100");
@@ -169,8 +171,7 @@ export function saveGate(
       )
         throw Error("Task dates are out of sequence");
       if (
-        out.actualStart > new Date().toISOString().slice(0, 10) ||
-        out.actualEnd > new Date().toISOString().slice(0, 10)
+        out.actualStart > today || out.actualEnd > today
       )
         throw Error("Actual dates cannot be in the future");
       if (progress === 100 && !out.actualEnd)
@@ -193,7 +194,7 @@ export function saveGate(
         }
       }
     }
-    if (kind === "diary" && out.date > new Date().toISOString().slice(0, 10))
+    if (kind === "diary" && out.date > ukSiteDate())
       throw Error("Diary cannot be future dated");
     return append(out);
   }
