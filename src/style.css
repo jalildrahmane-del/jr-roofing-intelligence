@@ -67,3 +67,22 @@
 .workforce-daily fieldset{min-width:0;border:1px solid #d7dee8;border-radius:8px;padding:12px;margin:12px 0}
 
 .workforce-actions li{padding:12px 0;border-bottom:1px solid #e0e3e7;overflow-wrap:anywhere}.workforce-actions p{margin:8px 0}.owner-workforce-card li{overflow-wrap:anywhere}
+
+.workspace-skip {
+  position: fixed;
+  z-index: 10;
+  top: 8px;
+  left: 8px;
+  padding: 12px 16px;
+  background: white;
+  color: #303e5b;
+  font-weight: bold;
+}
+.workspace-skip:not(:focus) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

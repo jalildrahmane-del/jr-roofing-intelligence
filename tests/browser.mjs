@@ -46,6 +46,24 @@ try{
  const originalDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Export original saved data'}).click();const original=await originalDownload;assert.equal(readFileSync(await original.path(),'utf8'),broken);await page.screenshot({path:'artifacts/legacy-recovery.png',fullPage:true});
  await page.goto(base);await page.getByRole('textbox',{name:'Username',exact:true}).fill('test-manager');await page.getByLabel('Password',{exact:true}).fill('browser-test-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
  await page.getByRole('heading',{name:'Director workforce overview'}).waitFor();
+ await page.goto(base+'/#documents');
+ await page.getByRole('heading',{name:'Document Intelligence',exact:true}).waitFor();
+ const workspaceNav=page.getByRole('navigation',{name:'Workspace'});
+ const documentsTab=workspaceNav.getByRole('link',{name:'Document Intelligence',exact:true});
+ const activeTabFits=()=>documentsTab.evaluate(link=>{
+   const tab=link.getBoundingClientRect(),strip=link.parentElement.getBoundingClientRect();
+   return tab.left>=strip.left-1&&tab.right<=strip.right+1;
+ });
+ assert.ok(await activeTabFits(),'The deep-linked tab should be visible in the mobile navigation strip');
+ await page.reload();
+ await page.getByRole('heading',{name:'Document Intelligence',exact:true}).waitFor();
+ await page.keyboard.press('Tab');
+ assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Skip to workspace content');
+ await page.keyboard.press('Enter');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'workspace-main');
+ assert.equal(new URL(page.url()).hash,'#documents','Skipping navigation must preserve the current route');
+ await page.keyboard.press('Tab');
+ assert.equal(await page.getByRole('combobox',{name:'Active project'}).evaluate(el=>el===document.activeElement),true);
  await page.getByRole('link',{name:'Project Register',exact:true}).click();
  for(const [label,value] of [['Project name','Luton reference test'],['Client','Test Client'],['Site address','8 Prince Way, Luton'],['Roof area (m²)','94'],['Sector','Commercial'],['Roof type','Flat']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.getByRole('button',{name:'Create project'}).click();await page.locator('li').getByText('Luton reference test').waitFor();
@@ -128,7 +146,7 @@ try{
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'artifacts/dashboard-desktop.png',fullPage:true});
  // A backend error is shown with retry, rather than disappearing into a login reset.
  await page.route('**/api/me',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary test failure'})}));await page.reload();await page.getByRole('alert').getByText(/Unable to load workspace/).waitFor();await page.unroute('**/api/me');await page.getByRole('button',{name:'Retry connection'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
- await page.goto(base+'/#does-not-exist');await page.getByRole('heading',{name:'Page not found'}).waitFor();await page.getByRole('link',{name:'Return to dashboard'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
+ await page.goto(base+'/#does-not-exist');await page.getByRole('heading',{name:'Page not found'}).waitFor();await page.getByText('Choose a section from the workspace navigation.',{exact:false}).waitFor();await page.getByRole('link',{name:'Return to dashboard'}).click();await page.getByRole('heading',{name:'Project Command Centre',exact:true}).waitFor();
  await page.getByRole('button',{name:'Sign out'}).click();await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();assert.deepEqual(errors,[]);
  console.log('PASS: eight legacy routes at mobile/tablet; fourteen shell routes at desktop/tablet/mobile; workflow persistence; import/export/recovery; report preview; load persistence; backend retry; sign-out; zero uncaught page errors');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));s.close();rmSync(folder,{recursive:true});}
