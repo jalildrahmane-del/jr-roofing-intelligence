@@ -82,3 +82,28 @@ test("HTTP cannot bypass checklist validation and records no partial acceptance"
     assert.equal(documentState(f.store,f.reviewer,f.pid).documents[0].reviewHistory.length,0);
   }finally{await new Promise<void>(r=>server.close(()=>r()));f.store.close();}
 });
+
+test("HTTP document PDF requires session and denies cross-project or workforce access",async()=>{
+  const f=fixture(),server=createApp(f.store);
+  await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const base=`http://127.0.0.1:${(server.address() as any).port}`;
+  const path=(pid:string,id:string)=>base+`/api/document-pdf?pid=${encodeURIComponent(pid)}&id=${encodeURIComponent(id)}`;
+  try{
+    const reviewerToken=f.store.login(f.reviewer.name,"synthetic-password")!;
+    const workerId=f.store.addUser("pdf-worker","synthetic-password","worker");
+    assert.ok(workerId);
+    const workerToken=f.store.login("pdf-worker","synthetic-password")!;
+    const withoutSession=await fetch(path(f.pid,f.draft.id));
+    assert.equal(withoutSession.status,401);
+    const worker=await fetch(path(f.pid,f.draft.id),{headers:{Cookie:"jr_session="+workerToken}});
+    assert.equal(worker.status,403);
+    const other=f.store.project(f.author,{name:"Unrelated project"}).id;
+    const crossProject=await fetch(path(other,f.draft.id),{headers:{Cookie:"jr_session="+reviewerToken}});
+    assert.notEqual(crossProject.status,200);
+    const allowed=await fetch(path(f.pid,f.draft.id),{headers:{Cookie:"jr_session="+reviewerToken}});
+    assert.equal(allowed.status,200);
+    assert.match(allowed.headers.get("content-type")||"",/application\\/pdf/);
+    assert.match(allowed.headers.get("cache-control")||"",/no-store/);
+    assert.equal(Buffer.from(await allowed.arrayBuffer()).subarray(0,5).toString(),"%PDF-");
+  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));f.store.close();}
+});
