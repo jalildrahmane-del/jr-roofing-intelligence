@@ -93,10 +93,13 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
       {!imageSource && Array.from({length:11},(_,i)=><line key={`h${i}`} x1="0" x2="1000" y1={(i+1)*50} y2={(i+1)*50} stroke="#dce2e9"/>)}
       {vertices.length >= 3 && <polygon points={points} fill="#d6e6f2" fillOpacity=".65" stroke="#304b6b" strokeWidth="3"/>}
       {vertices.length === 2 && <polyline points={points} fill="none" stroke="#304b6b" strokeWidth="3"/>}
-      {vertices.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="7" fill="#304b6b"/>)}
+      {vertices.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="7" fill="#304b6b"/><text x={p.x + 12} y={p.y - 12} fontSize="20" fill="#172b42">{i + 1}</text></g>)}
       {calibrationPoints.length === 2 && <line x1={calibrationPoints[0].x} y1={calibrationPoints[0].y} x2={calibrationPoints[1].x} y2={calibrationPoints[1].y} stroke="#c07d15" strokeWidth="4" strokeDasharray="12 7"/>}
       {calibrationPoints.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="9" fill="#c07d15"/>)}
     </svg>
+    {vertices.length > 0 && <BoundaryEditor vertices={vertices} onChange={next => {
+      setVertices(next); setResult(null); setError("");
+    }} />}
     <div className="fields">
       <label>Verified calibration distance (metres)<input type="number" min="0.001" step="any" value={distance} onChange={e=>{setDistance(e.target.value);setResult(null);}} placeholder="e.g. 10" /></label>
       <label>Roof pitch (degrees, optional)<input type="number" min="0" max="89.99" step="any" value={pitch} onChange={e=>{setPitch(e.target.value);setResult(null);}} placeholder="e.g. 5" /></label>
@@ -133,4 +136,39 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
       <p>The plan can be saved as preliminary evidence but is not used in estimating or as the approved survey area. Verify dimensions and roof geometry independently.</p>
     </div>}
   </section>;
+}
+
+function BoundaryEditor({ vertices, onChange }: { vertices: PlanPoint[]; onChange: (points: PlanPoint[]) => void }) {
+  const [selected, setSelected] = useState(0);
+  const index = Math.min(selected, vertices.length - 1);
+  const point = vertices[index];
+  return <details>
+    <summary>Edit boundary points</summary>
+    <p>Coordinates use the sketch grid (1000 × 600), not metres or GPS. Changes affect measurements only after Apply point. Recalculate and save a new revision after editing.</p>
+    <label>Boundary point<select aria-label="Boundary point" value={index} onChange={e => setSelected(Number(e.target.value))}>
+      {vertices.map((_, i) => <option key={i} value={i}>Point {i + 1}</option>)}
+    </select></label>
+    <PointEditor key={`${index}:${point.x}:${point.y}`} point={point}
+      onApply={replacement => onChange(vertices.map((p, i) => i === index ? replacement : p))}
+      onRemove={() => onChange(vertices.filter((_, i) => i !== index))} />
+  </details>;
+}
+
+function PointEditor({ point, onApply, onRemove }: { point: PlanPoint; onApply: (point: PlanPoint) => void; onRemove: () => void }) {
+  const [x, setX] = useState(String(point.x));
+  const [y, setY] = useState(String(point.y));
+  const [error, setError] = useState("");
+  return <fieldset>
+    <legend>Selected boundary point</legend>
+    <label>Point X (0–1000)<input type="number" min="0" max="1000" step="any" value={x} onChange={e => setX(e.target.value)} /></label>
+    <label>Point Y (0–600)<input type="number" min="0" max="600" step="any" value={y} onChange={e => setY(e.target.value)} /></label>
+    <button type="button" onClick={() => {
+      if (!x.trim() || !y.trim() || !Number.isFinite(Number(x)) || !Number.isFinite(Number(y)) || Number(x) < 0 || Number(x) > 1000 || Number(y) < 0 || Number(y) > 600) {
+        setError("Enter finite coordinates within X 0–1000 and Y 0–600."); return;
+      }
+      setError(""); onApply({ x: Number(x), y: Number(y) });
+    }}>Apply point</button>
+    <button type="button" className="quiet" onClick={onRemove}>Remove selected point</button>
+    {error && <p role="alert">{error}</p>}
+  </fieldset>;
 }
