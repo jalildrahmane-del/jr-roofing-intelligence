@@ -114,6 +114,16 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
     {error && <p role="alert" className="error">{error}</p>}
     {result && <div role="status" className="roof-plan-results">
       <strong>Preliminary / unverified — not an approved survey</strong>
+      <button type="button" onClick={() => {
+        const record = { format: "jr-roof-measurement", version: 1, exportedAt: new Date().toISOString(),
+          limitations: "Preliminary plan-plane measurements, not an approved survey or payment quantity. Image is not included.",
+          plan: { vertices, calibrationPoints, actualDistanceMetres: Number(distance), pitchDegrees: pitch.trim() ? Number(pitch) : null },
+          measurement: result };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], {type: "application/json"}));
+        const link = document.createElement("a"); link.href = url; link.download = "preliminary-roof-measurement.json";
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }}>Download preliminary measurement record</button>
       <p>Plan area: {result.planAreaM2.toFixed(2)} m² · Perimeter: {result.perimeterM.toFixed(2)} m</p>
       <details><summary>Calibrated boundary lengths</summary>
         <p>Lengths are in the plan plane. Edge numbers follow the order of the boundary points; the final edge closes the polygon.</p>
