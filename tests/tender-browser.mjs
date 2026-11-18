@@ -121,6 +121,72 @@ try {
   await roof("Main warehouse", 100);
   await roof("Annexe", 94);
   await page.getByRole("button", { name: /Main warehouse · 100/ }).click();
+  // Exercise the real download and SVG screen transform at desktop and mobile sizes.
+  const sketch = page.locator(".roof-plan-drawing");
+  const downloadButton = sketch.getByRole("button", { name: "Download preliminary measurement record" });
+  const calculate = () => sketch.getByRole("button", { name: "Calculate preliminary measurements" }).click();
+  async function plot(x, y) {
+    const svg = sketch.locator("svg");
+    await svg.scrollIntoViewIfNeeded();
+    const point = await svg.evaluate((element, coordinates) => {
+      const p = new DOMPoint(...coordinates).matrixTransform(element.getScreenCTM());
+      return { x: p.x, y: p.y };
+    }, [x, y]);
+    await page.mouse.click(point.x, point.y);
+  }
+  async function downloadMeasurement() {
+    const pending = page.waitForEvent("download");
+    await downloadButton.click();
+    const download = await pending;
+    assert.equal(download.suggestedFilename(), "preliminary-roof-measurement.json");
+    return JSON.parse(readFileSync(await download.path(), "utf8"));
+  }
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await sketch.getByRole("button", { name: "Clear sketch", exact: true }).click();
+    assert.equal(await downloadButton.count(), 0);
+    await sketch.getByRole("button", { name: "1. Draw boundary", exact: true }).click();
+    for (const point of [[100, 100], [500, 100], [500, 300], [100, 300]]) await plot(...point);
+    await sketch.getByRole("button", { name: "2. Mark calibration", exact: true }).click();
+    await plot(100, 100); await plot(500, 100);
+    await sketch.getByLabel("Verified calibration distance (metres)").fill("20");
+    await sketch.getByLabel("Roof pitch (degrees, optional)").fill("");
+    await calculate();
+    const record = await downloadMeasurement();
+    assert.equal(record.format, "jr-roof-measurement");
+    assert.equal(record.version, 1);
+    assert.ok(Number.isFinite(Date.parse(record.exportedAt)));
+    assert.match(record.limitations, /not an approved survey or payment quantity/);
+    assert.equal(record.measurement.status, "preliminary-unverified");
+    assert.equal(record.plan.vertices.length, 4);
+    assert.equal(record.plan.calibrationPoints.length, 2);
+    assert.equal(record.plan.actualDistanceMetres, 20);
+    assert.equal(record.plan.pitchDegrees, null);
+    assert.equal(record.measurement.surfaceAreaM2, null);
+    assert.ok(Math.abs(record.measurement.planAreaM2 - 200) < 0.5);
+    assert.ok(Math.abs(record.measurement.perimeterM - 60) < 0.1);
+    assert.equal(record.measurement.edgeLengthsM.length, 4);
+    assert.equal("image" in record, false);
+    await sketch.getByLabel("Roof pitch (degrees, optional)").fill("60");
+    assert.equal(await downloadButton.count(), 0);
+    await calculate();
+    const pitched = await downloadMeasurement();
+    assert.ok(Math.abs(pitched.measurement.surfaceAreaM2 - 400) < 1);
+    await sketch.getByLabel("Verified calibration distance (metres)").fill("10");
+    assert.equal(await downloadButton.count(), 0);
+    await calculate();
+    const rescaled = await downloadMeasurement();
+    assert.ok(Math.abs(rescaled.measurement.planAreaM2 - 50) < 0.2);
+    await sketch.getByRole("button", { name: "Undo boundary point", exact: true }).click();
+    assert.equal(await downloadButton.count(), 0);
+    await calculate();
+    assert.equal((await downloadMeasurement()).plan.vertices.length, 3);
+    await sketch.getByRole("button", { name: "Clear sketch", exact: true }).click();
+    await calculate();
+    assert.equal(await downloadButton.count(), 0);
+    await sketch.getByRole("alert").waitFor();
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const defect = section("Record a defect");
   await choose(defect, "Defect roof", "Main warehouse");
   await choose(defect, "Defect category", "Corrosion / perforation");
