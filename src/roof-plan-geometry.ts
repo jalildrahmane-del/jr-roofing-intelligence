@@ -76,7 +76,8 @@ export function measureRoofPlan(
   const planAreaM2 = Math.abs(twiceArea) / 2 * metresPerPixel ** 2;
   const surfaceAreaM2 = pitchDegrees === undefined
     ? null : planAreaM2 / Math.cos(pitchDegrees * Math.PI / 180);
-  if (![planAreaM2, perimeterPixels * metresPerPixel, surfaceAreaM2 ?? 0].every(Number.isFinite)) {
+  if (planAreaM2 <= 0 || metresPerPixel <= 0 ||
+      ![metresPerPixel, planAreaM2, perimeterPixels * metresPerPixel, surfaceAreaM2 ?? 0].every(Number.isFinite)) {
     throw new Error("Measurement exceeds supported numeric range.");
   }
   return {

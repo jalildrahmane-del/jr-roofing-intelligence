@@ -60,3 +60,7 @@ test("calibrated edge lengths include closing edge and reconcile with perimeter"
  assert.deepEqual(result.edgeLengthsM,[3,4,5]);
  assert.equal(result.edgeLengthsM.reduce((a,b)=>a+b,0),result.perimeterM);
 });
+
+ test("rejects calibration underflow instead of exporting zero-area measurements", () => {
+  assert.throws(() => measureRoofPlan([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}], {pointA:{x:0,y:0},pointB:{x:100,y:0},actualDistanceMetres:1e-200}), /numeric range/);
+ });
