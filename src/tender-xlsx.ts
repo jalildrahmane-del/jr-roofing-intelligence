@@ -2,7 +2,7 @@ import type { Pricing } from "./tender.ts";
 
 // Self-contained Office Open XML workbook; no external service or paid library.
 const enc = new TextEncoder();
-const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+const esc = (s: string) => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 function crc32(bytes: Uint8Array) {
  let crc = 0xffffffff;
  for (const b of bytes) { crc ^= b; for(let k=0;k<8;k++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0); }
