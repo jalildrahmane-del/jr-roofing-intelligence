@@ -1,3 +1,4 @@
+import { RoofGeoJson } from "./RoofGeoJson.tsx";
 import { calibrationRange } from "./measurement-range.ts";
 import { roofBoundaryCsv } from "./roof-measurement-csv.ts";
 import React, { useState } from "react";
@@ -74,6 +75,7 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
   }
   return <section className="roof-plan-drawing">
     <h2>Roof plan sketch — preliminary measurement</h2>
+    <RoofGeoJson />
     <p>Upload a roof plan or aerial image (PNG or JPEG, maximum 1 MiB), then click or tap to trace the roof boundary. Mark two calibration points against an independently verified dimension. This is a local preview, not a georeferenced map.</p>
     <label>Background roof image (saved with the next roof revision)
       <input type="file" accept="image/png,image/jpeg" onChange={e => void loadImage(e.target.files?.[0])} />
