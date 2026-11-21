@@ -1,3 +1,4 @@
+import { calibrationRange } from "./measurement-range.ts";
 import { roofBoundaryCsv } from "./roof-measurement-csv.ts";
 import React, { useState } from "react";
 import { measureRoofPlan, type PlanPoint } from "./roof-plan-geometry.ts";
@@ -135,6 +136,7 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }}>Download boundary lengths CSV</button>
       <p>Plan area: {result.planAreaM2.toFixed(2)} m² · Perimeter: {result.perimeterM.toFixed(2)} m</p>
+      <CalibrationSensitivity area={result.planAreaM2} perimeter={result.perimeterM} distance={Number(distance)} />
       <details><summary>Calibrated boundary lengths</summary>
         <p>Lengths are in the plan plane. Edge numbers follow the order of the boundary points; the final edge closes the polygon.</p>
         <ol>{result.edgeLengthsM.map((length, i) => <li key={i}>Edge {i + 1}: {length.toFixed(2)} m</li>)}</ol>
@@ -178,4 +180,19 @@ function PointEditor({ point, onApply, onRemove }: { point: PlanPoint; onApply: 
     <button type="button" className="quiet" onClick={onRemove}>Remove selected point</button>
     {error && <p role="alert">{error}</p>}
   </fieldset>;
+}
+
+function CalibrationSensitivity({area, perimeter, distance}: {area:number;perimeter:number;distance:number}) {
+  const [tolerance, setTolerance] = useState("");
+  let range, error = "";
+  if (tolerance.trim()) {
+    try { range = calibrationRange(area, perimeter, distance, Number(tolerance)); }
+    catch (e) { error = (e as Error).message; }
+  }
+  return <details><summary>Calibration sensitivity</summary>
+    <p>Explore how uncertainty in the verified calibration distance affects plan measurements. This excludes tracing, imagery and pitch errors and is not a certified accuracy range.</p>
+    <label>Calibration distance tolerance ± metres<input type="number" min="0" step="any" value={tolerance} onChange={e=>setTolerance(e.target.value)} /></label>
+    {error && <p role="alert">{error}</p>}
+    {range && <p role="status">Plan area range: {range.areaMin.toFixed(2)}–{range.areaMax.toFixed(2)} m². Perimeter range: {range.perimeterMin.toFixed(2)}–{range.perimeterMax.toFixed(2)} m. Saved measurements are unchanged.</p>}
+  </details>;
 }
