@@ -1,3 +1,4 @@
+import { roofBoundaryCsv } from "./roof-measurement-csv.ts";
 import React, { useState } from "react";
 import { measureRoofPlan, type PlanPoint } from "./roof-plan-geometry.ts";
 import "./roof-plan-drawing.css";
@@ -127,6 +128,12 @@ export function RoofPlanDrawing({ saved, onSave }: { saved?: SavedRoofPlan | nul
         document.body.appendChild(link); link.click(); link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }}>Download preliminary measurement record</button>
+      <button type="button" onClick={() => {
+        const url = URL.createObjectURL(new Blob([roofBoundaryCsv(result)], {type: "text/csv;charset=utf-8"}));
+        const link = document.createElement("a"); link.href = url; link.download = "preliminary-boundary-lengths.csv";
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }}>Download boundary lengths CSV</button>
       <p>Plan area: {result.planAreaM2.toFixed(2)} m² · Perimeter: {result.perimeterM.toFixed(2)} m</p>
       <details><summary>Calibrated boundary lengths</summary>
         <p>Lengths are in the plan plane. Edge numbers follow the order of the boundary points; the final edge closes the polygon.</p>
