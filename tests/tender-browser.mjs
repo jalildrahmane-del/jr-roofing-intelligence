@@ -166,6 +166,18 @@ try {
     assert.ok(Math.abs(record.measurement.planAreaM2 - 200) < 0.5);
     assert.ok(Math.abs(record.measurement.perimeterM - 60) < 0.1);
     assert.equal(record.measurement.edgeLengthsM.length, 4);
+    await sketch.getByText("Calibration sensitivity", { exact: true }).click();
+    await sketch.getByLabel("Calibration distance tolerance ± metres").fill("1");
+    const sensitivity = sketch.locator("details").filter({has: page.getByText("Calibration sensitivity", {exact:true})});
+    assert.match(await sensitivity.getByRole("status").innerText(), /Plan area range:/);
+    assert.match(await sensitivity.getByRole("status").innerText(), /Saved measurements are unchanged/);
+    assert.deepEqual((await downloadMeasurement()).measurement, record.measurement);
+    await sketch.getByLabel("Calibration distance tolerance ± metres").fill("20");
+    await sensitivity.getByRole("alert").waitFor();
+    assert.equal(await sensitivity.getByRole("status").count(), 0);
+    await sketch.getByLabel("Calibration distance tolerance ± metres").fill("0");
+    await sensitivity.getByRole("status").waitFor();
+
     assert.equal("image" in record, false);
     await sketch.getByLabel("Roof pitch (degrees, optional)").fill("60");
     assert.equal(await downloadButton.count(), 0);
