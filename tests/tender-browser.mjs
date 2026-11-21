@@ -412,6 +412,19 @@ try {
     exact: true,
   });
   await draft.waitFor();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const workbookPending = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download Excel working copy", exact: true }).first().click();
+    const workbook = await workbookPending;
+    assert.equal(workbook.suggestedFilename(), "jr-roofing-quotation-working-copy.xlsx");
+    const workbookBytes = readFileSync(await workbook.path());
+    assert.equal(workbookBytes.subarray(0, 4).toString(), "PK\u0003\u0004");
+    assert.ok(workbookBytes.includes(Buffer.from("quotation working copy")));
+    assert.ok(workbookBytes.includes(Buffer.from("xl/worksheets/sheet1.xml")));
+    writeFileSync("artifacts/tender-working-copy.xlsx", workbookBytes);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const downloadPromise = page.waitForEvent("download");
   await draft.click();
   const downloaded = await downloadPromise;

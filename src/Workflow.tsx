@@ -10,6 +10,7 @@ import {
 } from "./tender.ts";
 import type { LineInput, Pricing } from "./tender.ts";
 import { api } from "./api.ts";
+import { tenderXlsx } from "./tender-xlsx.ts";
 import { compareTenderOptions } from "./commercial.ts";
 import "./commercial.css";
 import { roofEvidenceSummary } from "./survey-intelligence.ts";
@@ -1489,6 +1490,19 @@ export function Workflow({
                         </td>
                         <td>
                           rev {option.version}
+                          <button type="button" className="quiet" onClick={() => {
+                            const estimate = estimates.find(e => e.id === option.id);
+                            if (!estimate) return;
+                            const bytes = tenderXlsx(estimate.data.pricing, project?.name || pid, option.title);
+                            const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = "jr-roofing-quotation-working-copy.xlsx";
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                          }}>Download Excel working copy</button>
                           {canEdit && (
                             <button className="quiet" onClick={() => setEditEstimate(estimates.find(e => e.id === option.id))}>
                               Revise option
