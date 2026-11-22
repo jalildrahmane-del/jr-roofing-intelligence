@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -20,4 +20,10 @@ test('geographic export closes the ring, preserves coordinates and marks unverif
  assert.deepEqual(exported.geometry.coordinates[0][0],exported.geometry.coordinates[0].at(-1));
  assert.equal(exported.properties.status,'preliminary-unverified');
  assert.throws(()=>roofGeoJsonExport([]));
+});
+
+test('centres narrow outlines on both axes so zoom targets the roof',()=>{
+ assert.equal(geographicOutline([[0,0],[10,0],[10,1],[0,1]]),'20,163 280,163 280,137 20,137');
+ assert.equal(geographicOutline([[0,0],[1,0],[1,10],[0,10]]),'137,280 163,280 163,20 137,20');
+ assert.equal(geographicOutline([[0,0],[10,0],[10,10],[0,10]]),'20,280 280,280 280,20 20,20');
 });
