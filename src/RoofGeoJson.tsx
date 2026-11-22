@@ -13,6 +13,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
  <p aria-live="polite">{points ? dirty ? 'Unsaved geographic changes — save a roof revision to retain them.' : 'Geographic outline matches the saved roof revision.' : savedPoints ? 'Preview cleared; the saved geographic outline is unchanged.' : 'No geographic outline saved.'}</p>
+ {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setPoints(savedPoints);setHistory([]);setError('');resetView();}}>Restore saved geographic outline</button>}
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const generation=++request.current; const file=e.target.files?.[0];e.target.value="";setPoints(null);setHistory([]);setError('');resetView();if(!file)return;
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
