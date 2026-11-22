@@ -1,18 +1,20 @@
 import React, {useState, useRef} from 'react';
 import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport} from './roof-geojson.ts';
-export function RoofGeoJson() {
+export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
+ const [saving,setSaving]=useState(false);
  const request = useRef(0);
  const [history,setHistory]=useState<[number,number][][]>([]);
  const [zoom,setZoom]=useState(1),[centre,setCentre]=useState({x:150,y:150});
  const resetView=()=>{setZoom(1);setCentre({x:150,y:150});};
  const pan=(x:number,y:number)=>setCentre(p=>({x:Math.max(0,Math.min(300,p.x+x*30/zoom)),y:Math.max(0,Math.min(300,p.y+y*30/zoom))}));
- const [points,setPoints]=useState<[number,number][]|null>(null),[error,setError]=useState('');
+ const [points,setPoints]=useState<[number,number][]|null>(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}}),[error,setError]=useState('');
  return <details><summary>Preview georeferenced roof outline</summary>
- <p>Import one WGS84 GeoJSON polygon. Preview only: no imagery service, saved survey update or approved measurement.</p>
+ <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const generation=++request.current; const file=e.target.files?.[0];e.target.value="";setPoints(null);setHistory([]);setError('');resetView();if(!file)return;
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
+ {onSave && <button type="button" disabled={saving || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
  {error&&<p role="alert">{error}</p>}
  {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{request.current++;setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
  const previous=history.at(-1);if(!previous)return;request.current++;setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
@@ -34,7 +36,7 @@ export function RoofGeoJson() {
 function GeoEditor({points,onApply}:{points:[number,number][];onApply:(points:[number,number][])=>void}) {
  const [index,setIndex]=useState(0),[longitude,setLongitude]=useState(String(points[0][0])),[latitude,setLatitude]=useState(String(points[0][1])),[error,setError]=useState('');
  return <details><summary>Edit geographic vertex</summary>
- <p>Changes are preliminary and only applied after validation. Download the outline to keep them; this does not update the saved roof survey.</p>
+ <p>Changes are preliminary and only applied after validation. Download the outline to keep them; save a geographic roof revision to retain them in the survey history.</p>
  <label>Geographic vertex<select aria-label="Geographic vertex" value={index} onChange={e=>{const i=Number(e.target.value);setIndex(i);setLongitude(String(points[i][0]));setLatitude(String(points[i][1]));setError('');}}>{points.map((_,i)=><option key={i} value={i}>Vertex {i+1}</option>)}</select></label>
  <label>Vertex longitude<input type="number" step="any" value={longitude} onChange={e=>setLongitude(e.target.value)} /></label>
  <label>Vertex latitude<input type="number" step="any" value={latitude} onChange={e=>setLatitude(e.target.value)} /></label>

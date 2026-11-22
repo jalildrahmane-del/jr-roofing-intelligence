@@ -155,6 +155,12 @@ try {
     assert.equal(exportedGeo.properties.status,"preliminary-unverified");
     assert.deepEqual(exportedGeo.geometry.coordinates,[[[-0.4001,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4001,51.8]]]);
     await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
+    await geoPreview.getByRole("button",{name:"Save geographic roof revision",exact:true}).click();
+    await saved("roof");
+    await page.reload();
+    await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
+    await geoPreview.getByRole("status").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),3);
     const undoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const undoDownload=await undoDownloadPending;

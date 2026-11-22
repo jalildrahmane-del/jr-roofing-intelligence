@@ -1191,8 +1191,8 @@ export function Workflow({
               </section>
             ))}
           {canEdit && roofs.filter(r => r.data.entityId === roofId).map(r => (
-            <RoofPlanDrawing key={r.id} saved={r.data.roofPlan} onSave={async (plan, image) => {
-              await save("roof", { ...r.data, roofPlan: JSON.stringify(plan), ...(image ? {roofPlanImage: image} : {}), previousId: r.id });
+            <RoofPlanDrawing key={r.id} geographicOutline={r.data.geographicOutline} onSaveGeographic={async outline => {await save("roof", {...r.data, previousId:r.id, roofPlan:r.data.roofPlan ? JSON.stringify(r.data.roofPlan) : null, geographicOutline:outline});}} saved={r.data.roofPlan} onSave={async (plan, image) => {
+              await save("roof", { ...r.data, geographicOutline:r.data.geographicOutline ? JSON.stringify(r.data.geographicOutline) : null, roofPlan: JSON.stringify(plan), ...(image ? {roofPlanImage: image} : {}), previousId: r.id });
             }} />
           ))}
           {canEdit && !roofs.length && <p>Create a roof survey first to attach a revisioned roof plan.</p>}
