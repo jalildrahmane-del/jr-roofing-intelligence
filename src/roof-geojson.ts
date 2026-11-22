@@ -1,3 +1,4 @@
+import { measureRoofPlan } from "./roof-plan-geometry.ts";
 /** Import one WGS84 roof outline. Does not infer an approved survey or area. */
 export function parseRoofGeoJson(text: string): [number, number][] {
   if (text.length > 100000) throw Error('GeoJSON must be at most 100 KB.');
@@ -17,5 +18,17 @@ export function parseRoofGeoJson(text: string): [number, number][] {
   if (new Set(points.map(p => p.join(','))).size !== points.length) throw Error('Boundary points must be distinct.');
   const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
   if (Math.max(...xs)-Math.min(...xs)>1 || Math.max(...ys)-Math.min(...ys)>1) throw Error('Select a local roof outline, not a regional or dateline-crossing polygon.');
+  // Reuse topology validation in degree coordinates; the result is deliberately discarded.
+  const local = points.map(p => ({x:(p[0]-first[0])*100000, y:(p[1]-first[1])*100000}));
+  measureRoofPlan(local, {pointA:{x:0,y:0}, pointB:{x:1,y:0}, actualDistanceMetres:1});
   return points;
+}
+
+/** North-up degree-coordinate diagram, not a projected map or measurement. */
+export function geographicOutline(points: [number, number][]): string {
+  const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
+  const minX=Math.min(...xs), maxY=Math.max(...ys);
+  const width=Math.max(...xs)-minX, height=maxY-Math.min(...ys);
+  const scale=260/Math.max(width,height);
+  return points.map(p=>`${20+(p[0]-minX)*scale},${20+(maxY-p[1])*scale}`).join(' ');
 }

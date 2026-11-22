@@ -8,3 +8,7 @@ test('rejects unclosed, invalid, oversized and unsupported geographic outlines',
  for(const p of [{type:'Point',coordinates:[0,0]},{...polygon,crs:{}},{...polygon,coordinates:[polygon.coordinates[0],polygon.coordinates[0]]},{...polygon,coordinates:[[[0,91],[1,0],[0,0],[0,91]]]}, {...polygon,coordinates:[polygon.coordinates[0].slice(0,-1)]}])assert.throws(()=>parseRoofGeoJson(JSON.stringify(p)));
  assert.throws(()=>parseRoofGeoJson(' '.repeat(100001)));
 });
+
+test('rejects self-crossing and zero-area outlines',()=>{
+ for(const ring of [[[0,0],[0.01,0.01],[0,0.01],[0.01,0],[0,0]],[[0,0],[0.01,0],[0.02,0],[0,0]]]) assert.throws(()=>parseRoofGeoJson(JSON.stringify({type:'Polygon',coordinates:[ring]})));
+});

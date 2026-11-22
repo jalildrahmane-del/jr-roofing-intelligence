@@ -132,6 +132,7 @@ try {
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByRole("status").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).waitFor();
     await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await geoPreview.locator("li").count(),0);
