@@ -140,6 +140,18 @@ try {
     assert.equal(await geoPreview.getByRole("button",{name:"Remove geographic vertex",exact:true}).isDisabled(),true);
     await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),4);
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+    await geoPreview.getByRole("button",{name:"Insert geographic vertex after selected",exact:true}).click();
+    await geoPreview.getByRole("alert").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),4);
+    await geoPreview.getByLabel("Vertex longitude",{exact:true}).fill("-0.3995");
+    await geoPreview.getByLabel("Vertex latitude",{exact:true}).fill("51.7999");
+    await geoPreview.getByRole("button",{name:"Insert geographic vertex after selected",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),5);
+    assert.equal(await geoPreview.locator("li").nth(1).textContent(),"-0.3995, 51.7999");
+    await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),4);
+
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);

@@ -53,6 +53,14 @@ function GeoEditor({points,onApply}:{points:[number,number][];onApply:(points:[n
  const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);
  }catch(e){setError((e as Error).message);}
  }}>Apply geographic vertex</button>
+ <button type="button" disabled={points.length>=500} onClick={()=>{
+ try {
+ if(!longitude.trim()||!latitude.trim())throw Error('Enter both longitude and latitude.');
+ const next=[...points.slice(0,index+1),[Number(longitude),Number(latitude)] as [number,number],...points.slice(index+1)];
+ const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);
+ }catch(e){setError((e as Error).message);}
+ }}>Insert geographic vertex after selected</button>
+ <p>To add a corner, enter its coordinates and insert it after the selected vertex. The entire boundary must remain valid.</p>
  <button type="button" disabled={points.length<=3} onClick={()=>{
  try {const next=points.filter((_,i)=>i!==index);const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);}catch(e){setError((e as Error).message);}
  }}>Remove geographic vertex</button>
