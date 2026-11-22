@@ -18,3 +18,16 @@ test('geographic roof geometry is validated, retained in revisions and explicitl
  assert.ok(saved.data.geographicOutline);
  }finally{f.store.close();}
 });
+
+test('geographic revisions cannot reuse a predecessor from another project or stale revision',()=>{
+ const f=fixture();try{
+ const geo=JSON.stringify({type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]});
+ const saved=f.save('roof',{...roofData,previousId:f.roof.id,geographicOutline:geo});
+ const other=f.store.project(f.author,{name:'Synthetic other site',client:'Test',address:'Synthetic',area:100,type:'Commercial',roof:'Mixed'});
+ assert.throws(()=>f.store.transaction(()=>saveRecord(f.store,f.author,other.id,'roof',{...roofData,previousId:saved.id,geographicOutline:geo})));
+ const next=f.save('roof',{...roofData,previousId:saved.id,observations:'Latest revision'});
+ assert.throws(()=>f.save('roof',{...roofData,previousId:saved.id,geographicOutline:null}));
+ assert.deepEqual(next.data.geographicOutline,saved.data.geographicOutline);
+ assert.equal(next.data.area,100);
+ }finally{f.store.close();}
+});
