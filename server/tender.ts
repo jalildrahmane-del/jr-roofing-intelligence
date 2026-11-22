@@ -1,3 +1,4 @@
+import { parseRoofGeoJson, roofGeoJsonExport } from "../src/roof-geojson.ts";
 import { parseRoofPlan } from "../src/roof-plan-record.ts";
 import { randomUUID, createHash } from "node:crypto";
 import { imageSize } from "image-size";
@@ -109,6 +110,11 @@ export function saveTender(
       outlets: optional(d.outlets, 5000),
       upstands: optional(d.upstands, 5000),
       penetrations: optional(d.penetrations, 5000),
+      geographicOutline: d.geographicOutline === undefined
+        ? (roofs.find(r => r.id === d.previousId)?.data.geographicOutline ?? null)
+        : d.geographicOutline === null ? null
+        : typeof d.geographicOutline === "string" ? JSON.parse(roofGeoJsonExport(parseRoofGeoJson(d.geographicOutline)))
+        : (()=>{throw Error("Invalid geographic outline payload");})(),
       roofPlan: d.roofPlan === undefined
         ? (roofs.find(r => r.id === d.previousId)?.data.roofPlan ?? null)
         : parseRoofPlan(d.roofPlan),
