@@ -196,6 +196,25 @@ try {
     await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
     assert.equal(await geoPreview.locator("li").count(),0);
     assert.equal(await geoInput.inputValue(), "");
+    // A delayed replacement must not resurrect a preview the user cleared.
+    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    await geoPreview.getByRole("status").waitFor();
+    await page.evaluate(() => {
+      window.__originalGeoFileText = File.prototype.text;
+      File.prototype.text = function () {
+        const file = this;
+        return new Promise(resolve => { window.__releaseGeoRead = async () => resolve(await window.__originalGeoFileText.call(file)); });
+      };
+    });
+    try {
+      await geoInput.setInputFiles({name:"delayed.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+      await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
+      await page.evaluate(async () => { await window.__releaseGeoRead(); });
+      assert.equal(await geoPreview.locator("li").count(),0);
+      assert.equal(await geoPreview.getByRole("status").count(),0);
+    } finally {
+      await page.evaluate(() => { File.prototype.text = window.__originalGeoFileText; delete window.__originalGeoFileText; delete window.__releaseGeoRead; });
+    }
     // The same local file must be selectable again after clearing the preview.
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByRole("status").waitFor();
