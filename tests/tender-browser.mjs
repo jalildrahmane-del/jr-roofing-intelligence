@@ -140,13 +140,20 @@ try {
     assert.equal(await diagram.getAttribute("viewBox"),"90 75 150 150");
     await geoPreview.getByRole("button",{name:"Fit outline",exact:true}).click();
     assert.equal(await diagram.getAttribute("viewBox"),"0 0 300 300");
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+    await geoPreview.getByLabel("Vertex latitude",{exact:true}).fill("91");
+    await geoPreview.getByRole("button",{name:"Apply geographic vertex",exact:true}).click();
+    await geoPreview.getByRole("alert").waitFor();
+    await geoPreview.getByLabel("Vertex latitude",{exact:true}).fill("51.8");
+    await geoPreview.getByLabel("Vertex longitude",{exact:true}).fill("-0.4001");
+    await geoPreview.getByRole("button",{name:"Apply geographic vertex",exact:true}).click();
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
     assert.equal(geoDownload.suggestedFilename(),"preliminary-roof-outline.geojson");
     const exportedGeo=JSON.parse(readFileSync(await geoDownload.path(),"utf8"));
     assert.equal(exportedGeo.properties.status,"preliminary-unverified");
-    assert.deepEqual(exportedGeo.geometry.coordinates,JSON.parse(validGeo).coordinates);
+    assert.deepEqual(exportedGeo.geometry.coordinates,[[[-0.4001,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4001,51.8]]]);
 
     await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).waitFor();
     await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});

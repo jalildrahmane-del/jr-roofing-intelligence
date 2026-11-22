@@ -13,7 +13,7 @@ export function RoofGeoJson() {
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
  {error&&<p role="alert">{error}</p>}
- {points&&<><div role="group" aria-label="Geographic outline navigation">
+ {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{request.current++;setPoints(next);resetView();}} /><div role="group" aria-label="Geographic outline navigation">
  <button type="button" disabled={zoom>=8} onClick={()=>setZoom(z=>Math.min(8,z*2))}>Zoom in outline</button>
  <button type="button" disabled={zoom<=1} onClick={()=>setZoom(z=>Math.max(1,z/2))}>Zoom out outline</button>
  <button type="button" onClick={()=>pan(-1,0)}>Pan outline west</button>
@@ -25,5 +25,23 @@ export function RoofGeoJson() {
  const url=URL.createObjectURL(new Blob([roofGeoJsonExport(points)],{type:'application/geo+json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-roof-outline.geojson';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{request.current++;setPoints(null);setError('');}}>Clear geographic preview</button></>}
+ </details>;
+}
+
+function GeoEditor({points,onApply}:{points:[number,number][];onApply:(points:[number,number][])=>void}) {
+ const [index,setIndex]=useState(0),[longitude,setLongitude]=useState(String(points[0][0])),[latitude,setLatitude]=useState(String(points[0][1])),[error,setError]=useState('');
+ return <details><summary>Edit geographic vertex</summary>
+ <p>Changes are preliminary and only applied after validation. Download the outline to keep them; this does not update the saved roof survey.</p>
+ <label>Geographic vertex<select aria-label="Geographic vertex" value={index} onChange={e=>{const i=Number(e.target.value);setIndex(i);setLongitude(String(points[i][0]));setLatitude(String(points[i][1]));setError('');}}>{points.map((_,i)=><option key={i} value={i}>Vertex {i+1}</option>)}</select></label>
+ <label>Vertex longitude<input type="number" step="any" value={longitude} onChange={e=>setLongitude(e.target.value)} /></label>
+ <label>Vertex latitude<input type="number" step="any" value={latitude} onChange={e=>setLatitude(e.target.value)} /></label>
+ <button type="button" onClick={()=>{
+ try {
+ if(!longitude.trim()||!latitude.trim())throw Error('Enter both longitude and latitude.');
+ const next=points.map((p,i)=>i===index?[Number(longitude),Number(latitude)] as [number,number]:p);
+ const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);
+ }catch(e){setError((e as Error).message);}
+ }}>Apply geographic vertex</button>
+ {error&&<p role="alert">{error}</p>}
  </details>;
 }
