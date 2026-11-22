@@ -169,6 +169,14 @@ try {
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
     assert.equal(await geoPreview.locator("li").count(),0);
+    assert.equal(await geoInput.inputValue(), "");
+    // The same local file must be selectable again after clearing the preview.
+    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    await geoPreview.getByRole("status").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),3);
+    assert.equal(await geoInput.inputValue(), "");
+    await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
+
   }
 
   const downloadButton = sketch.getByRole("button", { name: "Download preliminary measurement record" });
