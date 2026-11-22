@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useMemo} from 'react';
 import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
@@ -7,9 +7,12 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const [zoom,setZoom]=useState(1),[centre,setCentre]=useState({x:150,y:150});
  const resetView=()=>{setZoom(1);setCentre({x:150,y:150});};
  const pan=(x:number,y:number)=>setCentre(p=>({x:Math.max(0,Math.min(300,p.x+x*30/zoom)),y:Math.max(0,Math.min(300,p.y+y*30/zoom))}));
- const [points,setPoints]=useState<[number,number][]|null>(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}}),[error,setError]=useState('');
+ const savedPoints=useMemo(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}},[saved]);
+ const [points,setPoints]=useState<[number,number][]|null>(savedPoints),[error,setError]=useState('');
+ const dirty=points!==null && JSON.stringify(points)!==JSON.stringify(savedPoints);
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
+ <p aria-live="polite">{points ? dirty ? 'Unsaved geographic changes — save a roof revision to retain them.' : 'Geographic outline matches the saved roof revision.' : savedPoints ? 'Preview cleared; the saved geographic outline is unchanged.' : 'No geographic outline saved.'}</p>
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const generation=++request.current; const file=e.target.files?.[0];e.target.value="";setPoints(null);setHistory([]);setError('');resetView();if(!file)return;
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}

@@ -147,6 +147,7 @@ try {
     await geoPreview.getByLabel("Vertex latitude",{exact:true}).fill("51.8");
     await geoPreview.getByLabel("Vertex longitude",{exact:true}).fill("-0.4001");
     await geoPreview.getByRole("button",{name:"Apply geographic vertex",exact:true}).click();
+    await geoPreview.getByText("Unsaved geographic changes — save a roof revision to retain them.",{exact:true}).waitFor();
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
@@ -161,16 +162,20 @@ try {
     await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
     await geoPreview.getByRole("status").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    await geoPreview.getByText("Geographic outline matches the saved roof revision.",{exact:true}).waitFor();
     const undoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const undoDownload=await undoDownloadPending;
     assert.deepEqual(JSON.parse(readFileSync(await undoDownload.path(),"utf8")).geometry.coordinates,JSON.parse(validGeo).coordinates);
     assert.equal(await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).isDisabled(),true);
+    await geoPreview.getByRole("button",{name:"Clear geographic preview",exact:true}).click();
+    await geoPreview.getByText("Preview cleared; the saved geographic outline is unchanged.",{exact:true}).waitFor();
     await geoPreview.getByRole("button",{name:"Remove saved geographic outline",exact:true}).click();
     await saved("roof");
     await page.reload();
     await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),0);
+    await geoPreview.getByText("No geographic outline saved.",{exact:true}).waitFor();
     assert.equal(await geoPreview.getByRole("button",{name:"Remove saved geographic outline",exact:true}).count(),0);
 
 
