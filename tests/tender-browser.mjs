@@ -188,7 +188,7 @@ try {
   const downloadButton = sketch.getByRole("button", { name: "Download preliminary measurement record" });
   const calculate = () => sketch.getByRole("button", { name: "Calculate preliminary measurements" }).click();
   async function plot(x, y) {
-    const svg = sketch.locator("svg");
+    const svg = sketch.getByRole("img", {name:"Interactive roof plan sketch: click or tap to add points", exact:true});
     await svg.scrollIntoViewIfNeeded();
     const point = await svg.evaluate((element, coordinates) => {
       const p = new DOMPoint(...coordinates).matrixTransform(element.getScreenCTM());
