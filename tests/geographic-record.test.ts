@@ -1,3 +1,4 @@
+import {saveRecord} from "../server/index.ts";
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {fixture,roofData} from './tender-fixture.ts';
 test('geographic roof geometry is validated, retained in revisions and explicitly removable',()=>{
@@ -7,6 +8,8 @@ test('geographic roof geometry is validated, retained in revisions and explicitl
  assert.equal(saved.data.geographicOutline.properties.status,'preliminary-unverified');
  assert.equal(saved.data.geographicOutline.properties.approved,undefined);
  assert.equal(saved.data.area,100);
+ assert.throws(()=>saveRecord(f.store,f.viewer,f.project.id,'roof',{...roofData,previousId:saved.id,geographicOutline:null}));
+ assert.throws(()=>saveRecord(f.store,f.worker,f.project.id,'roof',{...roofData,previousId:saved.id,geographicOutline:null}));
  const revised=f.save('roof',{...roofData,previousId:saved.id,observations:'Updated notes'});
  assert.deepEqual(revised.data.geographicOutline,saved.data.geographicOutline);
  assert.throws(()=>f.save('roof',{...roofData,previousId:revised.id,geographicOutline:'{"type":"Point"}'}));

@@ -166,6 +166,13 @@ try {
     const undoDownload=await undoDownloadPending;
     assert.deepEqual(JSON.parse(readFileSync(await undoDownload.path(),"utf8")).geometry.coordinates,JSON.parse(validGeo).coordinates);
     assert.equal(await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).isDisabled(),true);
+    await geoPreview.getByRole("button",{name:"Remove saved geographic outline",exact:true}).click();
+    await saved("roof");
+    await page.reload();
+    await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),0);
+    assert.equal(await geoPreview.getByRole("button",{name:"Remove saved geographic outline",exact:true}).count(),0);
+
 
 
     await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).waitFor();

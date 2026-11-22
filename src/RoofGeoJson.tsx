@@ -15,6 +15,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
  {onSave && <button type="button" disabled={saving || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
+ {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}
  {error&&<p role="alert">{error}</p>}
  {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{request.current++;setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
  const previous=history.at(-1);if(!previous)return;request.current++;setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
