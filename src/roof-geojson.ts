@@ -30,7 +30,8 @@ export function geographicOutline(points: [number, number][]): string {
   const minX=Math.min(...xs), maxY=Math.max(...ys);
   const width=Math.max(...xs)-minX, height=maxY-Math.min(...ys);
   const scale=260/Math.max(width,height);
-  return points.map(p=>`${20+(p[0]-minX)*scale},${20+(maxY-p[1])*scale}`).join(' ');
+  const offsetX=(300-width*scale)/2, offsetY=(300-height*scale)/2;
+  return points.map(p=>`${offsetX+(p[0]-minX)*scale},${offsetY+(maxY-p[1])*scale}`).join(' ');
 }
 
 /** Export only validated geometry, never untrusted imported properties. */
