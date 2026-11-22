@@ -129,8 +129,19 @@ try {
   const validGeo=JSON.stringify({type:"Polygon",coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]});
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:1000});
-    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    const quadGeo=JSON.stringify({type:"Polygon",coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.801],[-0.4,51.8]]]});
+    await geoInput.setInputFiles({name:"quad.geojson",mimeType:"application/json",buffer:Buffer.from(quadGeo)});
     await geoPreview.getByRole("status").waitFor();
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+    await geoPreview.getByLabel("Geographic vertex",{exact:true}).selectOption("1");
+    await geoPreview.getByRole("button",{name:"Remove geographic vertex",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),3);
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+    assert.equal(await geoPreview.getByRole("button",{name:"Remove geographic vertex",exact:true}).isDisabled(),true);
+    await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),4);
+    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
     const diagram=geoPreview.getByRole("img",{name:"Imported roof outline in longitude and latitude"});
     assert.equal(await diagram.getAttribute("viewBox"),"0 0 300 300");
@@ -205,7 +216,7 @@ try {
     assert.equal(await geoInput.inputValue(), "");
     // A delayed replacement must not resurrect a preview the user cleared.
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
-    await geoPreview.getByRole("status").waitFor();
+    await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     await page.evaluate(() => {
       window.__originalGeoFileText = File.prototype.text;
       File.prototype.text = function () {
@@ -224,7 +235,7 @@ try {
     }
     // The same local file must be selectable again after clearing the preview.
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
-    await geoPreview.getByRole("status").waitFor();
+    await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
     assert.equal(await geoInput.inputValue(), "");
     await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
