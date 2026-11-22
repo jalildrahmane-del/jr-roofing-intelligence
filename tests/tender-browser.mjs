@@ -123,6 +123,23 @@ try {
   await page.getByRole("button", { name: /Main warehouse · 100/ }).click();
   // Exercise the real download and SVG screen transform at desktop and mobile sizes.
   const sketch = page.locator(".roof-plan-drawing");
+  await sketch.getByText("Preview georeferenced roof outline", {exact:true}).click();
+  const geoInput=sketch.getByLabel("Roof GeoJSON file");
+  const geoPreview=sketch.locator("details").filter({has:page.getByText("Preview georeferenced roof outline", {exact:true})});
+  const validGeo=JSON.stringify({type:"Polygon",coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]});
+  for(const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    await geoPreview.getByRole("status").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),3);
+    await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
+    await geoPreview.getByRole("alert").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),0);
+    await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+    await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
+    assert.equal(await geoPreview.locator("li").count(),0);
+  }
+
   const downloadButton = sketch.getByRole("button", { name: "Download preliminary measurement record" });
   const calculate = () => sketch.getByRole("button", { name: "Calculate preliminary measurements" }).click();
   async function plot(x, y) {
