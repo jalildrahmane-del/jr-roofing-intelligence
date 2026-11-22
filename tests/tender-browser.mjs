@@ -154,6 +154,13 @@ try {
     const exportedGeo=JSON.parse(readFileSync(await geoDownload.path(),"utf8"));
     assert.equal(exportedGeo.properties.status,"preliminary-unverified");
     assert.deepEqual(exportedGeo.geometry.coordinates,[[[-0.4001,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4001,51.8]]]);
+    await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
+    const undoDownloadPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
+    const undoDownload=await undoDownloadPending;
+    assert.deepEqual(JSON.parse(readFileSync(await undoDownload.path(),"utf8")).geometry.coordinates,JSON.parse(validGeo).coordinates);
+    assert.equal(await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).isDisabled(),true);
+
 
     await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).waitFor();
     await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
