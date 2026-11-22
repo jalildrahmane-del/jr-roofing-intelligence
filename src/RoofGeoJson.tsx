@@ -53,6 +53,9 @@ function GeoEditor({points,onApply}:{points:[number,number][];onApply:(points:[n
  const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);
  }catch(e){setError((e as Error).message);}
  }}>Apply geographic vertex</button>
+ <button type="button" disabled={points.length<=3} onClick={()=>{
+ try {const next=points.filter((_,i)=>i!==index);const validated=parseRoofGeoJson(roofGeoJsonExport(next));setError('');onApply(validated);}catch(e){setError((e as Error).message);}
+ }}>Remove geographic vertex</button>
  {error&&<p role="alert">{error}</p>}
  </details>;
 }
