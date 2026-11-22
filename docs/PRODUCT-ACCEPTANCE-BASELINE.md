@@ -20,3 +20,5 @@ This is a fixed reporting scope, not a completion percentage. Earlier 65%/70% es
 Open scope sources: Issues4,5,18,58 and owner-approved feature checklist. These rows establish stable reporting categories; they do not certify exhaustive requirement coverage. Next audit must attach each detailed acceptance criterion and test evidence before publishing an overall percentage. AI authorization and engineering/attendance owner decisions must remain visible separately from coding completion.
 
 Current change: validated geographic vertex removal, minimum-three guard and undo regression. Build/browser results and GitHub CI belong in its PR; no field acceptance is implied.
+
+Geographic editing follow-up: insert entered coordinates after the selected vertex, validate topology/duplicates before applying, cap at 500 vertices, and support undo. Browser coverage includes duplicate rejection, ordered insertion and undo on desktop/mobile. A03 remains partial pending broader acceptance; no percentage change is claimed.
