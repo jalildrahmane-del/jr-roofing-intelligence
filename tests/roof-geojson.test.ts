@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -11,4 +11,13 @@ test('rejects unclosed, invalid, oversized and unsupported geographic outlines',
 
 test('rejects self-crossing and zero-area outlines',()=>{
  for(const ring of [[[0,0],[0.01,0.01],[0,0.01],[0.01,0],[0,0]],[[0,0],[0.01,0],[0.02,0],[0,0]]]) assert.throws(()=>parseRoofGeoJson(JSON.stringify({type:'Polygon',coordinates:[ring]})));
+});
+
+test('geographic export closes the ring, preserves coordinates and marks unverified status',()=>{
+ const points=parseRoofGeoJson(JSON.stringify(polygon));
+ const text=roofGeoJsonExport(points), exported=JSON.parse(text);
+ assert.deepEqual(parseRoofGeoJson(text),points);
+ assert.deepEqual(exported.geometry.coordinates[0][0],exported.geometry.coordinates[0].at(-1));
+ assert.equal(exported.properties.status,'preliminary-unverified');
+ assert.throws(()=>roofGeoJsonExport([]));
 });

@@ -32,3 +32,10 @@ export function geographicOutline(points: [number, number][]): string {
   const scale=260/Math.max(width,height);
   return points.map(p=>`${20+(p[0]-minX)*scale},${20+(maxY-p[1])*scale}`).join(' ');
 }
+
+/** Export only validated geometry, never untrusted imported properties. */
+export function roofGeoJsonExport(points: [number, number][]): string {
+  const geometry = {type:'Polygon',coordinates:[[...points,points[0]]]};
+  parseRoofGeoJson(JSON.stringify(geometry));
+  return JSON.stringify({type:'Feature',properties:{status:'preliminary-unverified',limitations:'Imported outline only; independently verify location and geometry. Not an approved survey or measured quantity.'},geometry},null,2);
+}

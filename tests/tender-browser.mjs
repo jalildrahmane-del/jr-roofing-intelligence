@@ -132,6 +132,14 @@ try {
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByRole("status").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    const geoDownloadPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
+    const geoDownload=await geoDownloadPending;
+    assert.equal(geoDownload.suggestedFilename(),"preliminary-roof-outline.geojson");
+    const exportedGeo=JSON.parse(readFileSync(await geoDownload.path(),"utf8"));
+    assert.equal(exportedGeo.properties.status,"preliminary-unverified");
+    assert.deepEqual(exportedGeo.geometry.coordinates,JSON.parse(validGeo).coordinates);
+
     await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).waitFor();
     await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
     await geoPreview.getByRole("alert").waitFor();
