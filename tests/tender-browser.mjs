@@ -152,6 +152,7 @@ try {
     await geoPreview.getByRole("alert").waitFor();
     await geoInput.setInputFiles([]);
     assert.equal(await geoPreview.locator("li").count(),3);
+    assert.deepEqual(await geoPreview.locator("svg text").allTextContents(),["1","2","3"]);
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
