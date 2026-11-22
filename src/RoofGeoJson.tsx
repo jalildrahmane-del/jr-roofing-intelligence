@@ -16,8 +16,8 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setPoints(savedPoints);setHistory([]);setError('');resetView();}}>Restore saved geographic outline</button>}
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value="";if(!file)return;
- const generation=++request.current;setPoints(null);setHistory([]);setError('');resetView();
- try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
+ const generation=++request.current;setError('');
+ try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current){setPoints(parsed);setHistory([]);resetView();}}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
  {onSave && <button type="button" disabled={saving || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
  {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}

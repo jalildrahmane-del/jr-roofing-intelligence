@@ -148,6 +148,8 @@ try {
     await geoPreview.getByLabel("Vertex longitude",{exact:true}).fill("-0.4001");
     await geoPreview.getByRole("button",{name:"Apply geographic vertex",exact:true}).click();
     await geoPreview.getByText("Unsaved geographic changes — save a roof revision to retain them.",{exact:true}).waitFor();
+    await geoInput.setInputFiles({name:"invalid-replacement.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
+    await geoPreview.getByRole("alert").waitFor();
     await geoInput.setInputFiles([]);
     assert.equal(await geoPreview.locator("li").count(),3);
     const geoDownloadPending=page.waitForEvent("download");
