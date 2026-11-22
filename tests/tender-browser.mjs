@@ -153,6 +153,12 @@ try {
     await geoInput.setInputFiles([]);
     assert.equal(await geoPreview.locator("li").count(),3);
     assert.deepEqual(await geoPreview.locator("svg text").allTextContents(),["1","2","3"]);
+    await geoPreview.getByRole("button",{name:"Zoom in outline",exact:true}).click();
+    assert.equal(await geoPreview.locator("svg polygon").getAttribute("stroke-width"),"1");
+    assert.equal(await geoPreview.locator("svg circle").first().getAttribute("r"),"1.5");
+    assert.equal(await geoPreview.locator("svg text").first().getAttribute("font-size"),"6");
+    await geoPreview.getByRole("button",{name:"Fit outline",exact:true}).click();
+    assert.equal(await geoPreview.locator("svg polygon").getAttribute("stroke-width"),"2");
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
