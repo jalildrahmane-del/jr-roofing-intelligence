@@ -10,7 +10,7 @@ export function RoofGeoJson() {
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preview only: no imagery service, saved survey update or approved measurement.</p>
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
- const generation=++request.current; const file=e.target.files?.[0];setPoints(null);setHistory([]);setError('');resetView();if(!file)return;
+ const generation=++request.current; const file=e.target.files?.[0];e.target.value="";setPoints(null);setHistory([]);setError('');resetView();if(!file)return;
  try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current)setPoints(parsed);}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
  {error&&<p role="alert">{error}</p>}
