@@ -140,6 +140,9 @@ try {
     assert.equal(await geoPreview.getByRole("button",{name:"Remove geographic vertex",exact:true}).isDisabled(),true);
     await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),4);
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+    await geoPreview.getByRole("button",{name:"Apply geographic vertex",exact:true}).click();
+    assert.equal(await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).isDisabled(),false);
     await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),3);
     assert.equal(await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).isDisabled(),true);
