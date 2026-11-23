@@ -2,6 +2,7 @@ import React, {useState, useRef, useMemo} from 'react';
 import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
+ const [importing,setImporting]=useState(false);
  const request = useRef(0);
  const [future,setFuture]=useState<[number,number][][]>([]);
  const [history,setHistory]=useState<[number,number][][]>([]);
@@ -14,19 +15,20 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
  <p aria-live="polite">{points ? dirty ? 'Unsaved geographic changes — save a roof revision to retain them.' : 'Geographic outline matches the saved roof revision.' : savedPoints ? 'Preview cleared; the saved geographic outline is unchanged.' : 'No geographic outline saved.'}</p>
- {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setPoints(savedPoints);setHistory([]);setFuture([]);setError('');resetView();}}>Restore saved geographic outline</button>}
+ {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setImporting(false);setPoints(savedPoints);setHistory([]);setFuture([]);setError('');resetView();}}>Restore saved geographic outline</button>}
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value="";if(!file)return;
- const generation=++request.current;setError('');
- try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current){setPoints(parsed);setHistory([]);setFuture([]);resetView();}}catch(err){if(generation===request.current)setError((err as Error).message);}
+ const generation=++request.current;setImporting(true);setError('');
+ try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current){setPoints(parsed);setHistory([]);setFuture([]);resetView();}}catch(err){if(generation===request.current)setError((err as Error).message);}finally{if(generation===request.current)setImporting(false);}
  }}/></label>
- {onSave && <button type="button" disabled={saving || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
+ {importing && <p aria-live="polite">Reading geographic outline… Save is unavailable until validation finishes.</p>}
+ {onSave && <button type="button" disabled={saving || importing || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
  {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}
  {error&&<p role="alert">{error}</p>}
- {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{if(JSON.stringify(next)===JSON.stringify(points))return;request.current++;setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
- const previous=history.at(-1);if(!previous)return;request.current++;setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
+ {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{if(JSON.stringify(next)===JSON.stringify(points))return;request.current++;setImporting(false);setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
+ const previous=history.at(-1);if(!previous)return;request.current++;setImporting(false);setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
  }}>Undo geographic edit</button><button type="button" disabled={!future.length} onClick={()=>{
- const next=future.at(-1);if(!next)return;request.current++;setHistory(h=>[...h.slice(-19),points]);setPoints(next);setFuture(f=>f.slice(0,-1));setError('');resetView();
+ const next=future.at(-1);if(!next)return;request.current++;setImporting(false);setHistory(h=>[...h.slice(-19),points]);setPoints(next);setFuture(f=>f.slice(0,-1));setError('');resetView();
  }}>Redo geographic edit</button><div role="group" aria-label="Geographic outline navigation">
  <button type="button" disabled={zoom>=8} onClick={()=>setZoom(z=>Math.min(8,z*2))}>Zoom in outline</button>
  <button type="button" disabled={zoom<=1} onClick={()=>setZoom(z=>Math.max(1,z/2))}>Zoom out outline</button>
@@ -41,7 +43,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{
  const url=URL.createObjectURL(new Blob([roofGeographicCsv(points)],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-vertices.csv';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- }}>Download geographic coordinates CSV</button><button type="button" onClick={()=>{request.current++;setPoints(null);setHistory([]);setFuture([]);setError('');}}>Clear geographic preview</button></>}
+ }}>Download geographic coordinates CSV</button><button type="button" onClick={()=>{request.current++;setImporting(false);setPoints(null);setHistory([]);setFuture([]);setError('');}}>Clear geographic preview</button></>}
  </details>;
 }
 
