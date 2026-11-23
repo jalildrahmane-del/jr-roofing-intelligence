@@ -207,6 +207,13 @@ try {
     assert.equal(await geoPreview.locator("svg text").first().getAttribute("font-size"),"6");
     await geoPreview.getByRole("button",{name:"Fit outline",exact:true}).click();
     assert.equal(await geoPreview.locator("svg polygon").getAttribute("stroke-width"),"2");
+    const csvPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download geographic coordinates CSV",exact:true}).click();
+    const csvDownload=await csvPending;
+    assert.equal(csvDownload.suggestedFilename(),"preliminary-geographic-vertices.csv");
+    const csvRows=readFileSync(await csvDownload.path(),"utf8").trim().split("\r\n");
+    assert.equal(csvRows.length,4);
+    assert.equal(csvRows[1],"1,-0.4001,51.8,EPSG:4326,preliminary-unverified");
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;

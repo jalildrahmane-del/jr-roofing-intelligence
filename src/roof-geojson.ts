@@ -40,3 +40,9 @@ export function roofGeoJsonExport(points: [number, number][]): string {
   parseRoofGeoJson(JSON.stringify(geometry));
   return JSON.stringify({type:'Feature',properties:{status:'preliminary-unverified',limitations:'Imported outline only; independently verify location and geometry. Not an approved survey or measured quantity.'},geometry},null,2);
 }
+
+/** Ordered WGS84 vertices only; no measured or approved quantities. */
+export function roofGeographicCsv(points: [number, number][]): string {
+ const validated=parseRoofGeoJson(roofGeoJsonExport(points));
+ return ['vertex,longitude_degrees,latitude_degrees,crs,status',...validated.map((p,i)=>`${i+1},${p[0]},${p[1]},EPSG:4326,preliminary-unverified`)].join('\r\n')+'\r\n';
+}
