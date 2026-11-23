@@ -551,6 +551,7 @@ try {
   const revised=workforceState(s,manager,pid).records.find(r=>r.kind==='workforce.daily-report'&&r.data.replacesReportId===submitted.id);
   assert.ok(revised);assert.deepEqual(revised.data.evidence,submitted.data.evidence);
   assert.equal(workforceState(s,manager,pid).records.find(r=>r.id===submitted.id).data.completed,originalCompleted);
+  await actions.locator('[data-record-id="'+submitted.id+'"]').waitFor({state:"detached"});
   assert.equal(await actions.locator('[data-record-id="'+submitted.id+'"]').count(),0);
   await page.getByRole('button',{name:'Sign out',exact:true}).click();await login('supervisor');
   await dailyReview.getByLabel('Daily report',{exact:true}).selectOption(revised.id);
