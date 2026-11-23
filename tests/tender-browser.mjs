@@ -149,9 +149,24 @@ try {
     await geoPreview.getByRole("button",{name:"Insert geographic vertex after selected",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),5);
     assert.equal(await geoPreview.locator("li").nth(1).textContent(),"-0.3995, 51.7999");
+    const insertedDownloadPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
+    const insertedDownload=await insertedDownloadPending;
+    const insertedGeometry=JSON.parse(readFileSync(await insertedDownload.path(),"utf8")).geometry;
+    assert.equal(insertedGeometry.coordinates[0].length,6);
+    assert.deepEqual(insertedGeometry.coordinates[0][1],[-0.3995,51.7999]);
+
     await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),4);
 
+    await geoInput.setInputFiles({name:"inserted.geojson",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(insertedGeometry))});
+    await geoPreview.getByText("5 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
+    await geoPreview.getByRole("button",{name:"Save geographic roof revision",exact:true}).click();
+    await saved("roof");
+    await page.reload();
+    await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),5);
+    assert.equal(await geoPreview.locator("li").nth(1).textContent(),"-0.3995, 51.7999");
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
