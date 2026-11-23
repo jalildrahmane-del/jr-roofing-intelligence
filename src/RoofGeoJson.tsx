@@ -1,5 +1,5 @@
 import React, {useState, useRef, useMemo} from 'react';
-import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport} from './roof-geojson.ts';
+import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const request = useRef(0);
@@ -38,7 +38,10 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  <span aria-live="polite">Outline zoom: {zoom}×</span></div><svg role="img" aria-label="Imported roof outline in longitude and latitude" viewBox={`${centre.x-150/zoom} ${centre.y-150/zoom} ${300/zoom} ${300/zoom}`}><title>North-up geographic coordinate diagram</title><polygon points={geographicOutline(points)} fill="#d6e6f2" stroke="#304b6b" strokeWidth={2/zoom} />{geographicOutline(points).split(' ').map((coordinate,i)=>{const [x,y]=coordinate.split(',').map(Number);return <g key={i}><circle cx={x} cy={y} r={3/zoom} fill="#304b6b" /><text x={x+5/zoom} y={y-5/zoom} fontSize={12/zoom} fill="#172c42" stroke="white" strokeWidth={2/zoom} paintOrder="stroke">{i+1}</text></g>;})}</svg><p>North is up. Degree-coordinate diagram only; shapes are not corrected for map projection and must not be measured from this preview.</p><p role="status">{points.length} geographic boundary points loaded. Longitude, latitude in degrees; not metres.</p><ol>{points.map((p,i)=><li key={i}>{p[0]}, {p[1]}</li>)}</ol><button type="button" onClick={()=>{
  const url=URL.createObjectURL(new Blob([roofGeoJsonExport(points)],{type:'application/geo+json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-roof-outline.geojson';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{request.current++;setPoints(null);setHistory([]);setFuture([]);setError('');}}>Clear geographic preview</button></>}
+ }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{
+ const url=URL.createObjectURL(new Blob([roofGeographicCsv(points)],{type:'text/csv;charset=utf-8'}));
+ const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-vertices.csv';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }}>Download geographic coordinates CSV</button><button type="button" onClick={()=>{request.current++;setPoints(null);setHistory([]);setFuture([]);setError('');}}>Clear geographic preview</button></>}
  </details>;
 }
 

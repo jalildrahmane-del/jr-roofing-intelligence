@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -26,4 +26,14 @@ test('centres narrow outlines on both axes so zoom targets the roof',()=>{
  assert.equal(geographicOutline([[0,0],[10,0],[10,1],[0,1]]),'20,163 280,163 280,137 20,137');
  assert.equal(geographicOutline([[0,0],[1,0],[1,10],[0,10]]),'137,280 163,280 163,20 137,20');
  assert.equal(geographicOutline([[0,0],[10,0],[10,10],[0,10]]),'20,280 280,280 280,20 20,20');
+});
+
+test('coordinate CSV preserves ordered numeric vertices and rejects invalid geometry',()=>{
+ const points=parseRoofGeoJson(JSON.stringify(polygon));
+ const rows=roofGeographicCsv(points).trim().split('\r\n');
+ assert.equal(rows[0],'vertex,longitude_degrees,latitude_degrees,crs,status');
+ assert.equal(rows.length,4);
+ assert.equal(rows[1],'1,-0.4,51.8,EPSG:4326,preliminary-unverified');
+ assert.equal(rows[3],'3,-0.399,51.801,EPSG:4326,preliminary-unverified');
+ assert.throws(()=>roofGeographicCsv([[0,0],[1,1],[2,2]]));
 });
