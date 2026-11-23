@@ -22,3 +22,5 @@ Open scope sources: Issues4,5,18,58 and owner-approved feature checklist. These 
 Current change: validated geographic vertex removal, minimum-three guard and undo regression. Build/browser results and GitHub CI belong in its PR; no field acceptance is implied.
 
 Geographic editing follow-up: insert entered coordinates after the selected vertex, validate topology/duplicates before applying, cap at 500 vertices, and support undo. Browser coverage includes duplicate rejection, ordered insertion and undo on desktop/mobile. A03 remains partial pending broader acceptance; no percentage change is claimed.
+
+Geographic redo follow-up: bounded redo history for undone edits, cleared on new edits, valid replacement import, clear or restore. Desktop/mobile regression covers redo of removal, repeat undo, and redo invalidation after insertion. A03 remains partial.

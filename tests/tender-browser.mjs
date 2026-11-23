@@ -140,6 +140,12 @@ try {
     assert.equal(await geoPreview.getByRole("button",{name:"Remove geographic vertex",exact:true}).isDisabled(),true);
     await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),4);
+    await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),3);
+    assert.equal(await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).isDisabled(),true);
+    await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),4);
+
     await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
     await geoPreview.getByRole("button",{name:"Insert geographic vertex after selected",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
@@ -148,6 +154,7 @@ try {
     await geoPreview.getByLabel("Vertex latitude",{exact:true}).fill("51.7999");
     await geoPreview.getByRole("button",{name:"Insert geographic vertex after selected",exact:true}).click();
     assert.equal(await geoPreview.locator("li").count(),5);
+    assert.equal(await geoPreview.getByRole("button",{name:"Redo geographic edit",exact:true}).isDisabled(),true);
     assert.equal(await geoPreview.locator("li").nth(1).textContent(),"-0.3995, 51.7999");
     const insertedDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();

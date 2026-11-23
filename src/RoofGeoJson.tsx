@@ -3,6 +3,7 @@ import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport} from './roof-geo
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const request = useRef(0);
+ const [future,setFuture]=useState<[number,number][][]>([]);
  const [history,setHistory]=useState<[number,number][][]>([]);
  const [zoom,setZoom]=useState(1),[centre,setCentre]=useState({x:150,y:150});
  const resetView=()=>{setZoom(1);setCentre({x:150,y:150});};
@@ -13,18 +14,20 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
  <p aria-live="polite">{points ? dirty ? 'Unsaved geographic changes — save a roof revision to retain them.' : 'Geographic outline matches the saved roof revision.' : savedPoints ? 'Preview cleared; the saved geographic outline is unchanged.' : 'No geographic outline saved.'}</p>
- {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setPoints(savedPoints);setHistory([]);setError('');resetView();}}>Restore saved geographic outline</button>}
+ {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setPoints(savedPoints);setHistory([]);setFuture([]);setError('');resetView();}}>Restore saved geographic outline</button>}
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value="";if(!file)return;
  const generation=++request.current;setError('');
- try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current){setPoints(parsed);setHistory([]);resetView();}}catch(err){if(generation===request.current)setError((err as Error).message);}
+ try {if(file.size>100000)throw Error('GeoJSON must be at most 100 KB.');const parsed=parseRoofGeoJson(await file.text());if(generation===request.current){setPoints(parsed);setHistory([]);setFuture([]);resetView();}}catch(err){if(generation===request.current)setError((err as Error).message);}
  }}/></label>
  {onSave && <button type="button" disabled={saving || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
  {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}
  {error&&<p role="alert">{error}</p>}
- {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{request.current++;setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
- const previous=history.at(-1);if(!previous)return;request.current++;setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
- }}>Undo geographic edit</button><div role="group" aria-label="Geographic outline navigation">
+ {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{request.current++;setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
+ const previous=history.at(-1);if(!previous)return;request.current++;setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
+ }}>Undo geographic edit</button><button type="button" disabled={!future.length} onClick={()=>{
+ const next=future.at(-1);if(!next)return;request.current++;setHistory(h=>[...h.slice(-19),points]);setPoints(next);setFuture(f=>f.slice(0,-1));setError('');resetView();
+ }}>Redo geographic edit</button><div role="group" aria-label="Geographic outline navigation">
  <button type="button" disabled={zoom>=8} onClick={()=>setZoom(z=>Math.min(8,z*2))}>Zoom in outline</button>
  <button type="button" disabled={zoom<=1} onClick={()=>setZoom(z=>Math.max(1,z/2))}>Zoom out outline</button>
  <button type="button" onClick={()=>pan(-1,0)}>Pan outline west</button>
@@ -35,7 +38,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  <span aria-live="polite">Outline zoom: {zoom}×</span></div><svg role="img" aria-label="Imported roof outline in longitude and latitude" viewBox={`${centre.x-150/zoom} ${centre.y-150/zoom} ${300/zoom} ${300/zoom}`}><title>North-up geographic coordinate diagram</title><polygon points={geographicOutline(points)} fill="#d6e6f2" stroke="#304b6b" strokeWidth={2/zoom} />{geographicOutline(points).split(' ').map((coordinate,i)=>{const [x,y]=coordinate.split(',').map(Number);return <g key={i}><circle cx={x} cy={y} r={3/zoom} fill="#304b6b" /><text x={x+5/zoom} y={y-5/zoom} fontSize={12/zoom} fill="#172c42" stroke="white" strokeWidth={2/zoom} paintOrder="stroke">{i+1}</text></g>;})}</svg><p>North is up. Degree-coordinate diagram only; shapes are not corrected for map projection and must not be measured from this preview.</p><p role="status">{points.length} geographic boundary points loaded. Longitude, latitude in degrees; not metres.</p><ol>{points.map((p,i)=><li key={i}>{p[0]}, {p[1]}</li>)}</ol><button type="button" onClick={()=>{
  const url=URL.createObjectURL(new Blob([roofGeoJsonExport(points)],{type:'application/geo+json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-roof-outline.geojson';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{request.current++;setPoints(null);setHistory([]);setError('');}}>Clear geographic preview</button></>}
+ }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{request.current++;setPoints(null);setHistory([]);setFuture([]);setError('');}}>Clear geographic preview</button></>}
  </details>;
 }
 
