@@ -270,10 +270,13 @@ try {
     });
     try {
       await geoInput.setInputFiles({name:"delayed.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
+      assert.equal(await geoPreview.getByRole("button",{name:"Save geographic roof revision",exact:true}).isDisabled(),true);
+      await geoPreview.getByText("Reading geographic outline… Save is unavailable until validation finishes.",{exact:true}).waitFor();
       await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
       await page.evaluate(async () => { await window.__releaseGeoRead(); });
       assert.equal(await geoPreview.locator("li").count(),0);
       assert.equal(await geoPreview.getByRole("status").count(),0);
+      assert.equal(await geoPreview.getByText("Reading geographic outline… Save is unavailable until validation finishes.",{exact:true}).count(),0);
     } finally {
       await page.evaluate(() => { File.prototype.text = window.__originalGeoFileText; delete window.__originalGeoFileText; delete window.__releaseGeoRead; });
     }
