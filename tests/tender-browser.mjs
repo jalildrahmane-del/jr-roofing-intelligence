@@ -214,6 +214,11 @@ try {
     const csvRows=readFileSync(await csvDownload.path(),"utf8").trim().split("\r\n");
     assert.equal(csvRows.length,4);
     assert.equal(csvRows[1],"1,-0.4001,51.8,EPSG:4326,preliminary-unverified");
+    await geoPreview.getByText("Paste GeoJSON boundary",{exact:true}).click();
+    await geoPreview.getByLabel("GeoJSON boundary text",{exact:true}).fill('{"type":"Point"}');
+    await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).click();
+    await geoPreview.getByRole("alert").waitFor();
+    assert.equal(await geoPreview.locator("li").count(),3);
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
@@ -280,6 +285,13 @@ try {
     } finally {
       await page.evaluate(() => { File.prototype.text = window.__originalGeoFileText; delete window.__originalGeoFileText; delete window.__releaseGeoRead; });
     }
+    await geoPreview.getByText("Paste GeoJSON boundary",{exact:true}).click();
+    await geoPreview.getByLabel("GeoJSON boundary text",{exact:true}).fill(validGeo);
+    await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).click();
+    assert.equal(await geoPreview.locator("li").count(),3);
+    assert.equal(await geoPreview.getByLabel("GeoJSON boundary text",{exact:true}).inputValue(),"");
+    assert.equal(await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).isDisabled(),true);
+    await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
     // The same local file must be selectable again after clearing the preview.
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();

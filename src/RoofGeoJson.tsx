@@ -2,6 +2,7 @@ import React, {useState, useRef, useMemo} from 'react';
 import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
+ const [pasted,setPasted]=useState('');
  const [importing,setImporting]=useState(false);
  const request = useRef(0);
  const [future,setFuture]=useState<[number,number][][]>([]);
@@ -16,6 +17,13 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
  <p aria-live="polite">{points ? dirty ? 'Unsaved geographic changes — save a roof revision to retain them.' : 'Geographic outline matches the saved roof revision.' : savedPoints ? 'Preview cleared; the saved geographic outline is unchanged.' : 'No geographic outline saved.'}</p>
  {savedPoints && (dirty || !points) && <button type="button" disabled={saving} onClick={()=>{request.current++;setImporting(false);setPoints(savedPoints);setHistory([]);setFuture([]);setError('');resetView();}}>Restore saved geographic outline</button>}
+ <details><summary>Paste GeoJSON boundary</summary>
+ <label>GeoJSON boundary text<textarea value={pasted} onChange={e=>setPasted(e.target.value)} /></label>
+ <p>Paste one WGS84 polygon, up to 100 KB. Import validates it before replacing the working outline.</p>
+ <button type="button" disabled={saving || !pasted.trim()} onClick={()=>{
+ request.current++;setImporting(false);setError('');
+ try {const next=parseRoofGeoJson(pasted);setPoints(next);setHistory([]);setFuture([]);resetView();setPasted('');}catch(e){setError((e as Error).message);}
+ }}>Import pasted geographic outline</button></details>
  <label>Roof GeoJSON file<input type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value="";if(!file)return;
  const generation=++request.current;setImporting(true);setError('');
