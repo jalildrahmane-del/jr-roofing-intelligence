@@ -2,6 +2,16 @@
 export type AttendanceFix = { latitude: number; longitude: number; accuracyMetres: number; capturedAt: string };
 export type AttendanceSite = { latitude: number; longitude: number; radiusMetres: number };
 export type AttendanceDecision = { status: "within" | "outside" | "uncertain"; distanceMetres: number; reason: string };
+export type AttendanceLocationFailure = "permission-denied" | "unavailable" | "timeout";
+
+export function attendanceLocationFailureReason(failure: unknown): string | undefined {
+  switch (failure) {
+    case "permission-denied": return "Location permission denied";
+    case "unavailable": return "Location unavailable";
+    case "timeout": return "Location request timed out";
+  }
+}
+
 function validLatitude(n: number) { return Number.isFinite(n) && n >= -90 && n <= 90; }
 function validLongitude(n: number) { return Number.isFinite(n) && n >= -180 && n <= 180; }
 export function assessAttendanceFix(site: AttendanceSite, fix: AttendanceFix, now = Date.now()): AttendanceDecision {

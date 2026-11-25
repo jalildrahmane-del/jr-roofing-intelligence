@@ -122,34 +122,47 @@ test("attendance lifecycle: bound QR, independent review, privacy, replay and al
     store.close();
   }
 });
-test("uncertain GPS stays pending; outside GPS and failed validation do not consume QR", () => {
+test("outside, uncertain and denied GPS stay pending; failed validation does not consume QR", () => {
   const { store, supervisor, worker, cmd } = setup();
   try {
-    const token = cmd(supervisor, "challenge", {
-      workerId: worker.id,
-      event: "in",
-    }).token;
+    const issueQr = (event: string) => cmd(supervisor, "challenge", { workerId: worker.id, event }).token;
     const now = new Date().toISOString();
     const d = {
       event: "in",
-      token,
+      token: issueQr("in"),
       fix: { latitude: 52, longitude: 0, accuracyMetres: 10, capturedAt: now },
       capturedAt: now,
       offline: false,
       requestId: "a",
     };
-    assert.throws(() => cmd(worker, "event", d), /outside/);
+    assert.throws(() => cmd(worker, "event", { ...d, locationFailure: "permission-denied" }), /either a GPS fix/);
+    assert.throws(() => cmd(worker, "event", { ...d, fix: null, locationFailure: "invented" }), /valid location failure/);
     assert.equal(
       store.db.prepare("SELECT count(*) n FROM workforce_qr_redemptions").get()
         ?.n,
       0,
     );
-    const e = cmd(worker, "event", {
+    const outside = cmd(worker, "event", d);
+    assert.equal(outside.data.gps.status, "outside");
+    assert.equal(outside.data.status, "pending");
+    const uncertain = cmd(worker, "event", {
       ...d,
+      event: "break-start",
+      token: issueQr("break-start"),
+      requestId: "b",
       fix: { ...d.fix, latitude: 51, accuracyMetres: 110 },
     });
-    assert.equal(e.data.gps.status, "uncertain");
-    assert.equal(e.data.status, "pending");
+    assert.equal(uncertain.data.gps.status, "uncertain");
+    assert.equal(uncertain.data.status, "pending");
+    const deniedData = { ...d, event: "break-end", requestId: "c", fix: null, locationFailure: "permission-denied" };
+    assert.throws(() => cmd(worker, "event", deniedData), /QR/);
+    const denied = cmd(worker, "event", { ...deniedData, token: issueQr("break-end") });
+    assert.equal(denied.data.gps.status, "unavailable");
+    assert.match(denied.data.gps.reason, /permission denied/);
+    assert.equal(denied.data.fix, null);
+    assert.equal(denied.data.qrVerified, true);
+    assert.equal(denied.data.status, "pending");
+    assert.equal(workforceState(store, worker, denied.pid).report[0].verifiedHours, 0);
   } finally {
     store.close();
   }

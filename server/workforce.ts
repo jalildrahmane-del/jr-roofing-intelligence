@@ -7,7 +7,8 @@ import { imageSize } from "image-size";
 import type { Store } from "./store.ts";
 import type { User, RecordItem } from "../src/model.ts";
 import { text, positive } from "../src/model.ts";
-import { assessAttendanceFix } from "../src/workforce-geofence.ts";
+import { assessAttendanceFix, attendanceLocationFailureReason } from "../src/workforce-geofence.ts";
+import type { AttendanceDecision, AttendanceFix } from "../src/workforce-geofence.ts";
 import {
   createAttendanceChallenge,
   redeemAttendanceChallenge,
@@ -445,12 +446,20 @@ export function workforceCommand(
       if (!(next[last || "none"] || []).includes(d.event))
         throw Error("Invalid check-in/break/check-out sequence");
       if (typeof d.offline !== "boolean") throw Error("Offline flag required");
-      let gps: any = null,
-        qrVerified = false;
+      let gps: AttendanceDecision | { status: "unavailable"; distanceMetres: null; reason: string } | null = null;
+      let fix: AttendanceFix | null = null;
+      let qrVerified = false;
       if (!d.offline) {
-        gps = assessAttendanceFix(config.data as any, d.fix);
-        if (gps.status === "outside")
-          throw Error("GPS is outside the site boundary");
+        if (d.fix != null) {
+          if (d.locationFailure !== undefined) throw Error("Submit either a GPS fix or a location failure");
+          gps = assessAttendanceFix(config.data as any, d.fix);
+          const { latitude, longitude, accuracyMetres, capturedAt } = d.fix;
+          fix = { latitude, longitude, accuracyMetres, capturedAt };
+        } else {
+          const reason = attendanceLocationFailureReason(d.locationFailure);
+          if (!reason) throw Error("A GPS fix or valid location failure is required");
+          gps = { status: "unavailable", distanceMetres: null, reason: `${reason} (reported by device)` };
+        }
         const token = text(d.token, "Supervisor QR token", 2048),
           hash = createHash("sha256").update(token).digest("hex");
         if (
@@ -486,14 +495,7 @@ export function workforceCommand(
         offline: d.offline,
         capturedAt,
         gps,
-        fix: d.offline
-          ? null
-          : {
-              latitude: d.fix.latitude,
-              longitude: d.fix.longitude,
-              accuracyMetres: d.fix.accuracyMetres,
-              capturedAt: d.fix.capturedAt,
-            },
+        fix,
         qrVerified,
         status: "pending",
         notice: "Device time is untrusted; createdAt is server receipt time",

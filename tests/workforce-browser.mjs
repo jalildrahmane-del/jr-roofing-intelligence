@@ -560,6 +560,36 @@ try {
   await dailyReview.getByRole('button').click();
   await dailyReview.getByText('Review saved. The record and review list have been updated.',{exact:true}).waitFor();
   assert.equal(workforceState(s,manager,pid).records.find(r=>r.kind==='workforce.daily-review'&&r.data.reportId===revised.id).data.decision,'accepted');
+
+  await form.getByLabel("Worker", { exact: true }).selectOption(worker.id);
+  await form.getByLabel("Event", { exact: true }).selectOption("in");
+  await form.getByRole("button").click();
+  const exceptionToken = await page.getByLabel("Supervisor token", { exact: true }).inputValue();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login("worker");
+  await page.evaluate(() => {
+    navigator.geolocation.getCurrentPosition = (_success, failure) => failure({ code: 1 });
+  });
+  await tokenField.fill(exceptionToken);
+  await page.getByRole("checkbox", { name: /I confirm I am recording attendance/ }).check();
+  await page.getByRole("button", { name: "Submit GPS event for review" }).click();
+  await page.getByRole("status").filter({ hasText: "Location was unavailable. Your QR event was sent for independent review." }).waitFor();
+  await page.reload();
+  await page.getByText(/pending · Location permission denied/).waitFor();
+  const exception = workforceState(s, manager, pid).records.filter(r => r.kind === "workforce.event").at(-1);
+  assert.equal(exception.data.fix, null);
+  assert.equal(exception.data.gps.status, "unavailable");
+  assert.equal(exception.data.gps.distanceMetres, null);
+  assert.equal(exception.data.status, "pending");
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login("supervisor");
+  const exceptionOption = reviewForm.getByLabel("Attendance event", { exact: true })
+    .locator(`option[value="${exception.id}"]`);
+  await exceptionOption.waitFor({ state: "attached" });
+  assert.match(await exceptionOption.textContent(), /awaiting review · Location permission denied/);
+  await page.setViewportSize({ width: 390, height: 900 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
   assert.deepEqual(errors, [], "Workforce/dashboard integration must not produce browser errors");
   assert.deepEqual(errors, []);
   console.log(
