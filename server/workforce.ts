@@ -50,20 +50,17 @@ function saveWorkforcePhotos(store: Store, pid: string, photos: unknown, minimum
   });
 }
 
+function workforceRecord(row: any): RecordItem {
+  return { id: row.id, pid: row.pid, kind: row.kind, author: row.author, createdAt: row.created_at, data: JSON.parse(row.data) };
+}
+
 export function workforceRecords(store: Store, pid: string): RecordItem[] {
   return store.db
     .prepare(
       "SELECT * FROM records WHERE pid=? AND kind LIKE 'workforce.%' ORDER BY seq",
     )
     .all(pid)
-    .map((r: any) => ({
-      id: r.id,
-      pid: r.pid,
-      kind: r.kind,
-      author: r.author,
-      createdAt: r.created_at,
-      data: JSON.parse(r.data),
-    }));
+    .map(workforceRecord);
 }
 export function workforceAccess(store: Store, user: User, pid: string) {
   if (!store.db.prepare("SELECT id FROM projects WHERE id=?").get(pid))
@@ -129,7 +126,7 @@ export function workforceState(store: Store, user: User, pid: string) {
     };
     weekly[key].quantity += r.data.quantity;
   }
-  const report=attendanceReport(visible);
+  const report = projectAttendanceReport(store, pid, visible);
   return {
     actions: workforceActions(visible,user),
     checkedAt: new Date().toISOString(),
@@ -143,10 +140,23 @@ export function workforceState(store: Store, user: User, pid: string) {
     weekly: Object.values(weekly),
   };
 }
+type AttendanceShift = {
+  attendanceId: string;
+  start: string;
+  end: string;
+  breakMinutes: number;
+  eventIds: string[];
+  reviewIds: string[];
+  day: string;
+  hours: number;
+  rate: number;
+  amount: number;
+};
+
 export function attendanceReport(records: RecordItem[]) {
   const events = records.filter((r) => r.kind === "workforce.event");
   const reviews = records.filter((r) => r.kind === "workforce.review");
-  const rows: any[] = [];
+  const rows = [];
   for (const workerId of new Set(events.map((r) => r.data.workerId))) {
     let start: number | null = null,
       breakStart: number | null = null,
@@ -157,7 +167,7 @@ export function attendanceReport(records: RecordItem[]) {
       rate = 0,
       amount = 0;
     let shiftEvents:string[]=[],shiftReviews:string[]=[];
-    const shifts: any[] = [];
+    const shifts: AttendanceShift[] = [];
     const exceptions: string[] = [];
     for (const e of events.filter((r) => r.data.workerId === workerId)) {
       const review = reviews.filter((r) => r.data.eventId === e.id).at(-1);
@@ -243,6 +253,60 @@ export function attendanceReport(records: RecordItem[]) {
     });
   }
   return rows;
+}
+
+function projectAttendanceReport(store: Store, pid: string, records: RecordItem[]) {
+  const report = attendanceReport(records);
+  const workerIds = report.filter(row => row.shifts.length).map(row => row.workerId);
+  if (!workerIds.length) return report;
+
+  // Only include events and reviews for workers already in the scoped report.
+  const otherRecords = store.db.prepare(`
+    SELECT * FROM records
+    WHERE pid <> ? AND kind IN ('workforce.event', 'workforce.review')
+      AND json_extract(data, '$.workerId') IN (SELECT value FROM json_each(?))
+    ORDER BY seq
+  `).all(pid, JSON.stringify(workerIds)).map(workforceRecord);
+  const recordsByProject = new Map<string, RecordItem[]>();
+  for (const record of otherRecords) {
+    const projectRecords = recordsByProject.get(record.pid) ?? [];
+    projectRecords.push(record);
+    recordsByProject.set(record.pid, projectRecords);
+  }
+  const intervalsByWorker = new Map<string, { start: number; end: number }[]>();
+  for (const projectRecords of recordsByProject.values()) {
+    for (const row of attendanceReport(projectRecords)) {
+      const intervals = intervalsByWorker.get(row.workerId) ?? [];
+      for (const shift of row.shifts) {
+        const start = Date.parse(shift.start);
+        const end = Date.parse(shift.end);
+        if (start < end) intervals.push({ start, end });
+      }
+      intervalsByWorker.set(row.workerId, intervals);
+    }
+  }
+
+  return report.map(row => {
+    const intervals = intervalsByWorker.get(row.workerId);
+    if (!intervals?.length) return row;
+    const conflicts = new Set(row.shifts.filter(shift => {
+      const start = Date.parse(shift.start);
+      const end = Date.parse(shift.end);
+      return start < end && intervals.some(other => start < other.end && other.start < end);
+    }));
+    if (!conflicts.size) return row;
+    const shifts = row.shifts.filter(shift => !conflicts.has(shift));
+    const verifiedMs = shifts.reduce((total, shift) => total + Math.round(shift.hours * 3600000), 0);
+    const amount = shifts.reduce((total, shift) => total + shift.amount, 0);
+    return {
+      ...row,
+      verifiedHours: verifiedMs / 3600000,
+      amount: Math.round(amount * 100) / 100,
+      shifts,
+      // Keep the reason useful without disclosing the other project or its activity.
+      exceptions: [...row.exceptions, ...[...conflicts].map(shift => `${shift.attendanceId}: overlapping attendance on another project requires review`)],
+    };
+  });
 }
 export function workforceCommand(
   store: Store,
@@ -532,7 +596,7 @@ export function workforceCommand(
     }
     if (action === "match") {
       supervisor();
-      const row=plannedActualReport(records,attendanceReport(records)).rows.find(r=>r.revisionId===d.planRevisionId);
+      const row=plannedActualReport(records,projectAttendanceReport(store,pid,records)).rows.find(r=>r.revisionId===d.planRevisionId);
       if (!row?.actual || !row.inputFingerprint) throw Error("A current unique verified overlap is required; review plans or attendance first");
       if (row.workerId===user.id) throw Error("Forbidden: independent match reviewer required");
       if (d.inputFingerprint!==row.inputFingerprint) throw Error("Plan or attendance changed; refresh before matching");
@@ -549,7 +613,7 @@ export function workforceCommand(
     }
     if (action === "reconcile") {
       manager();
-      const report = attendanceReport(records).find(
+      const report = projectAttendanceReport(store, pid, records).find(
         (r) => r.workerId === d.workerId,
       );
       if (!report) throw Error("Attendance report not found");
