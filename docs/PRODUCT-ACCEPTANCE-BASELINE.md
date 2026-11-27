@@ -26,3 +26,5 @@ Geographic editing follow-up: insert entered coordinates after the selected vert
 Geographic redo follow-up: bounded redo history for undone edits, cleared on new edits, valid replacement import, clear or restore. Desktop/mobile regression covers redo of removal, repeat undo, and redo invalidation after insertion. A03 remains partial.
 
 Geographic CSV export: ordered vertices, numeric longitude/latitude in degrees, EPSG:4326 and preliminary-unverified status. Local geometry tests and desktop/mobile actual-download checks pass. No projected quantities or overall completion percentage implied.
+
+Direct GeoJSON paste/import: validates with the file-import parser, preserves geometry on invalid input, cancels pending reads, resets history on success, and clears successful pasted text. Desktop/mobile browser checks cover invalid and valid paste. A03 remains partial.
