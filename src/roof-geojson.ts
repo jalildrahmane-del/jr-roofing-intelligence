@@ -95,3 +95,16 @@ export function geographicMeasurementRecord(points: [number,number][]): string {
   limitations:'Approximate horizontal footprint and distances only. No slope, elevation, openings or waste allowance. Not adopted into estimate quantities. Independently verify location, geometry and measurements before estimating or construction.',
   geometry,footprintAreaSquareMetres:geographicArea(points),...geographicDistances(points)},null,2);
 }
+
+/** North-up local spherical equirectangular preview at the boundary's mid-latitude.
+ * https://proj.org/en/stable/operations/projections/eqc.html (spherical forward formulas)
+ * Common radius/radian scale cancels when fitting the viewport. Display only.
+ */
+export function geographicProjectedOutline(points: [number,number][]): string {
+ const valid=parseRoofGeoJson(roofGeoJsonExport(points));
+ const latitudes=valid.map(p=>p[1]);
+ const minLatitude=Math.min(...latitudes),maxLatitude=Math.max(...latitudes);
+ const longitudeScale=Math.cos((minLatitude+maxLatitude)/2*Math.PI/180);
+ const originLongitude=valid[0][0];
+ return geographicOutline(valid.map(([longitude,latitude])=>[(longitude-originLongitude)*longitudeScale,latitude-minLatitude]));
+}
