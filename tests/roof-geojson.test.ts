@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord, geographicProjectedOutline} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -108,4 +108,20 @@ test('measurement record keeps full precision area, distances and validated geom
  const edited:[number,number][]=points.map(p=>[...p]);edited[0][0]-=0.0001;
  assert.notEqual(JSON.parse(geographicMeasurementRecord(edited)).footprintAreaSquareMetres,record.footprintAreaSquareMetres);
  assert.throws(()=>geographicMeasurementRecord([[0,0],[1,1],[0,1],[1,0]]));
+});
+
+test('local projected preview corrects longitude scale and centres north-up geometry',()=>{
+ for(const latitude of [0,51.8,-51.8,60,80]) {
+  const points:[number,number][]=[[0,latitude],[0.001,latitude],[0.001,latitude+0.001],[0,latitude+0.001]];
+  const screen=geographicProjectedOutline(points).split(' ').map(p=>p.split(',').map(Number));
+  const width=screen[1][0]-screen[0][0],height=screen[0][1]-screen[3][1];
+  assert.ok(Math.abs(width/height-Math.cos((latitude+0.0005)*Math.PI/180))<1e-10);
+  assert.ok(Math.abs((screen[0][0]+screen[1][0])/2-150)<1e-10);
+  assert.ok(Math.abs((screen[0][1]+screen[3][1])/2-150)<1e-10);
+  assert.ok(screen[3][1]<screen[0][1]);
+  assert.ok(screen.flat().every(v=>Number.isFinite(v)&&v>=19.999&&v<=280.001));
+  const moved=geographicProjectedOutline(points.map(([x,y])=>[x+120,y])).split(' ').flatMap(p=>p.split(',').map(Number));
+  screen.flat().forEach((v,i)=>assert.ok(Math.abs(v-moved[i])<1e-7));
+ }
+ assert.throws(()=>geographicProjectedOutline([[0,0],[1,1],[0,1],[1,0]]));
 });

@@ -1,5 +1,5 @@
 import React, {useState, useRef, useMemo} from 'react';
-import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from './roof-geojson.ts';
+import {parseRoofGeoJson, geographicProjectedOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const [pasted,setPasted]=useState('');
@@ -13,6 +13,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const savedPoints=useMemo(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}},[saved]);
  const [points,setPoints]=useState<[number,number][]|null>(savedPoints),[error,setError]=useState('');
  const distances=useMemo(()=>points?geographicDistances(points):null,[points]);
+ const outline=useMemo(()=>points?geographicProjectedOutline(points):'', [points]);
  const area=useMemo(()=>points?geographicArea(points):null,[points]);
  const dirty=points!==null && JSON.stringify(points)!==JSON.stringify(savedPoints);
  return <details><summary>Preview georeferenced roof outline</summary>
@@ -57,7 +58,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  <button type="button" onClick={()=>pan(0,-1)}>Pan outline north</button>
  <button type="button" onClick={()=>pan(0,1)}>Pan outline south</button>
  <button type="button" onClick={resetView}>Fit outline</button>
- <span aria-live="polite">Outline zoom: {zoom}×</span></div><svg role="img" aria-label="Imported roof outline in longitude and latitude" viewBox={`${centre.x-150/zoom} ${centre.y-150/zoom} ${300/zoom} ${300/zoom}`}><title>North-up geographic coordinate diagram</title><polygon points={geographicOutline(points)} fill="#d6e6f2" stroke="#304b6b" strokeWidth={2/zoom} />{geographicOutline(points).split(' ').map((coordinate,i)=>{const [x,y]=coordinate.split(',').map(Number);return <g key={i}><circle cx={x} cy={y} r={3/zoom} fill="#304b6b" /><text x={x+5/zoom} y={y-5/zoom} fontSize={12/zoom} fill="#172c42" stroke="white" strokeWidth={2/zoom} paintOrder="stroke">{i+1}</text></g>;})}</svg><p>North is up. Degree-coordinate diagram only; shapes are not corrected for map projection and must not be measured from this preview.</p><p role="status">{points.length} geographic boundary points loaded. Longitude, latitude in degrees; not metres.</p><ol>{points.map((p,i)=><li key={i}>{p[0]}, {p[1]}</li>)}</ol><button type="button" onClick={()=>{
+ <span aria-live="polite">Outline zoom: {zoom}×</span></div><svg role="img" aria-label="Imported roof outline in longitude and latitude" viewBox={`${centre.x-150/zoom} ${centre.y-150/zoom} ${300/zoom} ${300/zoom}`}><title>North-up local projected outline</title><polygon points={outline} fill="#d6e6f2" stroke="#304b6b" strokeWidth={2/zoom} />{outline.split(' ').map((coordinate,i)=>{const [x,y]=coordinate.split(',').map(Number);return <g key={i}><circle cx={x} cy={y} r={3/zoom} fill="#304b6b" /><text x={x+5/zoom} y={y-5/zoom} fontSize={12/zoom} fill="#172c42" stroke="white" strokeWidth={2/zoom} paintOrder="stroke">{i+1}</text></g>;})}</svg><p>North is up. Local spherical equirectangular preview, corrected for longitude scale at the boundary’s mid-latitude. Approximate shape only; not aerial imagery or an approved survey. Do not measure from this preview.</p><p role="status">{points.length} geographic boundary points loaded. Longitude, latitude in degrees; not metres.</p><ol>{points.map((p,i)=><li key={i}>{p[0]}, {p[1]}</li>)}</ol><button type="button" onClick={()=>{
  const url=URL.createObjectURL(new Blob([roofGeoJsonExport(points)],{type:'application/geo+json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-roof-outline.geojson';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }}>Download validated GeoJSON outline</button><button type="button" onClick={()=>{

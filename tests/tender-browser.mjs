@@ -219,6 +219,10 @@ try {
     await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    const projectedVertices=(await geoPreview.locator("svg polygon").getAttribute("points")).split(' ').map(p=>p.split(',').map(Number));
+    const projectedRatio=(projectedVertices[1][0]-projectedVertices[0][0])/(projectedVertices[1][1]-projectedVertices[2][1]);
+    assert.ok(Math.abs(projectedRatio-1.1*Math.cos(51.8005*Math.PI/180))<1e-7);
+    assert.ok((await geoPreview.textContent()).includes("Local spherical equirectangular preview"));
     const areaPanel=geoPreview.getByRole("region",{name:"Preliminary geographic footprint area"});
     const footprint=Number(await areaPanel.locator("strong").textContent());
     const expectedFootprint=6371008.8**2*(0.0011*Math.PI/180)*(Math.sin(51.801*Math.PI/180)-Math.sin(51.8*Math.PI/180))/2;
