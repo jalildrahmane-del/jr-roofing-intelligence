@@ -180,7 +180,16 @@ try {
     await geoInput.setInputFiles({name:"roof.geojson",mimeType:"application/json",buffer:Buffer.from(validGeo)});
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
-    const diagram=geoPreview.getByRole("img",{name:"Imported roof outline in longitude and latitude"});
+    const diagram=geoPreview.getByRole("group",{name:"Imported roof outline in longitude and latitude"});
+    await geoPreview.getByRole("button",{name:"Select geographic vertex 3",exact:true}).click();
+    assert.equal(await geoPreview.getByLabel("Geographic vertex",{exact:true}).inputValue(),"2");
+    assert.equal(await geoPreview.getByLabel("Vertex latitude",{exact:true}).inputValue(),"51.801");
+    assert.equal(await geoPreview.getByRole("button",{name:"Select geographic vertex 3",exact:true}).getAttribute("aria-pressed"),"true");
+    await geoPreview.getByRole("button",{name:"Select geographic vertex 1",exact:true}).focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await geoPreview.getByLabel("Geographic vertex",{exact:true}).inputValue(),"0");
+    await geoPreview.getByText("Edit geographic vertex",{exact:true}).click();
+
     assert.equal(await diagram.getAttribute("viewBox"),"0 0 300 300");
     await geoPreview.getByRole("button",{name:"Zoom in outline",exact:true}).click();
     assert.equal(await diagram.getAttribute("viewBox"),"75 75 150 150");
@@ -288,7 +297,7 @@ try {
 
 
 
-    assert.equal(await geoPreview.getByRole("img", {name:"Imported roof outline in longitude and latitude"}).count(),0);
+    assert.equal(await geoPreview.getByRole("group", {name:"Imported roof outline in longitude and latitude"}).count(),0);
     await geoInput.setInputFiles({name:"bad.geojson",mimeType:"application/json",buffer:Buffer.from('{"type":"Point"}')});
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await geoPreview.locator("li").count(),0);
