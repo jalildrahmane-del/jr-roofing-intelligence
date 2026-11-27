@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -57,4 +57,16 @@ test('spherical distances include closing edge, latitude scaling and reversal in
  const north=geographicDistances(points.map(([x,y])=>[x,y+60]));
  assert.ok(Math.abs(north.edges[0].metres-55.5975401)<0.001);
  assert.throws(()=>geographicDistances([[0,0],[1,1],[2,2]]));
+});
+
+test('distance record contains geometry, method and reconciled unrounded distances',()=>{
+ const points=parseRoofGeoJson(JSON.stringify(polygon));
+ const record=JSON.parse(geographicDistanceRecord(points));
+ assert.deepEqual(record.geometry,polygon);
+ assert.equal(record.status,'preliminary-unverified');
+ assert.equal(record.method.earthRadiusMetres,6371008.8);
+ assert.equal(record.perimeterMetres,record.edges.reduce((sum:number,e:{metres:number})=>sum+e.metres,0));
+ assert.equal(record.edges.at(-1).to,1);
+ assert.equal(record.version,1);
+ assert.throws(()=>geographicDistanceRecord([[0,0],[1,1],[2,2]]));
 });

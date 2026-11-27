@@ -1,5 +1,5 @@
 import React, {useState, useRef, useMemo} from 'react';
-import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances} from './roof-geojson.ts';
+import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const [pasted,setPasted]=useState('');
@@ -35,6 +35,10 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}
  {error&&<p role="alert">{error}</p>}
  {distances&&<section aria-label="Preliminary geographic distances"><h4>Preliminary horizontal distances</h4><p>Spherical estimate from imported coordinates; excludes roof slope and elevation. Independently verify before estimating or construction.</p><p>Approximate perimeter: {distances.perimeterMetres.toFixed(2)} m</p><table><thead><tr><th>Edge</th><th>Approximate length (m)</th></tr></thead><tbody>{distances.edges.map(edge=><tr key={edge.from}><td>{edge.from} → {edge.to}</td><td>{edge.metres.toFixed(2)}</td></tr>)}</tbody></table></section>}
+ {points&&<button type="button" disabled={importing} onClick={()=>{
+ const url=URL.createObjectURL(new Blob([geographicDistanceRecord(points)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-distances.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }}>Download geographic distance record</button>}
  {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{if(JSON.stringify(next)===JSON.stringify(points))return;request.current++;setImporting(false);setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
  const previous=history.at(-1);if(!previous)return;request.current++;setImporting(false);setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
  }}>Undo geographic edit</button><button type="button" disabled={!future.length} onClick={()=>{
