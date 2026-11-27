@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -69,4 +69,24 @@ test('distance record contains geometry, method and reconciled unrounded distanc
  assert.equal(record.edges.at(-1).to,1);
  assert.equal(record.version,1);
  assert.throws(()=>geographicDistanceRecord([[0,0],[1,1],[2,2]]));
+});
+
+test('spherical footprint area matches analytic latitude rectangles and is orientation invariant',()=>{
+ const radius=6371008.8, rad=Math.PI/180;
+ for (const latitude of [0,51.8,-51.8,80]) {
+  const ring:[number,number][]=[[-0.4,latitude],[-0.3999,latitude],[-0.3999,latitude+0.0001],[-0.4,latitude+0.0001]];
+  const expected=radius**2*0.0001*rad*(Math.sin((latitude+0.0001)*rad)-Math.sin(latitude*rad));
+  const actual=geographicArea(ring);
+  assert.ok(Math.abs(actual-expected)<1e-6);
+  assert.ok(Math.abs(geographicArea([...ring].reverse())-actual)<1e-6);
+  assert.ok(Math.abs(geographicArea([...ring.slice(2),...ring.slice(0,2)])-actual)<1e-6);
+ }
+});
+test('footprint area handles concavity and rejects invalid rings',()=>{
+ const rectangle:[number,number][]=[[0,0],[0.002,0],[0.002,0.002],[0,0.002]];
+ const notch:[number,number][]=[[0.001,0.001],[0.002,0.001],[0.002,0.002],[0.001,0.002]];
+ const concave:[number,number][]=[[0,0],[0.002,0],[0.002,0.001],[0.001,0.001],[0.001,0.002],[0,0.002]];
+ assert.ok(Math.abs(geographicArea(concave)-(geographicArea(rectangle)-geographicArea(notch)))<1e-6);
+ assert.throws(()=>geographicArea([[0,0],[1,1],[0,1],[1,0]]));
+ assert.throws(()=>geographicArea([[0,0],[2,0],[0,1]]));
 });

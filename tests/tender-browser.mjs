@@ -219,6 +219,11 @@ try {
     await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    const areaPanel=geoPreview.getByRole("region",{name:"Preliminary geographic footprint area"});
+    const footprint=Number(await areaPanel.locator("strong").textContent());
+    const expectedFootprint=6371008.8**2*(0.0011*Math.PI/180)*(Math.sin(51.801*Math.PI/180)-Math.sin(51.8*Math.PI/180))/2;
+    assert.ok(Math.abs(footprint-expectedFootprint)<0.01);
+    assert.ok((await areaPanel.textContent()).includes("not adopted into quantities"));
     const distancePanel=geoPreview.getByRole("region",{name:"Preliminary geographic distances"});
     assert.equal(await distancePanel.locator("tbody tr").count(),3);
     assert.ok((await distancePanel.textContent()).includes("Approximate perimeter:"));
@@ -246,6 +251,7 @@ try {
     await geoPreview.getByRole("status").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
     await geoPreview.getByText("Geographic outline matches the saved roof revision.",{exact:true}).waitFor();
+    assert.ok(Math.abs(Number(await areaPanel.locator("strong").textContent())-expectedFootprint/1.1)<0.01);
     const undoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const undoDownload=await undoDownloadPending;
@@ -253,6 +259,7 @@ try {
     assert.equal(await geoPreview.getByRole("button",{name:"Undo geographic edit",exact:true}).isDisabled(),true);
     await geoPreview.getByRole("button",{name:"Clear geographic preview",exact:true}).click();
     await geoPreview.getByText("Preview cleared; the saved geographic outline is unchanged.",{exact:true}).waitFor();
+    assert.equal(await areaPanel.count(),0);
     await geoPreview.getByRole("button",{name:"Restore saved geographic outline",exact:true}).click();
     await geoPreview.getByText("Geographic outline matches the saved roof revision.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);

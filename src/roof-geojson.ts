@@ -68,3 +68,20 @@ export function geographicDistanceRecord(points: [number,number][]): string {
  const geometry=JSON.parse(roofGeoJsonExport(points)).geometry;
  return JSON.stringify({format:'jr-geographic-distances',version:1,status:'preliminary-unverified',crs:'EPSG:4326',coordinateOrder:'longitude,latitude',units:'metres',method:{name:'spherical-haversine',earthRadiusMetres:6371008.8},limitations:'Horizontal spherical estimates only. No slope, elevation or area. Independently verify coordinates and distances before estimating or construction.',geometry,...geographicDistances(points)},null,2);
 }
+
+/** Approximate spherical footprint area (Chamberlain–Duquette boundary sum).
+ * Method reference: https://github.com/Turfjs/turf/blob/master/packages/turf-area/index.ts
+ * Local validated rings only; not ellipsoidal, sloped or approved roof quantities.
+ */
+export function geographicArea(points: [number,number][]): number {
+ const ring=parseRoofGeoJson(roofGeoJsonExport(points));
+ const radians=Math.PI/180;
+ // Subtract a fixed latitude sine to reduce cancellation for small roof outlines.
+ // Its closed-ring integral is zero, so it does not change the boundary sum.
+ const baseline=Math.sin(ring[0][1]*radians);
+ const integral=ring.reduce((sum,a,i)=>{
+  const b=ring[(i+1)%ring.length];
+  return sum+(b[0]-a[0])*radians*((Math.sin(a[1]*radians)-baseline)+(Math.sin(b[1]*radians)-baseline))/2;
+ },0);
+ return Math.abs(integral)*6371008.8**2;
+}
