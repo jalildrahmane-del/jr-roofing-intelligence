@@ -46,3 +46,19 @@ export function roofGeographicCsv(points: [number, number][]): string {
  const validated=parseRoofGeoJson(roofGeoJsonExport(points));
  return ['vertex,longitude_degrees,latitude_degrees,crs,status',...validated.map((p,i)=>`${i+1},${p[0]},${p[1]},EPSG:4326,preliminary-unverified`)].join('\r\n')+'\r\n';
 }
+
+/** Preliminary spherical horizontal distances, not slope lengths or approved quantities.
+ * Haversine model and mean radius: https://turfjs.org/docs/api/distance
+ * https://turfjs.org/docs/api/constants/earthRadius
+ */
+export function geographicDistances(points: [number, number][]) {
+ const valid=parseRoofGeoJson(roofGeoJsonExport(points));
+ const rad=Math.PI/180, radius=6371008.8;
+ const edges=valid.map((a,i)=>{
+  const b=valid[(i+1)%valid.length];
+  const h=Math.sin((b[1]-a[1])*rad/2)**2+Math.cos(a[1]*rad)*Math.cos(b[1]*rad)*Math.sin((b[0]-a[0])*rad/2)**2;
+  const clamped=Math.max(0,Math.min(1,h));
+  return {from:i+1,to:(i+1)%valid.length+1,metres:2*radius*Math.atan2(Math.sqrt(clamped),Math.sqrt(1-clamped))};
+ });
+ return {edges,perimeterMetres:edges.reduce((sum,edge)=>sum+edge.metres,0)};
+}

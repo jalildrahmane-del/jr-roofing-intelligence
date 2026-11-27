@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -44,4 +44,17 @@ test('GeoJSON size limit counts UTF-8 bytes for pasted Unicode properties',()=>{
  const large=JSON.stringify({type:'Feature',geometry:polygon,properties:{note:'é'.repeat(60000)}});
  assert.ok(large.length<100000);
  assert.throws(()=>parseRoofGeoJson(large),/at most 100 KB/);
+});
+
+test('spherical distances include closing edge, latitude scaling and reversal invariance',()=>{
+ const points: [number,number][]=[[0,0],[0.001,0],[0.001,0.001],[0,0.001]];
+ const d=geographicDistances(points);
+ assert.equal(d.edges.length,4);
+ assert.deepEqual([d.edges[3].from,d.edges[3].to],[4,1]);
+ assert.ok(Math.abs(d.edges[0].metres-111.1950802335)<1e-6);
+ assert.ok(Math.abs(d.perimeterMetres-444.7803209)<0.001);
+ assert.ok(Math.abs(geographicDistances([...points].reverse()).perimeterMetres-d.perimeterMetres)<1e-8);
+ const north=geographicDistances(points.map(([x,y])=>[x,y+60]));
+ assert.ok(Math.abs(north.edges[0].metres-55.5975401)<0.001);
+ assert.throws(()=>geographicDistances([[0,0],[1,1],[2,2]]));
 });
