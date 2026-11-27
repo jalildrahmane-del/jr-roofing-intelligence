@@ -219,6 +219,9 @@ try {
     await geoPreview.getByRole("button",{name:"Import pasted geographic outline",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
+    const distancePanel=geoPreview.getByRole("region",{name:"Preliminary geographic distances"});
+    assert.equal(await distancePanel.locator("tbody tr").count(),3);
+    assert.ok((await distancePanel.textContent()).includes("Approximate perimeter:"));
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;

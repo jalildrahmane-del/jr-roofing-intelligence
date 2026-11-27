@@ -28,3 +28,5 @@ Geographic redo follow-up: bounded redo history for undone edits, cleared on new
 Geographic CSV export: ordered vertices, numeric longitude/latitude in degrees, EPSG:4326 and preliminary-unverified status. Local geometry tests and desktop/mobile actual-download checks pass. No projected quantities or overall completion percentage implied.
 
 Direct GeoJSON paste/import: validates with the file-import parser, preserves geometry on invalid input, cancels pending reads, resets history on success, and clears successful pasted text. Desktop/mobile browser checks cover invalid and valid paste. A03 remains partial.
+
+Preliminary geographic distances: spherical Haversine edge lengths and closing perimeter displayed in metres, recalculated from validated current vertices. No slope/elevation, area, estimate adoption or engineering approval implied. Local known-distance, latitude, reversal and invalid-geometry tests plus desktop/mobile browser checks pass. A02 remains partial; projected area and aerial imagery remain outstanding. Method reference: https://turfjs.org/docs/api/distance and https://turfjs.org/docs/api/constants/earthRadius .

@@ -1,5 +1,5 @@
 import React, {useState, useRef, useMemo} from 'react';
-import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv} from './roof-geojson.ts';
+import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const [pasted,setPasted]=useState('');
@@ -12,6 +12,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const pan=(x:number,y:number)=>setCentre(p=>({x:Math.max(0,Math.min(300,p.x+x*30/zoom)),y:Math.max(0,Math.min(300,p.y+y*30/zoom))}));
  const savedPoints=useMemo(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}},[saved]);
  const [points,setPoints]=useState<[number,number][]|null>(savedPoints),[error,setError]=useState('');
+ const distances=useMemo(()=>points?geographicDistances(points):null,[points]);
  const dirty=points!==null && JSON.stringify(points)!==JSON.stringify(savedPoints);
  return <details><summary>Preview georeferenced roof outline</summary>
  <p>Import one WGS84 GeoJSON polygon. Preliminary outline: save a roof revision to retain it. No imagery service or approved measurement.</p>
@@ -33,6 +34,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  {onSave && <button type="button" disabled={saving || importing || !points} onClick={async()=>{if(!points)return;setSaving(true);setError('');try{await onSave(roofGeoJsonExport(points));}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>{saving?'Saving geographic outline…':'Save geographic roof revision'}</button>}
  {onSave && saved != null && <button type="button" disabled={saving} onClick={async()=>{setSaving(true);setError('');try{await onSave(null);}catch(e){setError((e as Error).message);}finally{setSaving(false);}}}>Remove saved geographic outline</button>}
  {error&&<p role="alert">{error}</p>}
+ {distances&&<section aria-label="Preliminary geographic distances"><h4>Preliminary horizontal distances</h4><p>Spherical estimate from imported coordinates; excludes roof slope and elevation. Independently verify before estimating or construction.</p><p>Approximate perimeter: {distances.perimeterMetres.toFixed(2)} m</p><table><thead><tr><th>Edge</th><th>Approximate length (m)</th></tr></thead><tbody>{distances.edges.map(edge=><tr key={edge.from}><td>{edge.from} → {edge.to}</td><td>{edge.metres.toFixed(2)}</td></tr>)}</tbody></table></section>}
  {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{if(JSON.stringify(next)===JSON.stringify(points))return;request.current++;setImporting(false);setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
  const previous=history.at(-1);if(!previous)return;request.current++;setImporting(false);setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
  }}>Undo geographic edit</button><button type="button" disabled={!future.length} onClick={()=>{
