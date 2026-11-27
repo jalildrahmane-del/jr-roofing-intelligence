@@ -10,7 +10,8 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const [future,setFuture]=useState<[number,number][][]>([]);
  const [history,setHistory]=useState<[number,number][][]>([]);
  const [zoom,setZoom]=useState(1),[centre,setCentre]=useState({x:150,y:150});
- const resetView=()=>{setSelectedIndex(0);setOpenEditorRequest(0);setZoom(1);setCentre({x:150,y:150});};
+ const fitView=()=>{setZoom(1);setCentre({x:150,y:150});};
+ const resetView=()=>{setSelectedIndex(0);setOpenEditorRequest(0);fitView();};
  const pan=(x:number,y:number)=>setCentre(p=>({x:Math.max(0,Math.min(300,p.x+x*30/zoom)),y:Math.max(0,Math.min(300,p.y+y*30/zoom))}));
  const savedPoints=useMemo(()=>{try{return saved?parseRoofGeoJson(JSON.stringify(saved)):null;}catch{return null;}},[saved]);
  const [points,setPoints]=useState<[number,number][]|null>(savedPoints),[error,setError]=useState('');
@@ -59,7 +60,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  <button type="button" onClick={()=>pan(1,0)}>Pan outline east</button>
  <button type="button" onClick={()=>pan(0,-1)}>Pan outline north</button>
  <button type="button" onClick={()=>pan(0,1)}>Pan outline south</button>
- <button type="button" onClick={resetView}>Fit outline</button>
+ <button type="button" onClick={fitView}>Fit outline</button>
  <span aria-live="polite">Outline zoom: {zoom}×</span></div><svg role="group" aria-label="Imported roof outline in longitude and latitude" viewBox={`${centre.x-150/zoom} ${centre.y-150/zoom} ${300/zoom} ${300/zoom}`}><title>North-up local projected outline</title><polygon points={outline} fill="#d6e6f2" stroke="#304b6b" strokeWidth={2/zoom} />{outline.split(' ').map((coordinate,i)=>{const [x,y]=coordinate.split(',').map(Number);return <g key={i} role="button" tabIndex={0} aria-label={`Select geographic vertex ${i+1}`} aria-pressed={i===selectedIndex} onClick={()=>{setSelectedIndex(i);setOpenEditorRequest(n=>n+1);}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelectedIndex(i);setOpenEditorRequest(n=>n+1);}}} style={{cursor:'pointer'}}><circle cx={x} cy={y} r={3/zoom} fill={i===selectedIndex?'#b04410':'#304b6b'} /><text x={x+5/zoom} y={y-5/zoom} fontSize={12/zoom} fill="#172c42" stroke="white" strokeWidth={2/zoom} paintOrder="stroke">{i+1}</text><circle cx={x} cy={y} r={12/zoom} fill="transparent" stroke={i===selectedIndex?'#b04410':'transparent'} strokeWidth={1/zoom}/></g>;})}</svg><p>Select a numbered corner to edit its coordinates. Keyboard: focus a corner and press Enter or Space.</p><p>North is up. Local spherical equirectangular preview, corrected for longitude scale at the boundary’s mid-latitude. Approximate shape only; not aerial imagery or an approved survey. Do not measure from this preview.</p><p role="status">{points.length} geographic boundary points loaded. Longitude, latitude in degrees; not metres.</p><ol>{points.map((p,i)=><li key={i}>{p[0]}, {p[1]}</li>)}</ol><button type="button" onClick={()=>{
  const url=URL.createObjectURL(new Blob([roofGeoJsonExport(points)],{type:'application/geo+json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-roof-outline.geojson';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
