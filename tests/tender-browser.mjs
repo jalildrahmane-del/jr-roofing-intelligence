@@ -224,6 +224,16 @@ try {
     const expectedFootprint=6371008.8**2*(0.0011*Math.PI/180)*(Math.sin(51.801*Math.PI/180)-Math.sin(51.8*Math.PI/180))/2;
     assert.ok(Math.abs(footprint-expectedFootprint)<0.01);
     assert.ok((await areaPanel.textContent()).includes("not adopted into quantities"));
+    const measurementPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download geographic measurement record",exact:true}).click();
+    const measurementDownload=await measurementPending;
+    assert.equal(measurementDownload.suggestedFilename(),"preliminary-geographic-measurements.json");
+    const measurementRecord=JSON.parse(readFileSync(await measurementDownload.path(),"utf8"));
+    assert.equal(measurementRecord.status,"preliminary-unverified");
+    assert.equal(measurementRecord.format,"jr-geographic-measurements");
+    assert.ok(Math.abs(measurementRecord.footprintAreaSquareMetres-expectedFootprint)<0.0001);
+    assert.deepEqual(measurementRecord.geometry.coordinates[0][0],[-0.4001,51.8]);
+    assert.equal(measurementRecord.perimeterMetres,measurementRecord.edges.reduce((sum,e)=>sum+e.metres,0));
     const distancePanel=geoPreview.getByRole("region",{name:"Preliminary geographic distances"});
     assert.equal(await distancePanel.locator("tbody tr").count(),3);
     assert.ok((await distancePanel.textContent()).includes("Approximate perimeter:"));

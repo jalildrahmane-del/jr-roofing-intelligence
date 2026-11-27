@@ -85,3 +85,13 @@ export function geographicArea(points: [number,number][]): number {
  },0);
  return Math.abs(integral)*6371008.8**2;
 }
+
+/** Current geometry plus reproducible preliminary measurements; never approval evidence. */
+export function geographicMeasurementRecord(points: [number,number][]): string {
+ const geometry=JSON.parse(roofGeoJsonExport(points)).geometry;
+ return JSON.stringify({format:'jr-geographic-measurements',version:1,status:'preliminary-unverified',crs:'EPSG:4326',coordinateOrder:'longitude,latitude',
+  methods:{distance:'spherical-haversine',area:'spherical-chamberlain-duquette',earthRadiusMetres:6371008.8},
+  units:{distance:'metres',area:'square-metres'},
+  limitations:'Approximate horizontal footprint and distances only. No slope, elevation, openings or waste allowance. Not adopted into estimate quantities. Independently verify location, geometry and measurements before estimating or construction.',
+  geometry,footprintAreaSquareMetres:geographicArea(points),...geographicDistances(points)},null,2);
+}

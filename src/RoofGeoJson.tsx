@@ -1,5 +1,5 @@
 import React, {useState, useRef, useMemo} from 'react';
-import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea} from './roof-geojson.ts';
+import {parseRoofGeoJson, geographicOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from './roof-geojson.ts';
 export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [saving,setSaving]=useState(false);
  const [pasted,setPasted]=useState('');
@@ -41,6 +41,10 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const url=URL.createObjectURL(new Blob([geographicDistanceRecord(points)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-distances.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }}>Download geographic distance record</button>}
+ {points&&<button type="button" disabled={importing} onClick={()=>{
+ const url=URL.createObjectURL(new Blob([geographicMeasurementRecord(points)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-measurements.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }}>Download geographic measurement record</button>}
  {points&&<><GeoEditor key={JSON.stringify(points)} points={points} onApply={next=>{if(JSON.stringify(next)===JSON.stringify(points))return;request.current++;setImporting(false);setFuture([]);setHistory(h=>[...h.slice(-19),points]);setPoints(next);resetView();}} /><button type="button" disabled={!history.length} onClick={()=>{
  const previous=history.at(-1);if(!previous)return;request.current++;setImporting(false);setFuture(f=>[...f.slice(-19),points]);setPoints(previous);setHistory(h=>h.slice(0,-1));setError('');resetView();
  }}>Undo geographic edit</button><button type="button" disabled={!future.length} onClick={()=>{

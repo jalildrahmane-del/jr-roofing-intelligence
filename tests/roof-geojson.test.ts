@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -89,4 +89,23 @@ test('footprint area handles concavity and rejects invalid rings',()=>{
  assert.ok(Math.abs(geographicArea(concave)-(geographicArea(rectangle)-geographicArea(notch)))<1e-6);
  assert.throws(()=>geographicArea([[0,0],[1,1],[0,1],[1,0]]));
  assert.throws(()=>geographicArea([[0,0],[2,0],[0,1]]));
+});
+
+test('measurement record keeps full precision area, distances and validated geometry together',()=>{
+ const points=parseRoofGeoJson(JSON.stringify(polygon));
+ const record=JSON.parse(geographicMeasurementRecord(points));
+ assert.equal(record.format,'jr-geographic-measurements');
+ assert.equal(record.version,1);
+ assert.equal(record.status,'preliminary-unverified');
+ assert.equal(record.crs,'EPSG:4326');
+ assert.deepEqual(record.geometry,polygon);
+ assert.equal(record.footprintAreaSquareMetres,geographicArea(points));
+ assert.deepEqual(record.edges,geographicDistances(points).edges);
+ assert.equal(record.perimeterMetres,geographicDistances(points).perimeterMetres);
+ assert.deepEqual(record.units,{distance:'metres',area:'square-metres'});
+ assert.equal(record.methods.earthRadiusMetres,6371008.8);
+ assert.match(record.limitations,/Not adopted into estimate quantities/);
+ const edited:[number,number][]=points.map(p=>[...p]);edited[0][0]-=0.0001;
+ assert.notEqual(JSON.parse(geographicMeasurementRecord(edited)).footprintAreaSquareMetres,record.footprintAreaSquareMetres);
+ assert.throws(()=>geographicMeasurementRecord([[0,0],[1,1],[0,1],[1,0]]));
 });
