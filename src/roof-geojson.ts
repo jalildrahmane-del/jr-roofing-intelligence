@@ -1,7 +1,7 @@
 import { measureRoofPlan } from "./roof-plan-geometry.ts";
 /** Import one WGS84 roof outline. Does not infer an approved survey or area. */
 export function parseRoofGeoJson(text: string): [number, number][] {
-  if (text.length > 100000) throw Error('GeoJSON must be at most 100 KB.');
+  if (text.length > 100000 || new TextEncoder().encode(text).byteLength > 100000) throw Error('GeoJSON must be at most 100 KB.');
   const input = JSON.parse(text);
   const geometry = input?.type === 'Feature' ? input.geometry : input;
   if (input?.crs || geometry?.crs || geometry?.type !== 'Polygon' || !Array.isArray(geometry.coordinates) || geometry.coordinates.length !== 1) {

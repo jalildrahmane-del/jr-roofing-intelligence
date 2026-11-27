@@ -37,3 +37,11 @@ test('coordinate CSV preserves ordered numeric vertices and rejects invalid geom
  assert.equal(rows[3],'3,-0.399,51.801,EPSG:4326,preliminary-unverified');
  assert.throws(()=>roofGeographicCsv([[0,0],[1,1],[2,2]]));
 });
+
+test('GeoJSON size limit counts UTF-8 bytes for pasted Unicode properties',()=>{
+ const small=JSON.stringify({type:'Feature',geometry:polygon,properties:{note:'é'.repeat(100)}});
+ assert.equal(parseRoofGeoJson(small).length,3);
+ const large=JSON.stringify({type:'Feature',geometry:polygon,properties:{note:'é'.repeat(60000)}});
+ assert.ok(large.length<100000);
+ assert.throws(()=>parseRoofGeoJson(large),/at most 100 KB/);
+});
