@@ -62,3 +62,9 @@ export function geographicDistances(points: [number, number][]) {
  });
  return {edges,perimeterMetres:edges.reduce((sum,edge)=>sum+edge.metres,0)};
 }
+
+/** Self-contained preliminary record for independent review, not estimate adoption. */
+export function geographicDistanceRecord(points: [number,number][]): string {
+ const geometry=JSON.parse(roofGeoJsonExport(points)).geometry;
+ return JSON.stringify({format:'jr-geographic-distances',version:1,status:'preliminary-unverified',crs:'EPSG:4326',coordinateOrder:'longitude,latitude',units:'metres',method:{name:'spherical-haversine',earthRadiusMetres:6371008.8},limitations:'Horizontal spherical estimates only. No slope, elevation or area. Independently verify coordinates and distances before estimating or construction.',geometry,...geographicDistances(points)},null,2);
+}

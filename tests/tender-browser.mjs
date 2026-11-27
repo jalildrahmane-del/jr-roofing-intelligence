@@ -222,6 +222,15 @@ try {
     const distancePanel=geoPreview.getByRole("region",{name:"Preliminary geographic distances"});
     assert.equal(await distancePanel.locator("tbody tr").count(),3);
     assert.ok((await distancePanel.textContent()).includes("Approximate perimeter:"));
+    const distanceDownloadPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download geographic distance record",exact:true}).click();
+    const distanceDownload=await distanceDownloadPending;
+    assert.equal(distanceDownload.suggestedFilename(),"preliminary-geographic-distances.json");
+    const distanceRecord=JSON.parse(readFileSync(await distanceDownload.path(),"utf8"));
+    assert.equal(distanceRecord.status,"preliminary-unverified");
+    assert.deepEqual(distanceRecord.geometry.coordinates[0][0],[-0.4001,51.8]);
+    assert.equal(distanceRecord.edges.length,3);
+    assert.equal(distanceRecord.perimeterMetres,distanceRecord.edges.reduce((sum,e)=>sum+e.metres,0));
     const geoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const geoDownload=await geoDownloadPending;
