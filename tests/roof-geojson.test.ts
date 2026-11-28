@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord, geographicProjectedOutline} from '../src/roof-geojson.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {parseRoofGeoJson, roofGeoJsonExport, geographicOutline, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord, geographicProjectedOutline, geographicImageFrame} from '../src/roof-geojson.ts';
 const polygon={type:'Polygon',coordinates:[[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.8]]]};
 test('reads polygon and feature without trusting arbitrary properties',()=>{
  assert.equal(parseRoofGeoJson(JSON.stringify(polygon)).length,3);
@@ -124,4 +124,18 @@ test('local projected preview corrects longitude scale and centres north-up geom
   screen.flat().forEach((v,i)=>assert.ok(Math.abs(v-moved[i])<1e-7));
  }
  assert.throws(()=>geographicProjectedOutline([[0,0],[1,1],[0,1],[1,0]]));
+});
+
+test('georeferenced image frame aligns source bounds with projected vertices',()=>{
+ const points:[number,number][]=[[-0.4,51.8],[-0.399,51.8],[-0.399,51.801],[-0.4,51.801]];
+ const b={west:-0.4,south:51.8,east:-0.399,north:51.801};
+ const frame=geographicImageFrame(points,b);
+ const screen=geographicProjectedOutline(points).split(' ').map(p=>p.split(',').map(Number));
+ assert.ok(Math.abs(frame.x-screen[3][0])<1e-7);
+ assert.ok(Math.abs(frame.y-screen[3][1])<1e-7);
+ assert.ok(Math.abs(frame.x+frame.width-screen[1][0])<1e-7);
+ assert.ok(Math.abs(frame.y+frame.height-screen[1][1])<1e-7);
+ for(const bounds of [{...b,west:0},{...b,east:NaN},{...b,north:95},{...b,east:2},{...b,west:-0.3995}])assert.throws(()=>geographicImageFrame(points,bounds));
+ const wider=geographicImageFrame(points,{west:-0.401,south:51.799,east:-0.398,north:51.802});
+ assert.ok(wider.x<frame.x&&wider.y<frame.y&&wider.width>frame.width);
 });
