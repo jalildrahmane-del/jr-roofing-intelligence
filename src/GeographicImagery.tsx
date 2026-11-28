@@ -8,12 +8,22 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  const [record,setRecord]=useState('');
  const [sourceReference,setSourceReference]=useState(''),[imageDate,setImageDate]=useState(''),[rightsNotes,setRightsNotes]=useState('');
  const [bounds,setBounds]=useState({west:'',south:'',east:'',north:''});
+ const applied=record?JSON.parse(record) as ReturnType<typeof parseReferenceImageRecord>:null;
+ const pending=Boolean(applied&&metadata&&(metadata.sha256!==applied.image.sha256||metadata.name!==applied.image.name||
+ (sourceReference.trim()||null)!==applied.sourceReference||(imageDate||null)!==applied.imageDate||(rightsNotes.trim()||null)!==applied.rightsAndAlignmentNotes||
+ (['west','south','east','north'] as const).some(key=>!bounds[key].trim()||Number(bounds[key])!==applied.bounds[key])));
  const generation=useRef(0);
  useEffect(()=>{generation.current++;setBusy(false);},[points]);
  useEffect(()=>()=>{generation.current++;onChange(null);},[onChange]);
  return <details><summary>Local georeferenced reference image</summary>
  <p>Use a north-up PNG or JPEG already referenced to a rectangular WGS84 longitude/latitude extent. Enter its source bounds; do not guess them from the roof. Rotated images, ordinary photographs and Web Mercator screenshots are not supported. Verify image rights, date and alignment independently.</p>
  <p>Local preview only: images are not uploaded or saved in roof revisions. Reload removes the preview. Download an applied image record to retain its hash, source details and bounds; the record contains no image data.</p>
+ {applied&&<section aria-label="Applied reference image details"><h4>Applied reference image</h4>
+ <dl><dt>File</dt><dd>{applied.image.name}</dd><dt>Source reference</dt><dd>{applied.sourceReference||'Not supplied'}</dd><dt>Capture date</dt><dd>{applied.imageDate||'Unknown'}</dd><dt>WGS84 bounds (west, south, east, north)</dt><dd>{applied.bounds.west}, {applied.bounds.south}, {applied.bounds.east}, {applied.bounds.north}</dd></dl>
+ <p>Preliminary and unverified. The download describes this applied image.</p>
+ <p aria-live="polite">{pending?'Pending image or metadata changes — apply valid bounds to update the preview and record.':'Image fields match the applied record.'}</p>
+ </section>}
+ {!applied&&metadata&&<p>Image loaded but not applied. Enter source bounds or restore a matching record.</p>}
  <label>Local reference image<input type="file" accept="image/png,image/jpeg" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value='';if(!file)return;
  const current=++generation.current;setBusy(true);setError('');
