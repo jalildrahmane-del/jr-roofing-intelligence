@@ -108,3 +108,17 @@ export function geographicProjectedOutline(points: [number,number][]): string {
  const originLongitude=valid[0][0];
  return geographicOutline(valid.map(([longitude,latitude])=>[(longitude-originLongitude)*longitudeScale,latitude-minLatitude]));
 }
+
+export type GeographicImageBounds={west:number;south:number;east:number;north:number};
+/** Align an already north-up WGS84 rectangular raster to the local outline viewport. */
+export function geographicImageFrame(points:[number,number][],bounds:GeographicImageBounds) {
+ const valid=parseRoofGeoJson(roofGeoJsonExport(points));
+ const {west,south,east,north}=bounds;
+ if(![west,south,east,north].every(Number.isFinite)||west < -180||east>180||south < -90||north>90||west>=east||south>=north||east-west>1||north-south>1)throw Error('Provide valid local WGS84 image bounds (at most one degree in each direction).');
+ if(valid.some(([x,y])=>x<west||x>east||y<south||y>north))throw Error('The image bounds must contain the entire current roof outline.');
+ const xs=valid.map(p=>p[0]),ys=valid.map(p=>p[1]);
+ const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+ const correction=Math.cos((minY+maxY)/2*Math.PI/180);
+ const width=(maxX-minX)*correction,height=maxY-minY,scale=260/Math.max(width,height);
+ return {x:(300-width*scale)/2+(west-minX)*correction*scale,y:(300-height*scale)/2+(maxY-north)*scale,width:(east-west)*correction*scale,height:(north-south)*scale};
+}

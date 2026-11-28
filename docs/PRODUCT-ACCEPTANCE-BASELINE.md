@@ -4,7 +4,7 @@ This is a fixed reporting scope, not a completion percentage. Earlier 65%/70% es
 
 | ID | Scope | Current acceptance status / evidence |
 |---|---|---|
-| A01 | Interactive aerial imagery and roof selection | Outstanding: geographic preview is not an imagery map. |
+| A01 | Interactive aerial imagery and roof selection | Partial: local north-up WGS84 reference-image overlay implemented; persistent imagery provenance and full aerial workflow outstanding. |
 | A02 | Geographic measurement and pitch/quantity integration | Partial: calibrated raster measurement/export exists (PR81/82); projected geographic measurement remains outstanding. |
 | A03 | Geographic outline editing and revision history | Partial: import, edit, undo, export, save/reload/remove, restore implemented (PR87–103); physical-device acceptance outstanding. |
 | A04 | Multi-roof survey and GPS-linked evidence | Partial: integrated tender browser coverage; complete field acceptance outstanding. |
@@ -42,3 +42,5 @@ Local projected outline preview: display uses spherical equirectangular longitud
 Interactive vertex selection: numbered outline corners are keyboard-focusable buttons with selected state and enlarged hit targets. Click/tap or Enter/Space selects the coordinate editor and opens it; dropdown selection stays synchronized. Existing validation, undo/redo and save workflows remain in force. Desktop/mobile browser verification covers selection and keyboard opening. No aerial imagery or field acceptance implied.
 
 Viewport fitting regression: Fit outline now changes only zoom/centre, preserving the selected vertex and unapplied coordinate text. Geometry replacement and validated edits still reset editor selection. Browser regression first reproduced the old selection reset, then verifies zoom/pan/fit preserve drafts and Space reopens the same corner without discarding typed values. Geometry remains unchanged until Apply.
+
+Local georeferenced reference imagery: user-supplied PNG/JPEG with explicit north-up WGS84 rectangular source bounds can overlay behind the geographic outline. Bounds must contain the current roof and be local; image coordinates use the same projection/viewport as the outline. Files are browser-local, transient and excluded from saved revisions/exports. No imagery provider, paid API, automatic georeferencing or verified aerial survey is implied. Source rights/date/alignment require independent verification. Unit tests cover alignment/invalid bounds; desktop/mobile browser tests cover actual raster loading, bounds rejection and removal. A01 remains partial: persistent imagery provenance and full aerial workflow remain outstanding.

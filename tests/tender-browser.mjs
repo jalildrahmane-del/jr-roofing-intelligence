@@ -181,6 +181,25 @@ try {
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
     const diagram=geoPreview.getByRole("group",{name:"Imported roof outline in longitude and latitude"});
+    await geoPreview.getByText("Local georeferenced reference image",{exact:true}).click();
+    await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
+    for(const [side,value] of Object.entries({west:"-0.401",south:"51.799",east:"-0.398",north:"51.802"}))await geoPreview.getByLabel(`Image ${side} bound`,{exact:true}).fill(value);
+    await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
+    assert.equal(await diagram.locator("image").count(),1);
+    assert.ok((await diagram.locator("image").getAttribute("href")).startsWith("data:image/png"));
+    assert.ok(Number(await diagram.locator("image").getAttribute("width"))>0);
+    await geoPreview.getByLabel("Image west bound",{exact:true}).fill("0");
+    await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
+    await geoPreview.getByRole("alert").waitFor();
+    assert.equal(await diagram.locator("image").count(),1);
+    await geoPreview.getByRole("button",{name:"Remove reference image",exact:true}).click();
+    assert.equal(await diagram.locator("image").count(),0);
+    await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
+    await geoPreview.getByLabel("Image west bound",{exact:true}).fill("-0.401");
+    await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
+    assert.equal(await diagram.locator("image").count(),1);
+
+
     await geoPreview.getByRole("button",{name:"Select geographic vertex 3",exact:true}).click();
     assert.equal(await geoPreview.getByLabel("Geographic vertex",{exact:true}).inputValue(),"2");
     assert.equal(await geoPreview.getByLabel("Vertex latitude",{exact:true}).inputValue(),"51.801");
@@ -288,6 +307,7 @@ try {
     assert.equal(await geoPreview.locator("li").count(),3);
     await geoPreview.getByText("Geographic outline matches the saved roof revision.",{exact:true}).waitFor();
     assert.ok(Math.abs(Number(await areaPanel.locator("strong").textContent())-expectedFootprint/1.1)<0.01);
+    assert.equal(await diagram.locator("image").count(),0); // local imagery is intentionally not persisted
     const undoDownloadPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download validated GeoJSON outline"}).click();
     const undoDownload=await undoDownloadPending;
