@@ -1,6 +1,6 @@
 import {parseReferenceImageRecord,imageRecordLimitations,type ImageMetadata} from './reference-image-record.ts';
 import React, {useEffect,useRef,useState} from 'react';
-import {geographicImageFrame, type GeographicImageBounds} from './roof-geojson.ts';
+import {type GeographicImageBounds} from './roof-geojson.ts';
 export type GeographicImage = {url:string;bounds:GeographicImageBounds};
 export function GeographicImagery({points,onChange}:{points:[number,number][];onChange:(image:GeographicImage|null)=>void}) {
  const [url,setUrl]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -49,8 +49,9 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  <button type="button" disabled={!url||!metadata||busy} onClick={()=>{try{
  if(Object.values(bounds).some(v=>!v.trim()))throw Error('Enter all four source bounds.');
  const parsed={west:Number(bounds.west),south:Number(bounds.south),east:Number(bounds.east),north:Number(bounds.north)};
- geographicImageFrame(points,parsed);onChange({url,bounds:parsed});
- setRecord(JSON.stringify({format:'jr-reference-image',version:1,status:'preliminary-unverified',crs:'EPSG:4326',orientation:'north-up',image:metadata,bounds:parsed,sourceReference:sourceReference.trim()||null,imageDate:imageDate||null,rightsAndAlignmentNotes:rightsNotes.trim()||null,limitations:imageRecordLimitations},null,2));setError('');
+ if(!metadata)throw Error('Select an image first.');
+ const validated=parseReferenceImageRecord(JSON.stringify({format:'jr-reference-image',version:1,status:'preliminary-unverified',crs:'EPSG:4326',orientation:'north-up',image:metadata,bounds:parsed,sourceReference:sourceReference.trim()||null,imageDate:imageDate||null,rightsAndAlignmentNotes:rightsNotes.trim()||null,limitations:imageRecordLimitations}),metadata,points);
+ onChange({url,bounds:validated.bounds});setRecord(JSON.stringify(validated,null,2));setError('');
  }catch(err){setError((err as Error).message);}}}>Apply reference image bounds</button>
  <button type="button" onClick={()=>{generation.current++;setBusy(false);setUrl('');setMetadata(null);setRecord('');setError('');onChange(null);}}>Remove reference image</button>
  <button type="button" disabled={!record||busy} onClick={()=>{

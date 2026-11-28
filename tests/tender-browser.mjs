@@ -206,6 +206,11 @@ try {
     assert.equal(await diagram.locator("image").getAttribute("href"),comparisonImage);
     assert.equal(await diagram.locator("image").getAttribute("opacity"),"0.15");
 
+    await geoPreview.getByLabel("Image capture date",{exact:true}).fill("10000-01-01");
+    await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
+    await geoPreview.getByText("Invalid image source details.",{exact:true}).waitFor();
+    assert.equal(await diagram.locator("image").count(),1);
+    await geoPreview.getByLabel("Image capture date",{exact:true}).fill("2026-01-15");
     await geoPreview.getByLabel("Image west bound",{exact:true}).fill("0");
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
