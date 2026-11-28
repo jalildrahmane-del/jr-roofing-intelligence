@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import { createRequire } from "node:module";
 import {
   mkdtempSync,
@@ -184,6 +185,9 @@ try {
     await geoPreview.getByText("Local georeferenced reference image",{exact:true}).click();
     await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
     for(const [side,value] of Object.entries({west:"-0.401",south:"51.799",east:"-0.398",north:"51.802"}))await geoPreview.getByLabel(`Image ${side} bound`,{exact:true}).fill(value);
+    await geoPreview.getByLabel("Image source reference",{exact:true}).fill("Synthetic test source");
+    await geoPreview.getByLabel("Image capture date",{exact:true}).fill("2026-01-15");
+    await geoPreview.getByLabel("Image rights and alignment notes",{exact:true}).fill("Synthetic fixture only; alignment unverified");
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
     assert.equal(await diagram.locator("image").count(),1);
     assert.ok((await diagram.locator("image").getAttribute("href")).startsWith("data:image/png"));
@@ -192,8 +196,24 @@ try {
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await diagram.locator("image").count(),1);
+    await geoPreview.getByLabel("Image source reference",{exact:true}).fill("Unapplied source change");
+    const imageRecordPending=page.waitForEvent("download");
+    await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).click();
+    const imageRecordDownload=await imageRecordPending;
+    assert.equal(imageRecordDownload.suggestedFilename(),"preliminary-reference-image.json");
+    const imageRecordText=readFileSync(await imageRecordDownload.path(),"utf8");
+    const imageRecord=JSON.parse(imageRecordText);
+    assert.equal(imageRecord.status,"preliminary-unverified");
+    assert.equal(imageRecord.image.sha256,createHash("sha256").update(readFileSync("tests/fixtures/roof.png")).digest("hex"));
+    assert.equal(imageRecord.image.bytes,readFileSync("tests/fixtures/roof.png").length);
+    assert.ok(imageRecord.image.width>0&&imageRecord.image.height>0);
+    assert.equal(imageRecord.bounds.west,-0.401);
+    assert.equal(imageRecord.sourceReference,"Synthetic test source");
+    assert.equal(imageRecord.imageDate,"2026-01-15");
+    assert.ok(!imageRecordText.includes("data:image"));
     await geoPreview.getByRole("button",{name:"Remove reference image",exact:true}).click();
     assert.equal(await diagram.locator("image").count(),0);
+    assert.equal(await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).isDisabled(),true);
     await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
     await geoPreview.getByLabel("Image west bound",{exact:true}).fill("-0.401");
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
