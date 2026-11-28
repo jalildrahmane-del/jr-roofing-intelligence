@@ -216,6 +216,11 @@ try {
     await geoPreview.getByRole("alert").waitFor();
     assert.equal(await diagram.locator("image").count(),1);
     await geoPreview.getByLabel("Image source reference",{exact:true}).fill("Unapplied source change");
+    const appliedImageDetails=geoPreview.getByRole("region",{name:"Applied reference image details",exact:true});
+    assert.ok((await appliedImageDetails.textContent()).includes("Synthetic test source"));
+    assert.ok(!(await appliedImageDetails.textContent()).includes("Unapplied source change"));
+    await appliedImageDetails.getByText("Pending image or metadata changes — apply valid bounds to update the preview and record.",{exact:true}).waitFor();
+
     const imageRecordPending=page.waitForEvent("download");
     await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).click();
     const imageRecordDownload=await imageRecordPending;
@@ -239,10 +244,12 @@ try {
     await page.waitForFunction(()=>Array.from(document.querySelectorAll('input')).some(i=>i.value==='Synthetic test source'));
     assert.equal(await geoPreview.getByLabel("Image west bound",{exact:true}).inputValue(),"-0.401");
     assert.equal(await geoPreview.getByLabel("Image source reference",{exact:true}).inputValue(),"Synthetic test source");
+    await appliedImageDetails.getByText("Image fields match the applied record.",{exact:true}).waitFor();
 
     await geoPreview.getByRole("button",{name:"Remove reference image",exact:true}).click();
     assert.equal(await diagram.locator("image").count(),0);
     assert.equal(await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).isDisabled(),true);
+    assert.equal(await appliedImageDetails.count(),0);
     await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
     await geoPreview.getByLabel("Image west bound",{exact:true}).fill("-0.401");
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
