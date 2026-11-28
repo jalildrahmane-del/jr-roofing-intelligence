@@ -6,6 +6,7 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  const [url,setUrl]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [metadata,setMetadata]=useState<ImageMetadata|null>(null);
  const [record,setRecord]=useState('');
+ const [appliedUrl,setAppliedUrl]=useState('');
  const [sourceReference,setSourceReference]=useState(''),[imageDate,setImageDate]=useState(''),[rightsNotes,setRightsNotes]=useState('');
  const [bounds,setBounds]=useState({west:'',south:'',east:'',north:''});
  const applied=record?JSON.parse(record) as ReturnType<typeof parseReferenceImageRecord>:null;
@@ -22,6 +23,11 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  <dl><dt>File</dt><dd>{applied.image.name}</dd><dt>Source reference</dt><dd>{applied.sourceReference||'Not supplied'}</dd><dt>Capture date</dt><dd>{applied.imageDate||'Unknown'}</dd><dt>WGS84 bounds (west, south, east, north)</dt><dd>{applied.bounds.west}, {applied.bounds.south}, {applied.bounds.east}, {applied.bounds.north}</dd></dl>
  <p>Preliminary and unverified. The download describes this applied image.</p>
  <p aria-live="polite">{pending?'Pending image or metadata changes — apply valid bounds to update the preview and record.':'Image fields match the applied record.'}</p>
+ <button type="button" disabled={!pending&&!busy} onClick={()=>{
+ generation.current++;setBusy(false);setError('');setUrl(appliedUrl);setMetadata(applied.image);
+ setBounds({west:String(applied.bounds.west),south:String(applied.bounds.south),east:String(applied.bounds.east),north:String(applied.bounds.north)});
+ setSourceReference(applied.sourceReference||'');setImageDate(applied.imageDate||'');setRightsNotes(applied.rightsAndAlignmentNotes||'');
+ }}>Reset fields to applied image</button>
  </section>}
  {!applied&&metadata&&<p>Image loaded but not applied. Enter source bounds or restore a matching record.</p>}
  <label>Local reference image<input type="file" accept="image/png,image/jpeg" onChange={async e=>{
@@ -47,7 +53,7 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  if(current!==generation.current)return;
  setBounds({west:String(restored.bounds.west),south:String(restored.bounds.south),east:String(restored.bounds.east),north:String(restored.bounds.north)});
  setSourceReference(restored.sourceReference||'');setImageDate(restored.imageDate||'');setRightsNotes(restored.rightsAndAlignmentNotes||'');
- onChange({url,bounds:restored.bounds});setRecord(JSON.stringify(restored,null,2));
+ onChange({url,bounds:restored.bounds});setAppliedUrl(url);setRecord(JSON.stringify(restored,null,2));
  }catch(err){if(current===generation.current)setError((err as Error).message);}finally{if(current===generation.current)setBusy(false);}
  }}/></label>
  <p>Select the original image first, then restore its exported record. A matching hash identifies the file; source details still require independent verification.</p>
@@ -61,9 +67,9 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  const parsed={west:Number(bounds.west),south:Number(bounds.south),east:Number(bounds.east),north:Number(bounds.north)};
  if(!metadata)throw Error('Select an image first.');
  const validated=parseReferenceImageRecord(JSON.stringify({format:'jr-reference-image',version:1,status:'preliminary-unverified',crs:'EPSG:4326',orientation:'north-up',image:metadata,bounds:parsed,sourceReference:sourceReference.trim()||null,imageDate:imageDate||null,rightsAndAlignmentNotes:rightsNotes.trim()||null,limitations:imageRecordLimitations}),metadata,points);
- onChange({url,bounds:validated.bounds});setRecord(JSON.stringify(validated,null,2));setError('');
+ onChange({url,bounds:validated.bounds});setAppliedUrl(url);setRecord(JSON.stringify(validated,null,2));setError('');
  }catch(err){setError((err as Error).message);}}}>Apply reference image bounds</button>
- <button type="button" onClick={()=>{generation.current++;setBusy(false);setUrl('');setMetadata(null);setRecord('');setError('');onChange(null);}}>Remove reference image</button>
+ <button type="button" onClick={()=>{generation.current++;setBusy(false);setUrl('');setMetadata(null);setRecord('');setAppliedUrl('');setError('');onChange(null);}}>Remove reference image</button>
  <button type="button" disabled={!record||busy} onClick={()=>{
  const link=document.createElement('a'),downloadUrl=URL.createObjectURL(new Blob([record],{type:'application/json'}));
  link.href=downloadUrl;link.download='preliminary-reference-image.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(downloadUrl),1000);
