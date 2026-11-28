@@ -18,3 +18,12 @@ test('rejects mismatched file evidence, unsafe bounds, unsupported formats and m
  for(const patch of [{version:2},{status:'approved'},{bounds:{west:0.01,south:0,east:0.02,north:0.02}},{imageDate:'2026-02-30'},{sourceReference:42},{rightsAndAlignmentNotes:'x'.repeat(1001)}])assert.throws(()=>parseReferenceImageRecord(JSON.stringify({...record,...patch}),image,points));
  assert.throws(()=>parseReferenceImageRecord(' '.repeat(100001),image,points),/100 KB/);
 });
+
+test('normalized records round-trip and dates obey the supported four-digit-year format',()=>{
+ const normalized=parseReferenceImageRecord(JSON.stringify(record),image,points);
+ assert.deepEqual(parseReferenceImageRecord(JSON.stringify(normalized),image,points),normalized);
+ assert.throws(()=>parseReferenceImageRecord(JSON.stringify({...record,imageDate:'10000-01-01'}),image,points));
+ const leap=parseReferenceImageRecord(JSON.stringify({...record,imageDate:'2024-02-29'}),image,points);
+ assert.equal(leap.imageDate,'2024-02-29');
+ assert.throws(()=>parseReferenceImageRecord(JSON.stringify({...record,imageDate:'2025-02-29'}),image,points));
+});
