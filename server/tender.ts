@@ -1,3 +1,4 @@
+import {parseStoredReferenceImageRecord} from '../src/reference-image-record.ts';
 import { parseRoofGeoJson, roofGeoJsonExport } from "../src/roof-geojson.ts";
 import { parseRoofPlan } from "../src/roof-plan-record.ts";
 import { randomUUID, createHash } from "node:crypto";
@@ -125,6 +126,11 @@ export function saveTender(
         10000,
       ),
     };
+    const previousReference=roofs.find(r=>r.id===d.previousId)?.data.referenceImageRecord??null;
+    Object.assign(data,{referenceImageRecord:d.referenceImageRecord===undefined?previousReference:d.referenceImageRecord===null?null:(()=>{
+      if(!data.geographicOutline)throw Error('Save geographic geometry with the image source record.');
+      return parseStoredReferenceImageRecord(typeof d.referenceImageRecord==='string'?d.referenceImageRecord:JSON.stringify(d.referenceImageRecord),parseRoofGeoJson(JSON.stringify(data.geographicOutline)));
+    })()});
     if (data.roofPlan) {
       const priorPlan = roofs.find(r => r.id === d.previousId)?.data.roofPlan;
       const image = d.roofPlanImage;

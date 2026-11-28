@@ -439,6 +439,24 @@ try {
     await geoPreview.getByText("3 geographic boundary points loaded. Longitude, latitude in degrees; not metres.",{exact:true}).waitFor();
     assert.equal(await geoPreview.locator("li").count(),3);
     assert.equal(await geoInput.inputValue(), "");
+    await geoPreview.getByText("Local georeferenced reference image",{exact:true}).click();
+    await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
+    await page.waitForFunction(()=>Array.from(document.querySelectorAll('label')).find(l=>l.textContent==='Restore reference image record')?.querySelector('input')?.disabled===false);
+    await geoPreview.getByLabel("Restore reference image record",{exact:true}).setInputFiles({name:"source.json",mimeType:"application/json",buffer:Buffer.from(imageRecordText)});
+    await geoPreview.getByRole("button",{name:"Save image source roof revision",exact:true}).click();
+    await saved("roof");await page.reload();
+    await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
+    await geoPreview.getByText("Local georeferenced reference image",{exact:true}).click();
+    await geoPreview.getByRole("region",{name:"Saved image source record",exact:true}).waitFor();
+    assert.equal(await diagram.locator("image").count(),0);
+    await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
+    await geoPreview.getByRole("button",{name:"Restore saved image source record",exact:true}).click();
+    assert.equal(await diagram.locator("image").count(),1);
+    assert.equal(await geoPreview.getByLabel("Image source reference",{exact:true}).inputValue(),"Synthetic test source");
+    await geoPreview.getByRole("button",{name:"Remove saved image source record",exact:true}).click();
+    await saved("roof");await page.reload();
+    await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
+    assert.equal(await geoPreview.getByRole("region",{name:"Saved image source record",exact:true}).count(),0);
     await geoPreview.getByRole("button",{name:"Clear geographic preview"}).click();
 
   }
