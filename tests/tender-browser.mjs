@@ -225,6 +225,16 @@ try {
     assert.equal(imageRecord.sourceReference,"Synthetic test source");
     assert.equal(imageRecord.imageDate,"2026-01-15");
     assert.ok(!imageRecordText.includes("data:image"));
+    const restoreRecordInput=geoPreview.getByLabel("Restore reference image record",{exact:true});
+    await restoreRecordInput.setInputFiles({name:"wrong.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({...imageRecord,image:{...imageRecord.image,sha256:"0".repeat(64)}}))});
+    await geoPreview.getByText("Record does not match the selected image. Select the original image file.",{exact:true}).waitFor();
+    assert.equal(await diagram.locator("image").count(),1);
+    await restoreRecordInput.setInputFiles({name:"record.json",mimeType:"application/json",buffer:Buffer.from(imageRecordText)});
+    await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).waitFor();
+    await page.waitForFunction(()=>Array.from(document.querySelectorAll('input')).some(i=>i.value==='Synthetic test source'));
+    assert.equal(await geoPreview.getByLabel("Image west bound",{exact:true}).inputValue(),"-0.401");
+    assert.equal(await geoPreview.getByLabel("Image source reference",{exact:true}).inputValue(),"Synthetic test source");
+
     await geoPreview.getByRole("button",{name:"Remove reference image",exact:true}).click();
     assert.equal(await diagram.locator("image").count(),0);
     assert.equal(await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).isDisabled(),true);
