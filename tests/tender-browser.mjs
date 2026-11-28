@@ -448,6 +448,16 @@ try {
     await sketch.getByText("Preview georeferenced roof outline",{exact:true}).click();
     await geoPreview.getByText("Local georeferenced reference image",{exact:true}).click();
     await geoPreview.getByRole("region",{name:"Saved image source record",exact:true}).waitFor();
+    const savedSourcePanel=geoPreview.getByRole("region",{name:"Saved image source record",exact:true});
+    assert.ok((await savedSourcePanel.textContent()).includes("Synthetic test source"));
+    assert.ok((await savedSourcePanel.textContent()).includes(imageRecord.image.sha256));
+    const savedSourcePending=page.waitForEvent("download");
+    await savedSourcePanel.getByRole("button",{name:"Download saved image source record",exact:true}).click();
+    const savedSourceDownload=await savedSourcePending;
+    assert.equal(savedSourceDownload.suggestedFilename(),"saved-reference-image.json");
+    assert.deepEqual(JSON.parse(readFileSync(await savedSourceDownload.path(),"utf8")),imageRecord);
+    assert.equal(await geoPreview.getByRole("button",{name:"Restore saved image source record",exact:true}).isDisabled(),true);
+
     assert.equal(await diagram.locator("image").count(),0);
     await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles("tests/fixtures/roof.png");
     await geoPreview.getByRole("button",{name:"Restore saved image source record",exact:true}).click();

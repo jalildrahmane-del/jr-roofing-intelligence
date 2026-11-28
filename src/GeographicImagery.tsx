@@ -1,5 +1,5 @@
 import {parseReferenceImageRecord,imageRecordLimitations,type ImageMetadata} from './reference-image-record.ts';
-import React, {useEffect,useRef,useState} from 'react';
+import React, {useEffect,useRef,useState,useMemo} from 'react';
 import {type GeographicImageBounds} from './roof-geojson.ts';
 export type GeographicImage = {url:string;bounds:GeographicImageBounds};
 export function GeographicImagery({points,onChange,savedReference,onSaveRecord}:{savedReference?:string;onSaveRecord?:(record:string|null)=>Promise<void>;points:[number,number][];onChange:(image:GeographicImage|null)=>void}) {
@@ -10,6 +10,7 @@ export function GeographicImagery({points,onChange,savedReference,onSaveRecord}:
  const [appliedUrl,setAppliedUrl]=useState('');
  const [sourceReference,setSourceReference]=useState(''),[imageDate,setImageDate]=useState(''),[rightsNotes,setRightsNotes]=useState('');
  const [bounds,setBounds]=useState({west:'',south:'',east:'',north:''});
+ const savedSource=useMemo(()=>{try{return savedReference?JSON.parse(savedReference) as ReturnType<typeof parseReferenceImageRecord>:null;}catch{return null;}},[savedReference]);
  const applied=record?JSON.parse(record) as ReturnType<typeof parseReferenceImageRecord>:null;
  const pending=Boolean(applied&&metadata&&(metadata.sha256!==applied.image.sha256||metadata.name!==applied.image.name||
  (sourceReference.trim()||null)!==applied.sourceReference||(imageDate||null)!==applied.imageDate||(rightsNotes.trim()||null)!==applied.rightsAndAlignmentNotes||
@@ -31,7 +32,9 @@ export function GeographicImagery({points,onChange,savedReference,onSaveRecord}:
  }}>Reset fields to applied image</button>
  </section>}
  {!applied&&metadata&&<p>Image loaded but not applied. Enter source bounds or restore a matching record.</p>}
- {savedReference&&<section aria-label="Saved image source record"><h4>Saved image source record</h4><p>A preliminary source record is retained in this roof revision. Select the matching local image to restore its bounds and details.</p>
+ {savedReference&&savedSource&&<section aria-label="Saved image source record"><h4>Saved image source record</h4><p>Preliminary and unverified. Review or download this revision’s source record without loading an image. Select the matching local image to restore the overlay.</p>
+ <dl><dt>Saved file</dt><dd>{savedSource.image.name}</dd><dt>Saved source</dt><dd>{savedSource.sourceReference||'Not supplied'}</dd><dt>Saved capture date</dt><dd>{savedSource.imageDate||'Unknown'}</dd><dt>Image dimensions</dt><dd>{savedSource.image.width} × {savedSource.image.height} pixels</dd><dt>SHA-256 fingerprint</dt><dd style={{overflowWrap:'anywhere'}}>{savedSource.image.sha256}</dd><dt>Saved WGS84 bounds (west, south, east, north)</dt><dd>{savedSource.bounds.west}, {savedSource.bounds.south}, {savedSource.bounds.east}, {savedSource.bounds.north}</dd><dt>Rights and alignment notes</dt><dd>{savedSource.rightsAndAlignmentNotes||'Not supplied'}</dd></dl>
+ <button type="button" onClick={()=>{const link=document.createElement('a'),downloadUrl=URL.createObjectURL(new Blob([savedReference],{type:'application/json'}));link.href=downloadUrl;link.download='saved-reference-image.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(downloadUrl),1000);}}>Download saved image source record</button>
  <button type="button" disabled={!metadata||busy} onClick={()=>{try{if(!metadata)return;const restored=parseReferenceImageRecord(savedReference,metadata,points);
  generation.current++;setBounds({west:String(restored.bounds.west),south:String(restored.bounds.south),east:String(restored.bounds.east),north:String(restored.bounds.north)});setSourceReference(restored.sourceReference||'');setImageDate(restored.imageDate||'');setRightsNotes(restored.rightsAndAlignmentNotes||'');onChange({url,bounds:restored.bounds});setAppliedUrl(url);setRecord(JSON.stringify(restored,null,2));setError('');
  }catch(err){setError((err as Error).message);}}}>Restore saved image source record</button>
