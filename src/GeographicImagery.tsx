@@ -2,9 +2,10 @@ import {parseReferenceImageRecord,imageRecordLimitations,type ImageMetadata} fro
 import React, {useEffect,useRef,useState} from 'react';
 import {type GeographicImageBounds} from './roof-geojson.ts';
 export type GeographicImage = {url:string;bounds:GeographicImageBounds};
-export function GeographicImagery({points,onChange}:{points:[number,number][];onChange:(image:GeographicImage|null)=>void}) {
+export function GeographicImagery({points,onChange,savedReference,onSaveRecord}:{savedReference?:string;onSaveRecord?:(record:string|null)=>Promise<void>;points:[number,number][];onChange:(image:GeographicImage|null)=>void}) {
  const [url,setUrl]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [metadata,setMetadata]=useState<ImageMetadata|null>(null);
+ const [saving,setSaving]=useState(false);
  const [record,setRecord]=useState('');
  const [appliedUrl,setAppliedUrl]=useState('');
  const [sourceReference,setSourceReference]=useState(''),[imageDate,setImageDate]=useState(''),[rightsNotes,setRightsNotes]=useState('');
@@ -18,7 +19,7 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  useEffect(()=>()=>{generation.current++;onChange(null);},[onChange]);
  return <details><summary>Local georeferenced reference image</summary>
  <p>Use a north-up PNG or JPEG already referenced to a rectangular WGS84 longitude/latitude extent. Enter its source bounds; do not guess them from the roof. Rotated images, ordinary photographs and Web Mercator screenshots are not supported. Verify image rights, date and alignment independently.</p>
- <p>Local preview only: images are not uploaded or saved in roof revisions. Reload removes the preview. Download an applied image record to retain its hash, source details and bounds; the record contains no image data.</p>
+ <p>Local preview only: image pixels are not uploaded or saved in roof revisions. Source records can be saved separately. Reload removes the preview. Download an applied image record to retain its hash, source details and bounds; the record contains no image data.</p>
  {applied&&<section aria-label="Applied reference image details"><h4>Applied reference image</h4>
  <dl><dt>File</dt><dd>{applied.image.name}</dd><dt>Source reference</dt><dd>{applied.sourceReference||'Not supplied'}</dd><dt>Capture date</dt><dd>{applied.imageDate||'Unknown'}</dd><dt>WGS84 bounds (west, south, east, north)</dt><dd>{applied.bounds.west}, {applied.bounds.south}, {applied.bounds.east}, {applied.bounds.north}</dd></dl>
  <p>Preliminary and unverified. The download describes this applied image.</p>
@@ -30,6 +31,12 @@ export function GeographicImagery({points,onChange}:{points:[number,number][];on
  }}>Reset fields to applied image</button>
  </section>}
  {!applied&&metadata&&<p>Image loaded but not applied. Enter source bounds or restore a matching record.</p>}
+ {savedReference&&<section aria-label="Saved image source record"><h4>Saved image source record</h4><p>A preliminary source record is retained in this roof revision. Select the matching local image to restore its bounds and details.</p>
+ <button type="button" disabled={!metadata||busy} onClick={()=>{try{if(!metadata)return;const restored=parseReferenceImageRecord(savedReference,metadata,points);
+ generation.current++;setBounds({west:String(restored.bounds.west),south:String(restored.bounds.south),east:String(restored.bounds.east),north:String(restored.bounds.north)});setSourceReference(restored.sourceReference||'');setImageDate(restored.imageDate||'');setRightsNotes(restored.rightsAndAlignmentNotes||'');onChange({url,bounds:restored.bounds});setAppliedUrl(url);setRecord(JSON.stringify(restored,null,2));setError('');
+ }catch(err){setError((err as Error).message);}}}>Restore saved image source record</button>
+ {onSaveRecord&&<button type="button" disabled={saving||busy} onClick={async()=>{setSaving(true);setError('');try{await onSaveRecord(null);}catch(err){setError((err as Error).message);}finally{setSaving(false);}}}>Remove saved image source record</button>}</section>}
+ {onSaveRecord&&<button type="button" disabled={!record||busy||saving} onClick={async()=>{setSaving(true);setError('');try{await onSaveRecord(record);}catch(err){setError((err as Error).message);}finally{setSaving(false);}}}>Save image source roof revision</button>}
  <label>Local reference image<input type="file" accept="image/png,image/jpeg" onChange={async e=>{
  const file=e.target.files?.[0];e.target.value='';if(!file)return;
  const current=++generation.current;setBusy(true);setError('');

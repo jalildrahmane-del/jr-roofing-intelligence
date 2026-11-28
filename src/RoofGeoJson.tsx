@@ -1,7 +1,7 @@
 import {GeographicImagery,type GeographicImage} from './GeographicImagery.tsx';
 import React, {useState, useRef, useMemo, useLayoutEffect} from 'react';
 import {geographicImageFrame, parseRoofGeoJson, geographicProjectedOutline, roofGeoJsonExport, roofGeographicCsv, geographicDistances, geographicDistanceRecord, geographicArea, geographicMeasurementRecord} from './roof-geojson.ts';
-export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
+export function RoofGeoJson({saved,onSave,savedReference,onSaveReference}:{savedReference?:string;onSaveReference?:(record:string|null,outline:string)=>Promise<void>;saved?:unknown;onSave?:(outline:string|null)=>Promise<void>}) {
  const [imageVisible,setImageVisible]=useState(true),[imageOpacity,setImageOpacity]=useState(0.7);
  const [imagery,setImagery]=useState<GeographicImage|null>(null);
  const [selectedIndex,setSelectedIndex]=useState(0);
@@ -53,7 +53,7 @@ export function RoofGeoJson({saved,onSave}:{saved?:unknown;onSave?:(outline:stri
  const url=URL.createObjectURL(new Blob([geographicMeasurementRecord(points)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download='preliminary-geographic-measurements.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }}>Download geographic measurement record</button>}
- {points&&<GeographicImagery points={points} onChange={setImagery}/>}
+ {points&&<GeographicImagery points={points} onChange={setImagery} savedReference={savedReference} onSaveRecord={onSaveReference&&!importing?record=>onSaveReference(record,roofGeoJsonExport(points)):undefined}/>}
  {points&&imagery&&imageFrame&&<fieldset><legend>Reference image comparison</legend>
  <label><input type="checkbox" checked={imageVisible} onChange={e=>setImageVisible(e.target.checked)}/>Show reference image</label>
  <label>Reference image opacity<input type="range" min="0.1" max="1" step="0.05" value={imageOpacity} disabled={!imageVisible} onChange={e=>setImageOpacity(Number(e.target.value))}/></label>

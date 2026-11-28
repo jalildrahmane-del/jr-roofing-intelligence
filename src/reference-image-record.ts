@@ -14,3 +14,13 @@ export function parseReferenceImageRecord(text:string,image:ImageMetadata,points
  if(imageDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(imageDate)||!Number.isFinite(Date.parse(imageDate))||new Date(imageDate).toISOString().slice(0,10)!==imageDate))throw Error('Invalid image capture date.');
  return {format:'jr-reference-image',version:1,status:'preliminary-unverified',crs:'EPSG:4326',orientation:'north-up',image:{...image},bounds,sourceReference,imageDate,rightsAndAlignmentNotes,limitations:imageRecordLimitations};
 }
+
+/** Persist asserted provenance only; this does not verify image bytes on the server. */
+export function parseStoredReferenceImageRecord(text:string,points:[number,number][]) {
+ if(text.length>100000||new TextEncoder().encode(text).byteLength>100000)throw Error('Image record must be at most 100 KB.');
+ const value=JSON.parse(text),m=value?.image;
+ if(!m||typeof m.name!=='string'||!m.name.trim()||m.name.length>255||!['image/png','image/jpeg'].includes(m.mimeType)||
+ !Number.isSafeInteger(m.bytes)||m.bytes<=0||m.bytes>10*1024*1024||!Number.isSafeInteger(m.width)||!Number.isSafeInteger(m.height)||m.width<=0||m.height<=0||m.width*m.height>25000000||typeof m.sha256!=='string'||!/^[a-f0-9]{64}$/.test(m.sha256))throw Error('Invalid reference image metadata.');
+ const metadata={name:m.name,mimeType:m.mimeType,bytes:m.bytes,width:m.width,height:m.height,sha256:m.sha256};
+ return parseReferenceImageRecord(text,metadata,points);
+}

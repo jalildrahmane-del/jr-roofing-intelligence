@@ -7,7 +7,7 @@ import "./roof-plan-drawing.css";
 import type { SavedRoofPlan } from "./roof-plan-record.ts";
 
 /** Standalone preliminary plan sketch; deliberately does not modify approved survey measurements. */
-export function RoofPlanDrawing({ saved, onSave, geographicOutline, onSaveGeographic }: { geographicOutline?: unknown; onSaveGeographic?: (outline: string | null) => Promise<void>; saved?: SavedRoofPlan | null; onSave?: (plan: SavedRoofPlan, image?: string) => Promise<void> }) {
+export function RoofPlanDrawing({ saved, onSave, geographicOutline, onSaveGeographic, savedReference, onSaveReference }: { savedReference?:string;onSaveReference?:(record:string|null,outline:string)=>Promise<void>; geographicOutline?: unknown; onSaveGeographic?: (outline: string | null) => Promise<void>; saved?: SavedRoofPlan | null; onSave?: (plan: SavedRoofPlan, image?: string) => Promise<void> }) {
   const [vertices, setVertices] = useState<PlanPoint[]>(saved?.vertices ?? []);
   const [calibrationPoints, setCalibrationPoints] = useState<PlanPoint[]>(saved?.calibrationPoints ?? []);
   const [mode, setMode] = useState<"boundary" | "calibration">("boundary");
@@ -75,7 +75,7 @@ export function RoofPlanDrawing({ saved, onSave, geographicOutline, onSaveGeogra
   }
   return <section className="roof-plan-drawing">
     <h2>Roof plan sketch — preliminary measurement</h2>
-    <RoofGeoJson saved={geographicOutline} onSave={onSaveGeographic} />
+    <RoofGeoJson savedReference={savedReference} onSaveReference={onSaveReference} saved={geographicOutline} onSave={onSaveGeographic} />
     <p>Upload a roof plan or aerial image (PNG or JPEG, maximum 1 MiB), then click or tap to trace the roof boundary. Mark two calibration points against an independently verified dimension. This is a local preview, not a georeferenced map.</p>
     <label>Background roof image (saved with the next roof revision)
       <input type="file" accept="image/png,image/jpeg" onChange={e => void loadImage(e.target.files?.[0])} />
