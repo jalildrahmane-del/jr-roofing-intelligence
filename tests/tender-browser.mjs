@@ -192,6 +192,20 @@ try {
     assert.equal(await diagram.locator("image").count(),1);
     assert.ok((await diagram.locator("image").getAttribute("href")).startsWith("data:image/png"));
     assert.ok(Number(await diagram.locator("image").getAttribute("width"))>0);
+    const comparisonOutline=await diagram.locator("polygon").getAttribute("points");
+    const comparisonImage=await diagram.locator("image").getAttribute("href");
+    const opacity=geoPreview.getByRole("slider",{name:"Reference image opacity",exact:true});
+    await opacity.focus();await page.keyboard.press("Home");await page.keyboard.press("ArrowRight");
+    assert.equal(await diagram.locator("image").getAttribute("opacity"),"0.15");
+    await geoPreview.getByLabel("Show reference image",{exact:true}).uncheck();
+    assert.equal(await diagram.locator("image").count(),0);
+    assert.equal(await opacity.isDisabled(),true);
+    assert.equal(await geoPreview.getByRole("button",{name:"Download applied image record",exact:true}).isEnabled(),true);
+    assert.equal(await diagram.locator("polygon").getAttribute("points"),comparisonOutline);
+    await geoPreview.getByLabel("Show reference image",{exact:true}).check();
+    assert.equal(await diagram.locator("image").getAttribute("href"),comparisonImage);
+    assert.equal(await diagram.locator("image").getAttribute("opacity"),"0.15");
+
     await geoPreview.getByLabel("Image west bound",{exact:true}).fill("0");
     await geoPreview.getByRole("button",{name:"Apply reference image bounds",exact:true}).click();
     await geoPreview.getByRole("alert").waitFor();
