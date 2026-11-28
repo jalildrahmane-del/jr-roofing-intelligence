@@ -235,6 +235,17 @@ try {
     assert.equal(imageRecord.sourceReference,"Synthetic test source");
     assert.equal(imageRecord.imageDate,"2026-01-15");
     assert.ok(!imageRecordText.includes("data:image"));
+    await geoPreview.getByRole("button",{name:"Reset fields to applied image",exact:true}).click();
+    assert.equal(await geoPreview.getByLabel("Image west bound",{exact:true}).inputValue(),"-0.401");
+    assert.equal(await geoPreview.getByLabel("Image source reference",{exact:true}).inputValue(),"Synthetic test source");
+    await appliedImageDetails.getByText("Image fields match the applied record.",{exact:true}).waitFor();
+    assert.equal(await geoPreview.getByRole("button",{name:"Reset fields to applied image",exact:true}).isDisabled(),true);
+    assert.equal(await diagram.locator("image").getAttribute("href"),comparisonImage);
+    await geoPreview.getByLabel("Local reference image",{exact:true}).setInputFiles({name:"replacement.png",mimeType:"image/png",buffer:readFileSync("tests/fixtures/roof.png")});
+    await appliedImageDetails.getByText("Pending image or metadata changes — apply valid bounds to update the preview and record.",{exact:true}).waitFor();
+    await geoPreview.getByRole("button",{name:"Reset fields to applied image",exact:true}).click();
+    await appliedImageDetails.getByText("Image fields match the applied record.",{exact:true}).waitFor();
+
     const restoreRecordInput=geoPreview.getByLabel("Restore reference image record",{exact:true});
     await restoreRecordInput.setInputFiles({name:"wrong.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({...imageRecord,image:{...imageRecord.image,sha256:"0".repeat(64)}}))});
     await geoPreview.getByText("Record does not match the selected image. Select the original image file.",{exact:true}).waitFor();
